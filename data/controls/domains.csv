@@ -1,0 +1,15 @@
+code,name,sequence
+AC,Access Control,1
+AT,Awareness and Training,2
+AU,Audit and Accountability,3
+CM,Configuration Management,4
+IA,Identification and Authentication,5
+IR,Incident Response,6
+MA,Maintenance,7
+MP,Media Protection,8
+PS,Personnel Security,9
+PE,Physical Protection,10
+RA,Risk Assessment,11
+CA,Security Assessment,12
+SC,System and Communications Protection,13
+SI,System and Information Integrity,14

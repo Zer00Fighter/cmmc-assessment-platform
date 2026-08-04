@@ -1,0 +1,2 @@
+domain_code,requirement_id,title,statement,deduction_points,poam_eligible,source_reference
+AC,AC.L2-3.1.1,Authorized Access Control,"Limit system access to authorized users, processes acting on behalf of authorized users, and devices (including other systems).",5,false,CMMC Assessment Guide Level 2 v2.13

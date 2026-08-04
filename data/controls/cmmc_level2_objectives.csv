@@ -1,0 +1,7 @@
+requirement_id,objective_id,objective_text,examine,interview,test
+AC.L2-3.1.1,a,authorized users are identified,true,true,true
+AC.L2-3.1.1,b,processes acting on behalf of authorized users are identified,true,true,true
+AC.L2-3.1.1,c,devices and other systems authorized to connect are identified,true,true,true
+AC.L2-3.1.1,d,system access is limited to authorized users,true,true,true
+AC.L2-3.1.1,e,system access is limited to authorized processes,true,true,true
+AC.L2-3.1.1,f,system access is limited to authorized devices,true,true,true
