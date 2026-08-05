@@ -3,6 +3,10 @@ from .content_parser import (
     ParsedObjective,
     ParsedRequirement,
 )
+from .exporter import (
+    CompilerExporter,
+    ExportPaths,
+)
 from .normalizer import TextNormalizer
 from .pdf_extractor import (
     ExtractedPage,
@@ -21,7 +25,9 @@ from .validator import (
 )
 
 __all__ = [
+    "CompilerExporter",
     "ContentParser",
+    "ExportPaths",
     "ExtractedPage",
     "PDFExtractor",
     "ParsedObjective",
