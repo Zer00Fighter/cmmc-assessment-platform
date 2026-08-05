@@ -23,6 +23,8 @@ from src.workbook.evidence_sheet import (
     EvidenceSheetBuilder,
 )
 
+from src.workbook.poam_sheet import POAMSheetBuilder
+
 class WorkbookBuilder:
     """Build the scoring-integrated CMMC Level 2 assessment workbook."""
 
@@ -81,6 +83,11 @@ class WorkbookBuilder:
         factory=self.factory,
         )
 
+        self.poam_builder = POAMSheetBuilder(
+        styles=self.styles,
+        factory=self.factory,
+        )
+
     def build(self) -> Path:
         controls = self._load_controls()
 
@@ -129,15 +136,10 @@ class WorkbookBuilder:
             worksheets["Evidence"]
         )
 
-        self._build_placeholder_sheet(
-            worksheets["POA&M"],
-            title="Plan of Action & Milestones",
-            subtitle=(
-                "Track remediation activities for findings "
-                "assessed as NOT MET."
-            ),
+        self.poam_builder.build(
+            worksheets["POA&M"]
         )
-
+        
         self._build_placeholder_sheet(
             worksheets["SSP Crosswalk"],
             title="SSP Crosswalk",

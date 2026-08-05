@@ -11,6 +11,7 @@ from .workbook_styles import (
 )
 from .worksheet_factory import WorksheetFactory
 
+from .poam_sheet import POAMSheetBuilder
 
 __all__ = [
     "EvidenceSheetBuilder",
@@ -21,4 +22,5 @@ __all__ = [
     "WorkbookScoringRule",
     "WorkbookStyles",
     "WorksheetFactory",
+    "POAMSheetBuilder",
 ]
