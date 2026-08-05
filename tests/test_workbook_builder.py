@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 from openpyxl import load_workbook
@@ -8,10 +10,13 @@ from src.workbook import WorkbookBuilder
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_workbook_builder_creates_file(
+def build_test_workbook(
     tmp_path: Path,
-) -> None:
-    output_path = tmp_path / "CMMC_Assessment.xlsx"
+) -> Path:
+    output_path = (
+        tmp_path
+        / "CMMC_Assessment.xlsx"
+    )
 
     builder = WorkbookBuilder(
         project_root=ROOT,
@@ -21,6 +26,30 @@ def test_workbook_builder_creates_file(
     result = builder.build()
 
     assert result == output_path
+
+    return output_path
+
+
+def load_test_workbook(
+    tmp_path: Path,
+):
+    output_path = build_test_workbook(
+        tmp_path
+    )
+
+    return load_workbook(
+        output_path,
+        data_only=False,
+    )
+
+
+def test_workbook_builder_creates_file(
+    tmp_path: Path,
+) -> None:
+    output_path = build_test_workbook(
+        tmp_path
+    )
+
     assert output_path.exists()
     assert output_path.stat().st_size > 0
 
@@ -28,18 +57,8 @@ def test_workbook_builder_creates_file(
 def test_workbook_contains_expected_sheets(
     tmp_path: Path,
 ) -> None:
-    output_path = tmp_path / "CMMC_Assessment.xlsx"
-
-    builder = WorkbookBuilder(
-        project_root=ROOT,
-        output_path=output_path,
-    )
-
-    builder.build()
-
-    workbook = load_workbook(
-        output_path,
-        data_only=False,
+    workbook = load_test_workbook(
+        tmp_path
     )
 
     expected_sheets = [
@@ -59,21 +78,21 @@ def test_workbook_contains_expected_sheets(
     assert workbook.sheetnames == expected_sheets
 
 
+def test_cover_is_active_sheet(
+    tmp_path: Path,
+) -> None:
+    workbook = load_test_workbook(
+        tmp_path
+    )
+
+    assert workbook.active.title == "Cover"
+
+
 def test_assessment_contains_110_requirements(
     tmp_path: Path,
 ) -> None:
-    output_path = tmp_path / "CMMC_Assessment.xlsx"
-
-    builder = WorkbookBuilder(
-        project_root=ROOT,
-        output_path=output_path,
-    )
-
-    builder.build()
-
-    workbook = load_workbook(
-        output_path,
-        data_only=False,
+    workbook = load_test_workbook(
+        tmp_path
     )
 
     worksheet = workbook["Assessment"]
@@ -87,101 +106,483 @@ def test_assessment_contains_110_requirements(
     ]
 
     assert len(requirement_ids) == 110
-    assert requirement_ids[0] == "AC.L2-3.1.1"
-    assert requirement_ids[-1] == "SI.L2-3.14.7"
+    assert requirement_ids[0] == (
+        "AC.L2-3.1.1"
+    )
+    assert requirement_ids[-1] == (
+        "SI.L2-3.14.7"
+    )
     assert len(set(requirement_ids)) == 110
+
+
+def test_assessment_has_scoring_columns(
+    tmp_path: Path,
+) -> None:
+    workbook = load_test_workbook(
+        tmp_path
+    )
+
+    worksheet = workbook["Assessment"]
+
+    headers = [
+        worksheet.cell(
+            row=5,
+            column=column,
+        ).value
+        for column in range(1, 23)
+    ]
+
+    assert headers == [
+        "Domain",
+        "Requirement ID",
+        "Title",
+        "Requirement Statement",
+        "Source Start",
+        "Source End",
+        "Applicable",
+        "Scoring Category",
+        "Status",
+        "Implementation State",
+        "Partial Credit Allowed",
+        "Full Deduction",
+        "Partial Credit Applied",
+        "Calculated Deduction",
+        "Evidence Status",
+        "Control Owner",
+        "SSP Reference",
+        "Assessor Notes",
+        "POA&M Required",
+        "Partial Credit Condition",
+        "Scoring Source",
+        "Score Explanation",
+    ]
 
 
 def test_assessment_has_expected_formulas(
     tmp_path: Path,
 ) -> None:
-    output_path = tmp_path / "CMMC_Assessment.xlsx"
-
-    builder = WorkbookBuilder(
-        project_root=ROOT,
-        output_path=output_path,
-    )
-
-    builder.build()
-
-    workbook = load_workbook(
-        output_path,
-        data_only=False,
+    workbook = load_test_workbook(
+        tmp_path
     )
 
     worksheet = workbook["Assessment"]
 
-    assert worksheet["J6"].value.startswith("=IF(")
-    assert worksheet["O6"].value.startswith("=IF(")
+    assert worksheet["M6"].value.startswith(
+        "=IF("
+    )
+
+    assert worksheet["N6"].value.startswith(
+        "=IF("
+    )
+
+    assert worksheet["S6"].value.startswith(
+        "=IF("
+    )
+
+    assert worksheet["V6"].value.startswith(
+        "=IF("
+    )
+
+
+def test_first_requirement_uses_official_weight(
+    tmp_path: Path,
+) -> None:
+    workbook = load_test_workbook(
+        tmp_path
+    )
+
+    worksheet = workbook["Assessment"]
+
+    assert worksheet["B6"].value == (
+        "AC.L2-3.1.1"
+    )
+    assert worksheet["H6"].value == (
+        "FIVE_POINT"
+    )
+    assert worksheet["K6"].value == "No"
+    assert worksheet["L6"].value == 5
+
+
+def test_partial_credit_requirements_are_configured(
+    tmp_path: Path,
+) -> None:
+    workbook = load_test_workbook(
+        tmp_path
+    )
+
+    worksheet = workbook["Assessment"]
+
+    rows_by_requirement = {
+        worksheet.cell(
+            row=row,
+            column=2,
+        ).value: row
+        for row in range(6, 116)
+    }
+
+    expected_partial_requirements = {
+        "IA.L2-3.5.3",
+        "SC.L2-3.13.11",
+    }
+
+    for requirement_id in (
+        expected_partial_requirements
+    ):
+        row = rows_by_requirement[
+            requirement_id
+        ]
+
+        assert worksheet.cell(
+            row=row,
+            column=8,
+        ).value == "PARTIAL_3_OR_5"
+
+        assert worksheet.cell(
+            row=row,
+            column=10,
+        ).value == "NOT ASSESSED"
+
+        assert worksheet.cell(
+            row=row,
+            column=11,
+        ).value == "Yes"
+
+        assert worksheet.cell(
+            row=row,
+            column=12,
+        ).value == 5
+
+        assert worksheet.cell(
+            row=row,
+            column=20,
+        ).value
+
+
+def test_only_two_requirements_allow_partial_credit(
+    tmp_path: Path,
+) -> None:
+    workbook = load_test_workbook(
+        tmp_path
+    )
+
+    worksheet = workbook["Assessment"]
+
+    partial_credit_ids = {
+        worksheet.cell(
+            row=row,
+            column=2,
+        ).value
+        for row in range(6, 116)
+        if worksheet.cell(
+            row=row,
+            column=11,
+        ).value == "Yes"
+    }
+
+    assert partial_credit_ids == {
+        "IA.L2-3.5.3",
+        "SC.L2-3.13.11",
+    }
+
+
+def test_fixed_requirements_have_blank_implementation_state(
+    tmp_path: Path,
+) -> None:
+    workbook = load_test_workbook(
+        tmp_path
+    )
+
+    worksheet = workbook["Assessment"]
+
+    assert worksheet["B6"].value == (
+        "AC.L2-3.1.1"
+    )
+
+    assert worksheet["J6"].value in {
+        None,
+        "",
+    }
+
+    assert worksheet["K6"].value == "No"
 
 
 def test_dashboard_has_score_formula(
     tmp_path: Path,
 ) -> None:
-    output_path = tmp_path / "CMMC_Assessment.xlsx"
-
-    builder = WorkbookBuilder(
-        project_root=ROOT,
-        output_path=output_path,
-    )
-
-    builder.build()
-
-    workbook = load_workbook(
-        output_path,
-        data_only=False,
+    workbook = load_test_workbook(
+        tmp_path
     )
 
     worksheet = workbook["Dashboard"]
 
     assert worksheet["B7"].value == (
-        "=110-SUM(Assessment!J6:J115)"
+        "=110-SUM(Assessment!N6:N115)"
     )
+
+
+def test_dashboard_has_completion_formula(
+    tmp_path: Path,
+) -> None:
+    workbook = load_test_workbook(
+        tmp_path
+    )
+
+    worksheet = workbook["Dashboard"]
+
+    assert worksheet["C12"].value.startswith(
+        "=IFERROR("
+    )
+    assert worksheet["C12"].number_format == (
+        "0%"
+    )
+
+
+def test_dashboard_has_scoring_status_formula(
+    tmp_path: Path,
+) -> None:
+    workbook = load_test_workbook(
+        tmp_path
+    )
+
+    worksheet = workbook["Dashboard"]
+
+    assert worksheet["C15"].value == (
+        '=IF(COUNTIF('
+        'Assessment!I6:I115,'
+        '"NOT ASSESSED")=0,'
+        '"COMPLETE","PROVISIONAL")'
+    )
+
+
+def test_dashboard_has_maximum_deduction_formula(
+    tmp_path: Path,
+) -> None:
+    workbook = load_test_workbook(
+        tmp_path
+    )
+
+    worksheet = workbook["Dashboard"]
+
+    assert worksheet["F15"].value == (
+        "=SUM(Assessment!L6:L115)"
+    )
+
+    assert worksheet["I15"].value == (
+        "=110-F15"
+    )
+
+
+def test_domain_summary_uses_weighted_columns(
+    tmp_path: Path,
+) -> None:
+    workbook = load_test_workbook(
+        tmp_path
+    )
+
+    worksheet = workbook[
+        "Domain Summary"
+    ]
+
+    assert worksheet["F6"].value.startswith(
+        "=SUMIF("
+    )
+
+    assert "Assessment!$L$6:$L$115" in (
+        worksheet["F6"].value
+    )
+
+    assert worksheet["G6"].value.startswith(
+        "=SUMIF("
+    )
+
+    assert "Assessment!$N$6:$N$115" in (
+        worksheet["G6"].value
+    )
+
+    assert worksheet["I6"].value == (
+        "=F6-G6"
+    )
+
+
+def test_settings_contains_scoring_metadata(
+    tmp_path: Path,
+) -> None:
+    workbook = load_test_workbook(
+        tmp_path
+    )
+
+    worksheet = workbook["Settings"]
+
+    settings = {
+        worksheet.cell(
+            row=row,
+            column=2,
+        ).value: worksheet.cell(
+            row=row,
+            column=3,
+        ).value
+        for row in range(6, 16)
+    }
+
+    assert settings[
+        "Workbook Version"
+    ] == "0.2"
+
+    assert settings[
+        "Maximum Score"
+    ] == 110
+
+    assert settings[
+        "Maximum Deduction"
+    ] == 314
+
+    assert settings[
+        "Mathematical Minimum Score"
+    ] == -204
+
+    assert settings[
+        "Requirement Count"
+    ] == 110
+
+    assert settings[
+        "Partial Credit Requirements"
+    ] == 2
+
+    assert settings[
+        "Scoring Source"
+    ] == "32 CFR 170.24"
 
 
 def test_hidden_lists_sheet_is_very_hidden(
     tmp_path: Path,
 ) -> None:
-    output_path = tmp_path / "CMMC_Assessment.xlsx"
-
-    builder = WorkbookBuilder(
-        project_root=ROOT,
-        output_path=output_path,
+    workbook = load_test_workbook(
+        tmp_path
     )
 
-    builder.build()
+    assert workbook[
+        "_Lists"
+    ].sheet_state == "veryHidden"
 
-    workbook = load_workbook(
-        output_path,
-        data_only=False,
+
+def test_hidden_lists_contains_implementation_states(
+    tmp_path: Path,
+) -> None:
+    workbook = load_test_workbook(
+        tmp_path
     )
 
-    assert workbook["_Lists"].sheet_state == (
-        "veryHidden"
+    worksheet = workbook["_Lists"]
+
+    assert worksheet["D1"].value == (
+        "Implementation State"
     )
+
+    assert [
+        worksheet.cell(
+            row=row,
+            column=4,
+        ).value
+        for row in range(2, 7)
+    ] == [
+        "FULLY IMPLEMENTED",
+        "PARTIALLY IMPLEMENTED",
+        "NOT IMPLEMENTED",
+        "NOT APPLICABLE",
+        "NOT ASSESSED",
+    ]
 
 
 def test_assessment_data_validation_exists(
     tmp_path: Path,
 ) -> None:
-    output_path = tmp_path / "CMMC_Assessment.xlsx"
-
-    builder = WorkbookBuilder(
-        project_root=ROOT,
-        output_path=output_path,
-    )
-
-    builder.build()
-
-    workbook = load_workbook(
-        output_path,
-        data_only=False,
+    workbook = load_test_workbook(
+        tmp_path
     )
 
     worksheet = workbook["Assessment"]
 
     validations = list(
-        worksheet.data_validations.dataValidation
+        worksheet
+        .data_validations
+        .dataValidation
     )
 
-    assert len(validations) >= 3
+    assert len(validations) >= 4
+
+
+def test_assessment_status_validation_targets_column_i(
+    tmp_path: Path,
+) -> None:
+    workbook = load_test_workbook(
+        tmp_path
+    )
+
+    worksheet = workbook["Assessment"]
+
+    validation_ranges = {
+        str(validation.sqref)
+        for validation in (
+            worksheet
+            .data_validations
+            .dataValidation
+        )
+    }
+
+    assert "I6:I115" in validation_ranges
+    assert "J6:J115" in validation_ranges
+    assert "O6:O115" in validation_ranges
+    assert "G6:G115" in validation_ranges
+
+
+def test_assessment_freeze_panes_and_filter(
+    tmp_path: Path,
+) -> None:
+    workbook = load_test_workbook(
+        tmp_path
+    )
+
+    worksheet = workbook["Assessment"]
+
+    assert worksheet.freeze_panes == "A6"
+    assert worksheet.auto_filter.ref == (
+        "A5:V115"
+    )
+
+
+def test_assessment_print_area_covers_full_table(
+    tmp_path: Path,
+) -> None:
+    workbook = load_test_workbook(
+        tmp_path
+    )
+
+    worksheet = workbook["Assessment"]
+
+    print_area = str(
+        worksheet.print_area
+    )
+
+    assert "$A$1:$V$115" in print_area
+
+
+def test_workbook_formulas_recalculate_on_open(
+    tmp_path: Path,
+) -> None:
+    workbook = load_test_workbook(
+        tmp_path
+    )
+
+    assert (
+        workbook.calculation.fullCalcOnLoad
+        is True
+    )
+
+    assert (
+        workbook.calculation.forceFullCalc
+        is True
+    )
+
+    assert workbook.calculation.calcMode == (
+        "auto"
+    )
