@@ -17,6 +17,11 @@ from src.workbook.scoring_data import (
 from src.workbook.workbook_styles import WorkbookStyles
 from src.workbook.worksheet_factory import WorksheetFactory
 
+from src.workbook.evidence_sheet import EvidenceSheetBuilder
+
+from src.workbook.evidence_sheet import (
+    EvidenceSheetBuilder,
+)
 
 class WorkbookBuilder:
     """Build the scoring-integrated CMMC Level 2 assessment workbook."""
@@ -71,6 +76,11 @@ class WorkbookBuilder:
             self.styles
         )
 
+        self.evidence_builder = EvidenceSheetBuilder(
+        styles=self.styles,
+        factory=self.factory,
+        )
+
     def build(self) -> Path:
         controls = self._load_controls()
 
@@ -115,14 +125,8 @@ class WorkbookBuilder:
             controls,
         )
 
-        self._build_placeholder_sheet(
-            worksheets["Evidence"],
-            title="Evidence Register",
-            subtitle=(
-                "Track policies, procedures, configurations, "
-                "interviews, tests, screenshots, and other "
-                "supporting evidence."
-            ),
+        self.evidence_builder.build(
+            worksheets["Evidence"]
         )
 
         self._build_placeholder_sheet(

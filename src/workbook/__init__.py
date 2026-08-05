@@ -1,3 +1,4 @@
+from .evidence_sheet import EvidenceSheetBuilder
 from .scoring_data import (
     WorkbookScoringData,
     WorkbookScoringDataError,
@@ -12,6 +13,7 @@ from .worksheet_factory import WorksheetFactory
 
 
 __all__ = [
+    "EvidenceSheetBuilder",
     "ThemeColors",
     "WorkbookBuilder",
     "WorkbookScoringData",
