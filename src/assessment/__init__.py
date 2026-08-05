@@ -13,8 +13,14 @@ from .assessment_models import (
     POAMStatus,
     RequirementAssessmentRecord,
 )
+from .assessment_validator import (
+    AssessmentValidationError,
+    AssessmentValidationIssue,
+    AssessmentValidationReport,
+    AssessmentValidator,
+)
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 __all__ = [
     "Assessment",
@@ -22,6 +28,10 @@ __all__ = [
     "AssessmentEngineError",
     "AssessmentMetadata",
     "AssessmentStatus",
+    "AssessmentValidationError",
+    "AssessmentValidationIssue",
+    "AssessmentValidationReport",
+    "AssessmentValidator",
     "EvidenceReference",
     "EvidenceStatus",
     "ObjectiveAssessment",
