@@ -1,3 +1,27 @@
+"""
+CMMC Level 2 Scoring Package
+
+This package contains:
+
+- Scoring compiler
+- Partial credit evaluator
+- Scoring engine
+- Scoring validator
+"""
+
+# ----------------------------------------------------------------------
+# Compiler
+# ----------------------------------------------------------------------
+
+from .scoring_compiler import (
+    ScoringCompiler,
+    ScoringWeight,
+)
+
+# ----------------------------------------------------------------------
+# Partial Credit
+# ----------------------------------------------------------------------
+
 from .partial_credit import (
     AssessmentFinding,
     PartialCreditError,
@@ -6,10 +30,11 @@ from .partial_credit import (
     PartialCreditRule,
     PartialImplementationState,
 )
-from .scoring_compiler import (
-    ScoringCompiler,
-    ScoringWeight,
-)
+
+# ----------------------------------------------------------------------
+# Scoring Engine
+# ----------------------------------------------------------------------
+
 from .scoring_engine import (
     AssessmentScore,
     DomainScore,
@@ -20,20 +45,44 @@ from .scoring_engine import (
     ScoringRule,
 )
 
+# ----------------------------------------------------------------------
+# Validator
+# ----------------------------------------------------------------------
+
+from .scoring_validator import (
+    ScoringValidationError,
+    ScoringValidationIssue,
+    ScoringValidationReport,
+    ScoringValidator,
+)
+
+__version__ = "0.3.0"
+
 __all__ = [
+    # Compiler
+    "ScoringCompiler",
+    "ScoringWeight",
+
+    # Partial Credit
     "AssessmentFinding",
-    "AssessmentScore",
-    "DomainScore",
     "PartialCreditError",
     "PartialCreditEvaluator",
     "PartialCreditResult",
     "PartialCreditRule",
     "PartialImplementationState",
+
+    # Engine
+    "AssessmentScore",
+    "DomainScore",
     "RequirementAssessment",
     "RequirementScore",
-    "ScoringCompiler",
     "ScoringEngine",
     "ScoringEngineError",
     "ScoringRule",
-    "ScoringWeight",
+
+    # Validator
+    "ScoringValidationError",
+    "ScoringValidationIssue",
+    "ScoringValidationReport",
+    "ScoringValidator",
 ]
