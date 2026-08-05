@@ -1,0 +1,50 @@
+{
+  "generated_at_utc": "2026-08-05T03:44:58.566284+00:00",
+  "source_document": "AssessmentGuideL2v2.pdf",
+  "source_version": "2.13",
+  "validation_passed": true,
+  "requirement_count": 110,
+  "objective_count": 320,
+  "domain_count": 14,
+  "domain_counts": {
+    "AC": 22,
+    "AT": 3,
+    "AU": 9,
+    "CM": 9,
+    "IA": 11,
+    "IR": 3,
+    "MA": 6,
+    "MP": 9,
+    "PS": 2,
+    "PE": 6,
+    "RA": 3,
+    "CA": 4,
+    "SC": 16,
+    "SI": 7
+  },
+  "assessment_method_object_counts": {
+    "EXAMINE": 977,
+    "INTERVIEW": 362,
+    "TEST": 217
+  },
+  "key_reference_count": 126,
+  "error_count": 0,
+  "warning_count": 1,
+  "errors": [],
+  "warnings": [
+    {
+      "severity": "WARNING",
+      "code": "MISSING_KEY_REFERENCES",
+      "message": "Requirement AC.L2-3.1.19 has no parsed key references.",
+      "requirement_id": "AC.L2-3.1.19"
+    }
+  ],
+  "first_requirement": "AC.L2-3.1.1",
+  "last_requirement": "SI.L2-3.14.7",
+  "export_files": {
+    "controls": "data/controls/cmmc_level2_controls.csv",
+    "objectives": "data/controls/cmmc_level2_objectives.csv",
+    "assessment_methods": "data/mappings/assessment_methods.csv",
+    "key_references": "data/mappings/key_references.csv"
+  }
+}

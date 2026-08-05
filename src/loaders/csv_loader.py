@@ -13,17 +13,12 @@ def _read_csv(path: Path) -> List[dict[str, str]]:
     if not path.exists():
         raise FileNotFoundError(f"CSV file not found: {path}")
 
-    with path.open("r", encoding="utf-8-sig", newline="") as file:
+    with path.open(
+        "r",
+        encoding="utf-8-sig",
+        newline="",
+    ) as file:
         return list(csv.DictReader(file))
-
-
-def _parse_bool(value: str) -> bool:
-    return value.strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "y",
-    }
 
 
 def load_domains(path: Path) -> List[Domain]:
@@ -48,10 +43,18 @@ def load_controls(path: Path) -> List[Control]:
             requirement_id=row["requirement_id"].strip(),
             title=row["title"].strip(),
             statement=row["statement"].strip(),
-            deduction_points=int(row["deduction_points"]),
-            poam_eligible=_parse_bool(row["poam_eligible"]),
-            source_reference=row.get(
-                "source_reference",
+            source_page_start=int(
+                row["source_page_start"]
+            ),
+            source_page_end=int(
+                row["source_page_end"]
+            ),
+            source_document=row.get(
+                "source_document",
+                "",
+            ).strip(),
+            source_version=row.get(
+                "source_version",
                 "",
             ).strip(),
         )
@@ -67,19 +70,34 @@ def load_objectives(path: Path) -> List[Objective]:
             requirement_id=row["requirement_id"].strip(),
             objective_id=row["objective_id"].strip(),
             objective_text=row["objective_text"].strip(),
-            examine=_parse_bool(row["examine"]),
-            interview=_parse_bool(row["interview"]),
-            test=_parse_bool(row["test"]),
+            source_page_start=int(
+                row["source_page_start"]
+            ),
+            source_page_end=int(
+                row["source_page_end"]
+            ),
+            source_document=row.get(
+                "source_document",
+                "",
+            ).strip(),
+            source_version=row.get(
+                "source_version",
+                "",
+            ).strip(),
         )
         for row in rows
     ]
 
 
-def load_statuses(path: Path) -> List[Dict[str, str]]:
+def load_statuses(
+    path: Path,
+) -> List[Dict[str, str]]:
     return _read_csv(path)
 
 
-def load_scoring_weights(path: Path) -> Dict[str, int]:
+def load_scoring_weights(
+    path: Path,
+) -> Dict[str, int]:
     rows = _read_csv(path)
 
     return {
@@ -88,3 +106,9 @@ def load_scoring_weights(path: Path) -> Dict[str, int]:
         )
         for row in rows
     }
+
+
+def load_assessment_methods(
+    path: Path,
+) -> List[Dict[str, str]]:
+    return _read_csv(path)

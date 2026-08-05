@@ -1,7 +1,321 @@
-requirement_id,objective_id,objective_text,examine,interview,test
-AC.L2-3.1.1,a,authorized users are identified,true,true,true
-AC.L2-3.1.1,b,processes acting on behalf of authorized users are identified,true,true,true
-AC.L2-3.1.1,c,devices and other systems authorized to connect are identified,true,true,true
-AC.L2-3.1.1,d,system access is limited to authorized users,true,true,true
-AC.L2-3.1.1,e,system access is limited to authorized processes,true,true,true
-AC.L2-3.1.1,f,system access is limited to authorized devices,true,true,true
+﻿requirement_id,objective_id,objective_text,source_page_start,source_page_end,source_document,source_version
+AC.L2-3.1.1,a,authorized users are identified;,22,24,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.1,b,processes acting on behalf of authorized users are identified;,22,24,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.1,c,devices (and other systems) authorized to connect to the system are identified;,22,24,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.1,d,system access is limited to authorized users;,22,24,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.1,e,system access is limited to processes acting on behalf of authorized users; and,22,24,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.1,f,system access is limited to authorized devices (including other systems).,22,24,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.2,a,the types of transactions and functions that authorized users are permitted to execute are defined; and,25,26,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.2,b,system access is limited to the defined types of transactions and functions for authorized users.,25,26,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.3,a,information flow control policies are defined;,27,29,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.3,b,methods and enforcement mechanisms for controlling the flow of CUI are defined;,27,29,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.3,c,"designated sources and destinations (e.g., networks, individuals, and devices) for CUI within the system and between interconnected systems are identified;",27,29,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.3,d,authorizations for controlling the flow of CUI are defined; and,27,29,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.3,e,approved authorizations for controlling the flow of CUI are enforced.,27,29,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.4,a,the duties of individuals requiring separation are defined;,30,31,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.4,b,responsibilities for duties that require separation are assigned to separate individuals; and,30,31,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.4,c,access privileges that enable individuals to exercise the duties that require separation are granted to separate individuals.,30,31,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.5,a,privileged accounts are identified;,32,34,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.5,b,access to privileged accounts is authorized in accordance with the principle of least privilege;,32,34,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.5,c,se curity functions are identified; and,32,34,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.5,d,access to security functions is authorized in accordance with the principle of least privilege.,32,34,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.6,a,nonsecurity functions are identified; and,35,36,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.6,b,users are required to use non-privileged accounts or roles when accessing nonsecurity functions.,35,36,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.7,a,privileged functions are defined;,37,39,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.7,b,non-privileged users are defined;,37,39,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.7,c,non-privileged users are prevented from executing privileged functions; and,37,39,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.7,d,the execution of privileged functions is captured in audit logs.,37,39,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.8,a,the means of limiting unsuccessful logon attempts is defined; and,40,41,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.8,b,the defined means of limiting unsuccessful logon attempts is implemented.,40,41,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.9,a,"privacy and security notices required by CUI-specified rules are identified, consistent, and associated with the specific CUI category; and",42,43,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.9,b,privacy and security notices are displayed.,42,43,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.10,a,the period of inactivity after which the system initiates a session lock is defined;,44,45,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.10,b,access to the system and viewing of data is prevented by initiating a session lock after the defined period of inactivity; and,44,45,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.10,c,previously visible information is concealed via a pattern-hiding display after the defined period of inactivity.,44,45,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.11,a,conditions requiring a user session to terminate are defined; and,46,47,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.11,b,a user session is automatically terminated after any of the defined conditions occur.,46,47,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.12,a,remote access sessions are permitted;,48,50,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.12,b,the types of permitted remote access are identified;,48,50,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.12,c,remote access sessions are controlled; and,48,50,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.12,d,remote access sessions are monitored.,48,50,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.13,a,cryptographic mechanisms to protect the confidentiality of remote access sessions are identified; and,51,52,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.13,b,cryptographic mechanisms to protect the confidentiality of remote access sessions are implemented.,51,52,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.14,a,managed access control points are identified and implemented; and,53,54,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.14,b,remote access is routed through managed network access control points.,53,54,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.15,a,privileged commands authorized for remote execution are identified;,55,57,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.15,b,security-relevant information authorized to be accessed remotely is identified;,55,57,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.15,c,the execution of the identified privileged commands via remote access is authorized; and,55,57,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.15,d,access to the identified security-relevant information via remote access is authorized.,55,57,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.16,a,wireless access points are identified; and,58,59,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.16,b,wireless access is authorized prior to allowing such connections.,58,59,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.17,a,wireless access to the system is protected using authentication; and,60,61,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.17,b,wireless access to the system is protected using encryption.,60,61,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.18,a,"mobile devices that process, store, or transmit CUI are identified;",62,63,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.18,b,mobile device connections are authorized; and,62,63,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.18,c,mobile device connections are monitored and logged.,62,63,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.19,a,"mobile devices and mobile computing platforms that process, store, or transmit CUI are identified; and",64,65,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.19,b,encryption is employed to protect CUI on identified mobile devices and mobile computing platforms.,64,65,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.20,a,connections to external systems are identified;,66,68,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.20,b,the use of external systems is identified;,66,68,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.20,c,connections to external systems are verified;,66,68,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.20,d,the use of external systems is verified;,66,68,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.20,e,connections to external systems are controlled/limited; and,66,68,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.20,f,the use of external systems is controlled/limited.,66,68,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.21,a,the use of portable storage devices containing CUI on external systems is identified and documented;,69,70,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.21,b,limits on the use of portable storage devices containing CUI on external systems are defined; and,69,70,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.21,c,the use of portable storage devices containing CUI on external systems is limited as defined.,69,70,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.22,a,individuals authorized to post or process information on publicly accessible systems are identified;,71,72,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.22,b,procedures to ensure CUI is not posted or processed on publicly accessible systems are identified;,71,72,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.22,c,a review process is in place prior to posting of any content to publicly accessible systems;,71,72,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.22,d,content on publicly accessible systems is reviewed to ensure that it does not include CUI; and,71,72,AssessmentGuideL2v2.pdf,2.13
+AC.L2-3.1.22,e,mechanisms are in place to remove and address improper posting of CUI.,71,72,AssessmentGuideL2v2.pdf,2.13
+AT.L2-3.2.1,a,security risks associated with organizational activities involving CUI are identified;,73,75,AssessmentGuideL2v2.pdf,2.13
+AT.L2-3.2.1,b,"policies, standards, and procedures related to the security of the system are identified;",73,75,AssessmentGuideL2v2.pdf,2.13
+AT.L2-3.2.1,c,"managers, systems administrators, and users of the system are made aware of the security risks associated with their activities; and",73,75,AssessmentGuideL2v2.pdf,2.13
+AT.L2-3.2.1,d,"managers, systems administrators, and users of the system are made aware of the applicable policies, standards, and procedures related to the security of the system.",73,75,AssessmentGuideL2v2.pdf,2.13
+AT.L2-3.2.2,a,"information security-related duties, roles, and responsibilities are defined;",76,77,AssessmentGuideL2v2.pdf,2.13
+AT.L2-3.2.2,b,"information security-related duties, roles, and responsibilities are assigned to designated personnel; and",76,77,AssessmentGuideL2v2.pdf,2.13
+AT.L2-3.2.2,c,"personnel are adequately trained to carry out their assigned information securityrelated duties, roles, and responsibilities.",76,77,AssessmentGuideL2v2.pdf,2.13
+AT.L2-3.2.3,a,potential indicators associated with insider threats are identified; and,78,79,AssessmentGuideL2v2.pdf,2.13
+AT.L2-3.2.3,b,security awareness training on recognizing and reporting potential indicators of insider threat is provided to managers and employees.,78,79,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.1,a,"audit logs needed (i.e., event types to be logged) to enable the monitoring, analysis, investigation, and reporting of unlawful or unauthorized system activity are specified;",80,82,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.1,b,"the content of audit records needed to support monitoring, analysis, investigation, and reporting of unlawful or unauthorized system activity is defined;",80,82,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.1,c,audit records are created (generated);,80,82,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.1,d,"audit records, once created, contain the defined content;",80,82,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.1,e,retention requirements for audit records are defined; and,80,82,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.1,f,audit records are retained as defined.,80,82,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.2,a,the content of the audit records needed to support the ability to uniquely trace users to their actions is defined; and,83,84,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.2,b,"audit records, once created, contain the defined content.",83,84,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.3,a,a process for determining when to review logged events is defined;,85,86,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.3,b,event types being logged are reviewed in accordance with the defined review process; and,85,86,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.3,c,event types being logged are updated based on the review.,85,86,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.4,a,personnel or roles to be alerted in the event of an audit logging process failure are identified;,87,88,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.4,b,types of audit logging process failures for which alert will be generated are defined; and,87,88,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.4,c,identified personnel or roles are alerted in the event of an audit logging process failure.,87,88,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.5,a,"audit record review, analysis, and reporting processes for investigation and response to indications of unlawful, unauthorized, suspicious, or unusual activity are defined; and",89,90,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.5,b,"defined audit record review, analysis, and reporting processes are correlated.",89,90,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.6,a,an audit record reduction capability that supports on-demand analysis is provided; and,91,92,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.6,b,a report generation capability that supports on-demand reporting is provided.,91,92,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.7,a,internal system clocks are used to generate time stamps for audit records;,93,94,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.7,b,an authoritative source with which to compare and synchronize internal system clocks is specified; and,93,94,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.7,c,internal system clocks used to generate time stamps for audit records are compared to and synchronized with the specified authoritative time source.,93,94,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.8,a,audit information is protected from unauthorized access;,95,96,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.8,b,audit information is protected from unauthorized modification;,95,96,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.8,c,audit information is protected from unauthorized deletion;,95,96,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.8,d,audit logging tools are protected from unauthorized access;,95,96,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.8,e,audit logging tools are protected from unauthorized modification; and,95,96,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.8,f,audit logging tools are protected from unauthorized deletion.,95,96,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.9,a,a subset of privileged users granted access to manage audit logging functionality is defined; and,97,98,AssessmentGuideL2v2.pdf,2.13
+AU.L2-3.3.9,b,management of audit logging functionality is limited to the defined subset of privileged users.,97,98,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.1,a,a baseline configuration is established;,99,101,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.1,b,"the baseline configuration includes hardware, software, firmware, and documentation;",99,101,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.1,c,the baseline configuration is maintained (reviewed and updated) throughout the system development life cycle;,99,101,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.1,d,a system inventory is established;,99,101,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.1,e,"the system inventory includes hardware, software, firmware, and documentation; and",99,101,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.1,f,the inventory is maintained (reviewed and updated) throughout the system development life cycle.,99,101,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.2,a,security configuration settings for information technology products employed in the system are established and included in the baseline configuration; and,102,103,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.2,b,security configuration settings for information technology products employed in the system are enforced.,102,103,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.3,a,changes to the system are tracked;,104,105,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.3,b,changes to the system are reviewed;,104,105,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.3,c,changes to the system are approved or disapproved; and,104,105,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.3,d,changes to the system are logged.,104,105,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.4,a,the security impact of changes to the system is analyzed prior to implementation.,106,107,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.5,a,physical access restrictions associated with changes to the system are defined;,108,110,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.5,b,physical access restrictions associated with changes to the system are documented;,108,110,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.5,c,physical access restrictions associated with changes to the system are approved;,108,110,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.5,d,physical access restrictions associated with changes to the system are enforced;,108,110,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.5,e,logical access restrictions associated with changes to the system are defined;,108,110,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.5,f,logical access restrictions associated with changes to the system are documented;,108,110,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.5,g,logical access restrictions associated with changes to the system are approved; and,108,110,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.5,h,logical access restrictions associated with changes to the system are enforced.,108,110,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.6,a,essential system capabilities are defined based on the principle of least functionality; and,111,112,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.6,b,the system is configured to provide only the defined essential capabilities.,111,112,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.7,a,essential programs are defined;,113,115,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.7,b,the use of nonessential programs is defined;,113,115,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.7,c,"the use of nonessential programs is restricted, disabled, or prevented as defined;",113,115,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.7,d,essential functions are defined;,113,115,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.7,e,the use of nonessential functions is defined;,113,115,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.7,f,"the use of nonessential functions is restricted, disabled, or prevented as defined;",113,115,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.7,g,essential ports are defined;,113,115,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.7,h,the use of nonessential ports is defined;,113,115,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.7,i,"the use of nonessential ports is restricted, disabled, or prevented as defined;",113,115,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.7,j,essential protocols are defined;,113,115,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.7,k,the use of nonessential protocols is defined;,113,115,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.7,l,"the use of nonessential protocols is restricted, disabled, or prevented as defined;",113,115,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.7,m,essential services are defined;,113,115,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.7,n,the use of nonessential services is defined; and,113,115,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.7,o,"the use of nonessential services is restricted, disabled, or prevented as defined.",113,115,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.8,a,a policy specifying whether whitelisting or blacklisting is to be implemented is specified;,116,117,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.8,b,the software allowed to execute under whitelisting or denied use under blacklisting is specified; and,116,117,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.8,c,whitelisting to allow the execution of authorized software or blacklisting to prevent the use of unauthorized software is implemented as specified.,116,117,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.9,a,a policy for controlling the installation of software by users is established;,118,119,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.9,b,installation of software by users is controlled based on the established policy; and,118,119,AssessmentGuideL2v2.pdf,2.13
+CM.L2-3.4.9,c,installation of software by users is monitored.,118,119,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.1,a,system users are identified;,120,121,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.1,b,processes acting on behalf of users are identified; and,120,121,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.1,c,devices accessing the system are identified.,120,121,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.2,a,the identity of each user is authenticated or verified as a prerequisite to system access;,122,124,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.2,b,the identity of each process acting on behalf of a user is authenticated or verified as a prerequisite to system access; and,122,124,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.2,c,the identity of each device accessing or connecting to the system is authenticated or verified as a prerequisite to system access.,122,124,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.3,a,privileged accounts are identified;,125,127,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.3,b,multifactor authentication is implemented for local access to privileged accounts;,125,127,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.3,c,multifactor authentication is implemented for network access to privileged accounts; and,125,127,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.3,d,multifactor authentication is implemented for network access to non-privileged accounts.,125,127,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.4,a,replay-resistant authentication mechanisms are implemented for network account access to privileged and non-privileged accounts.,128,129,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.5,a,a period within which identifiers cannot be reused is defined; and,130,131,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.5,b,reuse of identifiers is prevented within the defined period.,130,131,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.6,a,a period of inactivity after which an identifier is disabled is defined; and,132,133,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.6,b,identifiers are disabled after the defined period of inactivity.,132,133,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.7,a,password complexity requirements are defined;,134,135,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.7,b,password change of character requirements are defined;,134,135,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.7,c,minimum password complexity requirements as defined are enforced when new passwords are created; and,134,135,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.7,d,minimum password change of character requirements as defined are enforced when new passwords are created.,134,135,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.8,a,the number of generations during which a password cannot be reused is specified and,136,137,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.8,b,reuse of passwords is prohibited during the specified number of generations.,136,137,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.9,a,an immediate change to a permanent password is required when a temporary password is used for system logon.,138,139,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.10,a,passwords are cryptographically protected in storage; and,140,141,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.10,b,passwords are cryptographically protected in transit.,140,141,AssessmentGuideL2v2.pdf,2.13
+IA.L2-3.5.11,a,authentication information is obscured during the authentication process.,142,143,AssessmentGuideL2v2.pdf,2.13
+IR.L2-3.6.1,a,an operational incident-handling capability is established;,144,146,AssessmentGuideL2v2.pdf,2.13
+IR.L2-3.6.1,b,the operational incident-handling capability includes preparation;,144,146,AssessmentGuideL2v2.pdf,2.13
+IR.L2-3.6.1,c,the operational incident-handling capability includes detection;,144,146,AssessmentGuideL2v2.pdf,2.13
+IR.L2-3.6.1,d,the operational incident-handling capability includes analysis;,144,146,AssessmentGuideL2v2.pdf,2.13
+IR.L2-3.6.1,e,the operational incident-handling capability includes containment;,144,146,AssessmentGuideL2v2.pdf,2.13
+IR.L2-3.6.1,f,the operational incident-handling capability includes recovery; and,144,146,AssessmentGuideL2v2.pdf,2.13
+IR.L2-3.6.1,g,the operational incident-handling capability includes user response activities.,144,146,AssessmentGuideL2v2.pdf,2.13
+IR.L2-3.6.2,a,incidents are tracked;,147,149,AssessmentGuideL2v2.pdf,2.13
+IR.L2-3.6.2,b,incidents are documented;,147,149,AssessmentGuideL2v2.pdf,2.13
+IR.L2-3.6.2,c,authorities to whom incidents are to be reported are identified;,147,149,AssessmentGuideL2v2.pdf,2.13
+IR.L2-3.6.2,d,organizational officials to whom incidents are to be reported are identified;,147,149,AssessmentGuideL2v2.pdf,2.13
+IR.L2-3.6.2,e,identified authorities are notified of incidents; and,147,149,AssessmentGuideL2v2.pdf,2.13
+IR.L2-3.6.2,f,identified organizational officials are notified of incidents.,147,149,AssessmentGuideL2v2.pdf,2.13
+IR.L2-3.6.3,a,the incident response capability is tested.,150,151,AssessmentGuideL2v2.pdf,2.13
+MA.L2-3.7.1,a,system maintenance is performed.,152,153,AssessmentGuideL2v2.pdf,2.13
+MA.L2-3.7.2,a,tools used to conduct system maintenance are controlled;,154,155,AssessmentGuideL2v2.pdf,2.13
+MA.L2-3.7.2,b,techniques used to conduct system maintenance are controlled;,154,155,AssessmentGuideL2v2.pdf,2.13
+MA.L2-3.7.2,c,mechanisms used to conduct system maintenance are controlled; and,154,155,AssessmentGuideL2v2.pdf,2.13
+MA.L2-3.7.2,d,personnel used to conduct system maintenance are controlled.,154,155,AssessmentGuideL2v2.pdf,2.13
+MA.L2-3.7.3,a,equipment to be removed from organizational spaces for off-site maintenance is sanitized of any CUI.,156,157,AssessmentGuideL2v2.pdf,2.13
+MA.L2-3.7.4,a,"media containing diagnostic and test programs are checked for malicious code before being used in organizational systems that process, store, or transmit CUI.",158,159,AssessmentGuideL2v2.pdf,2.13
+MA.L2-3.7.5,a,multifactor authentication is used to establish nonlocal maintenance sessions via external network connections; and,160,162,AssessmentGuideL2v2.pdf,2.13
+MA.L2-3.7.5,b,nonlocal maintenance sessions established via external network connections are terminated when nonlocal maintenance is complete.,160,162,AssessmentGuideL2v2.pdf,2.13
+MA.L2-3.7.6,a,maintenance personnel without required access authorization are supervised during maintenance activities.,163,164,AssessmentGuideL2v2.pdf,2.13
+MP.L2-3.8.1,a,paper media containing CUI is physically controlled;,165,166,AssessmentGuideL2v2.pdf,2.13
+MP.L2-3.8.1,b,digital media containing CUI is physically controlled;,165,166,AssessmentGuideL2v2.pdf,2.13
+MP.L2-3.8.1,c,paper media containing CUI is securely stored; and,165,166,AssessmentGuideL2v2.pdf,2.13
+MP.L2-3.8.1,d,digital media containing CUI is securely stored.,165,166,AssessmentGuideL2v2.pdf,2.13
+MP.L2-3.8.2,a,access to CUI on system media is limited to authorized users.,167,168,AssessmentGuideL2v2.pdf,2.13
+MP.L2-3.8.3,a,system media containing CUI is sanitized or destroyed before disposal; and,169,170,AssessmentGuideL2v2.pdf,2.13
+MP.L2-3.8.3,b,system media containing CUI is sanitized before it is released for reuse.,169,170,AssessmentGuideL2v2.pdf,2.13
+MP.L2-3.8.4,a,media containing CUI is marked with applicable CUI markings; and,171,172,AssessmentGuideL2v2.pdf,2.13
+MP.L2-3.8.4,b,media containing CUI is marked with distribution limitations.,171,172,AssessmentGuideL2v2.pdf,2.13
+MP.L2-3.8.5,a,access to media containing CUI is controlled; and,173,174,AssessmentGuideL2v2.pdf,2.13
+MP.L2-3.8.5,b,accountability for media containing CUI is maintained during transport outside of controlled areas.,173,174,AssessmentGuideL2v2.pdf,2.13
+MP.L2-3.8.6,a,the confidentiality of CUI stored on digital media is protected during transport using cryptographic mechanisms or alternative physical safeguards.,175,176,AssessmentGuideL2v2.pdf,2.13
+MP.L2-3.8.7,a,the use of removable media on system components is controlled.,177,178,AssessmentGuideL2v2.pdf,2.13
+MP.L2-3.8.8,a,the use of portable storage devices is prohibited when such devices have no identifiable owner.,179,180,AssessmentGuideL2v2.pdf,2.13
+MP.L2-3.8.9,a,the confidentiality of backup CUI is protected at storage locations.,181,182,AssessmentGuideL2v2.pdf,2.13
+PS.L2-3.9.1,a,individuals are screened prior to authorizing access to organizational systems containing CUI.,183,184,AssessmentGuideL2v2.pdf,2.13
+PS.L2-3.9.2,a,a policy and/or process for terminating system access and any credentials coincident with personnel actions is established;,185,187,AssessmentGuideL2v2.pdf,2.13
+PS.L2-3.9.2,b,system access and credentials are terminated consistent with personnel actions such as termination or transfer; and,185,187,AssessmentGuideL2v2.pdf,2.13
+PS.L2-3.9.2,c,the system is protected during and after personnel transfer actions.,185,187,AssessmentGuideL2v2.pdf,2.13
+PE.L2-3.10.1,a,authorized individuals allowed physical access are identified;,188,189,AssessmentGuideL2v2.pdf,2.13
+PE.L2-3.10.1,b,physical access to organizational systems is limited to authorized individuals;,188,189,AssessmentGuideL2v2.pdf,2.13
+PE.L2-3.10.1,c,physical access to equipment is limited to authorized individuals; and,188,189,AssessmentGuideL2v2.pdf,2.13
+PE.L2-3.10.1,d,physical access to operating environments is limited to authorized individuals.,188,189,AssessmentGuideL2v2.pdf,2.13
+PE.L2-3.10.2,a,the physical facility where organizational systems reside is protected;,190,191,AssessmentGuideL2v2.pdf,2.13
+PE.L2-3.10.2,b,the support infrastructure for organizational systems is protected;,190,191,AssessmentGuideL2v2.pdf,2.13
+PE.L2-3.10.2,c,the physical facility where organizational systems reside is monitored; and,190,191,AssessmentGuideL2v2.pdf,2.13
+PE.L2-3.10.2,d,the support infrastructure for organizational systems is monitored.,190,191,AssessmentGuideL2v2.pdf,2.13
+PE.L2-3.10.3,a,visitors are escorted; and,192,193,AssessmentGuideL2v2.pdf,2.13
+PE.L2-3.10.3,b,visitor activity is monitored.,192,193,AssessmentGuideL2v2.pdf,2.13
+PE.L2-3.10.4,a,audit logs of physical access are maintained.,194,195,AssessmentGuideL2v2.pdf,2.13
+PE.L2-3.10.5,a,physical access devices are identified;,196,197,AssessmentGuideL2v2.pdf,2.13
+PE.L2-3.10.5,b,physical access devices are controlled; and,196,197,AssessmentGuideL2v2.pdf,2.13
+PE.L2-3.10.5,c,physical access devices are managed.,196,197,AssessmentGuideL2v2.pdf,2.13
+PE.L2-3.10.6,a,safeguarding measures for CUI are defined for alternate work sites; and,198,199,AssessmentGuideL2v2.pdf,2.13
+PE.L2-3.10.6,b,safeguarding measures for CUI are enforced for alternate work sites.,198,199,AssessmentGuideL2v2.pdf,2.13
+RA.L2-3.11.1,a,"the frequency to assess risk to organizational operations, organizational assets, and individuals is defined; and",200,202,AssessmentGuideL2v2.pdf,2.13
+RA.L2-3.11.1,b,"risk to organizational operations, organizational assets, and individuals resulting from the operation of an organizational system that processes, stores, or transmits CUI is assessed with the defined frequency.",200,202,AssessmentGuideL2v2.pdf,2.13
+RA.L2-3.11.2,a,the frequency to scan for vulnerabilities in organizational systems and applications is defined;,203,205,AssessmentGuideL2v2.pdf,2.13
+RA.L2-3.11.2,b,vulnerability scans are performed on organizational systems with the defined frequency;,203,205,AssessmentGuideL2v2.pdf,2.13
+RA.L2-3.11.2,c,vulnerability scans are performed on applications with the defined frequency;,203,205,AssessmentGuideL2v2.pdf,2.13
+RA.L2-3.11.2,d,vulnerability scans are performed on organizational systems when new vulnerabilities are identified; and,203,205,AssessmentGuideL2v2.pdf,2.13
+RA.L2-3.11.2,e,vulnerability scans are performed on applications when new vulnerabilities are identified.,203,205,AssessmentGuideL2v2.pdf,2.13
+RA.L2-3.11.3,a,vulnerabilities are identified; and,206,207,AssessmentGuideL2v2.pdf,2.13
+RA.L2-3.11.3,b,vulnerabilities are remediated in accordance with risk assessments.,206,207,AssessmentGuideL2v2.pdf,2.13
+CA.L2-3.12.1,a,the frequency of security control assessments is defined; and,208,210,AssessmentGuideL2v2.pdf,2.13
+CA.L2-3.12.1,b,security controls are assessed with the defined frequency to determine if the controls are effective in their application.,208,210,AssessmentGuideL2v2.pdf,2.13
+CA.L2-3.12.2,a,deficiencies and vulnerabilities to be addressed by the plan of action are identified;,211,213,AssessmentGuideL2v2.pdf,2.13
+CA.L2-3.12.2,b,a plan of action is developed to correct identified deficiencies and reduce or eliminate identified vulnerabilities; and,211,213,AssessmentGuideL2v2.pdf,2.13
+CA.L2-3.12.2,c,the plan of action is implemented to correct identified deficiencies and reduce or eliminate identified vulnerabilities.,211,213,AssessmentGuideL2v2.pdf,2.13
+CA.L2-3.12.3,a,security controls are monitored on an ongoing basis to ensure the continued effectiveness of those controls.,214,215,AssessmentGuideL2v2.pdf,2.13
+CA.L2-3.12.4,a,a system security plan is developed;,216,218,AssessmentGuideL2v2.pdf,2.13
+CA.L2-3.12.4,b,the system boundary is described and documented in the system security plan;,216,218,AssessmentGuideL2v2.pdf,2.13
+CA.L2-3.12.4,c,the system environment of operation is described and documented in the system security plan;,216,218,AssessmentGuideL2v2.pdf,2.13
+CA.L2-3.12.4,d,the security requirements identified and approved by the designated authority as non-applicable are identified;,216,218,AssessmentGuideL2v2.pdf,2.13
+CA.L2-3.12.4,e,the method of security requirement implementation is described and documented in the system security plan;,216,218,AssessmentGuideL2v2.pdf,2.13
+CA.L2-3.12.4,f,the relationship with or connection to other systems is described and documented in the system security plan;,216,218,AssessmentGuideL2v2.pdf,2.13
+CA.L2-3.12.4,g,the frequency to update the system security plan is defined; and,216,218,AssessmentGuideL2v2.pdf,2.13
+CA.L2-3.12.4,h,system security plan is updated with the defined frequency.,216,218,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.1,a,the external system boundary is defined;,219,221,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.1,b,key internal system boundaries are defined;,219,221,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.1,c,communications are monitored at the external system boundary;,219,221,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.1,d,communications are monitored at key internal boundaries;,219,221,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.1,e,communications are controlled at the external system boundary;,219,221,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.1,f,communications are controlled at key internal boundaries;,219,221,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.1,g,communications are protected at the external system boundary; and,219,221,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.1,h,communications are protected at key internal boundaries.,219,221,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.2,a,architectural designs that promote effective information security are identified;,222,224,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.2,b,software development techniques that promote effective information security are identified;,222,224,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.2,c,systems engineering principles that promote effective information security are identified;,222,224,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.2,d,identified architectural designs that promote effective information security are employed;,222,224,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.2,e,identified software development techniques that promote effective information security are employed; and,222,224,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.2,f,identified systems engineering principles that promote effective information security are employed.,222,224,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.3,a,user functionality is identified;,225,226,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.3,b,system management functionality is identified; and,225,226,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.3,c,user functionality is separated from system management functionality.,225,226,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.4,a,unauthorized and unintended information transfer via shared system resources is prevented.,227,228,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.5,a,publicly accessible system components are identified; and,229,230,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.5,b,subnetworks for publicly accessible system components are physically or logically separated from internal networks.,229,230,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.6,a,network communications traffic is denied by default; and,231,232,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.6,b,network communications traffic is allowed by exception.,231,232,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.7,a,"remote devices are prevented from simultaneously establishing non-remote connections with the system and communicating via some other connection to resources in external networks (i.e., split tunneling).",233,234,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.8,a,cryptographic mechanisms intended to prevent unauthorized disclosure of CUI are identified;,235,236,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.8,b,alternative physical safeguards intended to prevent unauthorized disclosure of CUI are identified; and,235,236,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.8,c,either cryptographic mechanisms or alternative physical safeguards are implemented to prevent unauthorized disclosure of CUI during transmission.,235,236,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.9,a,a period of inactivity to terminate network connections associated with communications sessions is defined;,237,238,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.9,b,network connections associated with communications sessions are terminated at the end of the sessions; and,237,238,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.9,c,network connections associated with communications sessions are terminated after the defined period of inactivity.,237,238,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.10,a,cryptographic keys are established whenever cryptography is employed; and,239,241,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.10,b,cryptographic keys are managed whenever cryptography is employed.,239,241,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.11,a,FIPS-validated cryptography is employed to protect the confidentiality of CUI.,242,243,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.12,a,collaborative computing devices are identified;,244,245,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.12,b,collaborative computing devices provide indication to users of devices in use; and,244,245,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.12,c,remote activation of collaborative computing devices is prohibited.,244,245,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.13,a,use of mobile code is controlled; and,246,247,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.13,b,use of mobile code is monitored.,246,247,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.14,a,use of Voice over Internet Protocol (VoIP) technologies is controlled; and,248,249,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.14,b,use of Voice over Internet Protocol (VoIP) technologies is monitored.,248,249,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.15,a,the authenticity of communications sessions is protected.,250,251,AssessmentGuideL2v2.pdf,2.13
+SC.L2-3.13.16,a,the confidentiality of CUI at rest is protected.,252,253,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.1,a,the time within which to identify system flaws is specified;,254,256,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.1,b,system flaws are identified within the specified time frame;,254,256,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.1,c,the time within which to report system flaws is specified;,254,256,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.1,d,system flaws are reported within the specified time frame;,254,256,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.1,e,the time within which to correct system flaws is specified; and,254,256,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.1,f,system flaws are corrected within the specified time frame.,254,256,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.2,a,designated locations for malicious code protection are identified; and,257,259,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.2,b,protection from malicious code at designated locations is provided.,257,259,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.3,a,response actions to system security alerts and advisories are identified;,260,261,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.3,b,system security alerts and advisories are monitored; and,260,261,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.3,c,actions in response to system security alerts and advisories are taken.,260,261,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.4,a,malicious code protection mechanisms are updated when new releases are available.,262,263,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.5,a,the frequency for malicious code scans is defined;,264,265,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.5,b,malicious code scans are performed with the defined frequency; and,264,265,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.5,c,"real-time malicious code scans of files from external sources as files are downloaded, opened, or executed are performed.",264,265,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.6,a,the system is monitored to detect attacks and indicators of potential attacks;,266,268,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.6,b,inbound communications traffic is monitored to detect attacks and indicators of potential attacks; and,266,268,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.6,c,outbound communications traffic is monitored to detect attacks and indicators of potential attacks.,266,268,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.7,a,authorized use of the system is defined; and,269,276,AssessmentGuideL2v2.pdf,2.13
+SI.L2-3.14.7,b,unauthorized use of the system is identified.,269,276,AssessmentGuideL2v2.pdf,2.13

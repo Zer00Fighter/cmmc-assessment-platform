@@ -1,0 +1,1557 @@
+﻿requirement_id,method,object_sequence,assessment_object,source_page_start,source_page_end
+AC.L2-3.1.1,EXAMINE,1,Access control policy,22,24
+AC.L2-3.1.1,EXAMINE,2,procedures addressing account management,22,24
+AC.L2-3.1.1,EXAMINE,3,system security plan,22,24
+AC.L2-3.1.1,EXAMINE,4,system design documentation,22,24
+AC.L2-3.1.1,EXAMINE,5,system configuration settings and associated documentation,22,24
+AC.L2-3.1.1,EXAMINE,6,list of active system accounts and the name of the individual associated with each account,22,24
+AC.L2-3.1.1,EXAMINE,7,"notifications or records of recently transferred, separated, or terminated employees",22,24
+AC.L2-3.1.1,EXAMINE,8,list of conditions for group and role membership,22,24
+AC.L2-3.1.1,EXAMINE,9,list of recently disabled system accounts along with the name of the individual associated with each account,22,24
+AC.L2-3.1.1,EXAMINE,10,access authorization records,22,24
+AC.L2-3.1.1,EXAMINE,11,account management compliance reviews,22,24
+AC.L2-3.1.1,EXAMINE,12,system monitoring records,22,24
+AC.L2-3.1.1,EXAMINE,13,system audit logs and records,22,24
+AC.L2-3.1.1,EXAMINE,14,list of devices and systems authorized to connect to organizational systems,22,24
+AC.L2-3.1.1,EXAMINE,15,other relevant documents or records,22,24
+AC.L2-3.1.1,INTERVIEW,1,Personnel with account management responsibilities,22,24
+AC.L2-3.1.1,INTERVIEW,2,system or network administrators,22,24
+AC.L2-3.1.1,INTERVIEW,3,personnel with information security responsibilities,22,24
+AC.L2-3.1.1,TEST,1,Organizational processes for managing system accounts,22,24
+AC.L2-3.1.1,TEST,2,"mechanisms for implementing account management]. 11 NIST SP 800-171A, p. 9. AC.L2-3.1.1 - Authorized Access Control [CUI Data",22,24
+AC.L2-3.1.2,EXAMINE,1,Access control policy,25,26
+AC.L2-3.1.2,EXAMINE,2,procedures addressing acces s enforcement,25,26
+AC.L2-3.1.2,EXAMINE,3,system security plan,25,26
+AC.L2-3.1.2,EXAMINE,4,system design documentation,25,26
+AC.L2-3.1.2,EXAMINE,5,list of approved authorizations including remote access authorizations,25,26
+AC.L2-3.1.2,EXAMINE,6,system audit logs and records,25,26
+AC.L2-3.1.2,EXAMINE,7,system configuration settings and associated documentation,25,26
+AC.L2-3.1.2,EXAMINE,8,other relevant documents or records,25,26
+AC.L2-3.1.2,INTERVIEW,1,Personnel with access enforcement responsibilities,25,26
+AC.L2-3.1.2,INTERVIEW,2,system or network administrators,25,26
+AC.L2-3.1.2,INTERVIEW,3,personnel with information security responsibilities,25,26
+AC.L2-3.1.2,INTERVIEW,4,system developers,25,26
+AC.L2-3.1.2,TEST,1,Mechanisms implementing access control policy,25,26
+AC.L2-3.1.3,EXAMINE,1,Access control policy,27,29
+AC.L2-3.1.3,EXAMINE,2,information flow control policies,27,29
+AC.L2-3.1.3,EXAMINE,3,procedures addressing information flow enforcement,27,29
+AC.L2-3.1.3,EXAMINE,4,system security plan,27,29
+AC.L2-3.1.3,EXAMINE,5,system design documentation,27,29
+AC.L2-3.1.3,EXAMINE,6,system configuration settings and associated documentation,27,29
+AC.L2-3.1.3,EXAMINE,7,list of information flow authorizations,27,29
+AC.L2-3.1.3,EXAMINE,8,system baseline configuration,27,29
+AC.L2-3.1.3,EXAMINE,9,system audit logs and records,27,29
+AC.L2-3.1.3,EXAMINE,10,other relevant documents or records,27,29
+AC.L2-3.1.3,INTERVIEW,1,System or network administrators,27,29
+AC.L2-3.1.3,INTERVIEW,2,personnel with information secu rity responsibilities,27,29
+AC.L2-3.1.3,INTERVIEW,3,system developers,27,29
+AC.L2-3.1.3,TEST,1,Mechanisms implementing information flow enforcement policy,27,29
+AC.L2-3.1.4,EXAMINE,1,Access control policy,30,31
+AC.L2-3.1.4,EXAMINE,2,procedures addressing divisions of responsibility and separation of duties,30,31
+AC.L2-3.1.4,EXAMINE,3,system security plan,30,31
+AC.L2-3.1.4,EXAMINE,4,system configuration settings and associated documentation,30,31
+AC.L2-3.1.4,EXAMINE,5,list of divisions of responsibility and separation of duties,30,31
+AC.L2-3.1.4,EXAMINE,6,system access authorizations,30,31
+AC.L2-3.1.4,EXAMINE,7,system audit logs and records,30,31
+AC.L2-3.1.4,EXAMINE,8,other relevant documents or records,30,31
+AC.L2-3.1.4,INTERVIEW,1,Personnel with responsibilities for defining divisions of responsibility and separation of duties,30,31
+AC.L2-3.1.4,INTERVIEW,2,personnel with information security responsibilities,30,31
+AC.L2-3.1.4,INTERVIEW,3,system or network administrators,30,31
+AC.L2-3.1.4,TEST,1,Mechanisms implementing separation of duties policy,30,31
+AC.L2-3.1.5,EXAMINE,1,Access control policy,32,34
+AC.L2-3.1.5,EXAMINE,2,procedures addressing account management,32,34
+AC.L2-3.1.5,EXAMINE,3,system security plan,32,34
+AC.L2-3.1.5,EXAMINE,4,system design documentation,32,34
+AC.L2-3.1.5,EXAMINE,5,system configuration settings and associated documentation,32,34
+AC.L2-3.1.5,EXAMINE,6,list of active system accounts and the name of the individual associated with each account,32,34
+AC.L2-3.1.5,EXAMINE,7,list of conditions for group and role membership,32,34
+AC.L2-3.1.5,EXAMINE,8,"notifications or records of recently transferred, separated, or terminated employees",32,34
+AC.L2-3.1.5,EXAMINE,9,list of recently disabled system accounts along with the name of the individual associated with each account,32,34
+AC.L2-3.1.5,EXAMINE,10,access authorization records,32,34
+AC.L2-3.1.5,EXAMINE,11,account management compliance reviews,32,34
+AC.L2-3.1.5,EXAMINE,12,system monitoring/audit records,32,34
+AC.L2-3.1.5,EXAMINE,13,procedures addressing least privilege,32,34
+AC.L2-3.1.5,EXAMINE,14,"list of security functions (deployed in hardware, software, and firmware) and security-relevant information for which access is to be explicitly authorized",32,34
+AC.L2-3.1.5,EXAMINE,15,list of system -generated privileged accounts,32,34
+AC.L2-3.1.5,EXAMINE,16,list of system administration personnel,32,34
+AC.L2-3.1.5,EXAMINE,17,other relevant documents or records,32,34
+AC.L2-3.1.5,INTERVIEW,1,Personnel with account management responsibilities,32,34
+AC.L2-3.1.5,INTERVIEW,2,system or network administrators,32,34
+AC.L2-3.1.5,INTERVIEW,3,personnel with information security responsibilities,32,34
+AC.L2-3.1.5,INTERVIEW,4,personnel with responsibilities for defining least privileges necessary to accomplish specified tasks,32,34
+AC.L2-3.1.5,TEST,1,Organizational processes for managing system accounts,32,34
+AC.L2-3.1.5,TEST,2,mechanisms for implementing account management,32,34
+AC.L2-3.1.5,TEST,3,mechanisms implementing least privilege functions,32,34
+AC.L2-3.1.5,TEST,4,"mechanisms prohibiting privileged access to the system]. 19 NIST SP 800-171A, p. 11. AC.L2-3.1.5 - Least Privilege",32,34
+AC.L2-3.1.6,EXAMINE,1,Access control policy,35,36
+AC.L2-3.1.6,EXAMINE,2,procedures addressing least privilege,35,36
+AC.L2-3.1.6,EXAMINE,3,system security plan,35,36
+AC.L2-3.1.6,EXAMINE,4,list of system -generated security functions assigned to system accounts or roles,35,36
+AC.L2-3.1.6,EXAMINE,5,system configuration settings and associated documentation,35,36
+AC.L2-3.1.6,EXAMINE,6,system audit logs and records,35,36
+AC.L2-3.1.6,EXAMINE,7,other relevant documents or records,35,36
+AC.L2-3.1.6,INTERVIEW,1,Personnel with responsibilities for defining least privileges necessary to accomplish specified organizational tasks,35,36
+AC.L2-3.1.6,INTERVIEW,2,personnel with information security responsibilities,35,36
+AC.L2-3.1.6,INTERVIEW,3,system or network administrators,35,36
+AC.L2-3.1.6,TEST,1,Mechanisms implementing least privilege functions,35,36
+AC.L2-3.1.7,EXAMINE,1,"Privacy and security policies, procedures addressing system use notification",37,39
+AC.L2-3.1.7,EXAMINE,2,documented approval of system use notification messages or banners,37,39
+AC.L2-3.1.7,EXAMINE,3,system audit logs and records,37,39
+AC.L2-3.1.7,EXAMINE,4,system design documentation,37,39
+AC.L2-3.1.7,EXAMINE,5,user acknowledgements of notification message or banner,37,39
+AC.L2-3.1.7,EXAMINE,6,system security plan,37,39
+AC.L2-3.1.7,EXAMINE,7,system use notification messages,37,39
+AC.L2-3.1.7,EXAMINE,8,system configuration settings and associated documentation,37,39
+AC.L2-3.1.7,EXAMINE,9,other relevant documents or records,37,39
+AC.L2-3.1.7,INTERVIEW,1,Personnel with responsibilities for defining least privileges necessary to accomplish specified tasks,37,39
+AC.L2-3.1.7,INTERVIEW,2,personnel with information security responsibilities,37,39
+AC.L2-3.1.7,INTERVIEW,3,system developers,37,39
+AC.L2-3.1.7,TEST,1,Mechanisms implementing least privilege functions for non- privileged users,37,39
+AC.L2-3.1.7,TEST,2,mechanisms auditing the execution of privileged functions,37,39
+AC.L2-3.1.8,EXAMINE,1,Access control policy,40,41
+AC.L2-3.1.8,EXAMINE,2,procedures addressing un successful logon attempts,40,41
+AC.L2-3.1.8,EXAMINE,3,system security plan,40,41
+AC.L2-3.1.8,EXAMINE,4,system design documentation,40,41
+AC.L2-3.1.8,EXAMINE,5,system configuration settings and associated documentation,40,41
+AC.L2-3.1.8,EXAMINE,6,system audit logs and records,40,41
+AC.L2-3.1.8,EXAMINE,7,other relevant documents or records,40,41
+AC.L2-3.1.8,INTERVIEW,1,Personnel with information security responsibilities,40,41
+AC.L2-3.1.8,INTERVIEW,2,system developers,40,41
+AC.L2-3.1.8,INTERVIEW,3,system or network administrators,40,41
+AC.L2-3.1.8,TEST,1,Mechanisms implementing access control policy for unsuccessful logon attempts,40,41
+AC.L2-3.1.9,EXAMINE,1,"Privacy and security policies, procedures addressing system use notification",42,43
+AC.L2-3.1.9,EXAMINE,2,documented approval of system use notification messages or banners,42,43
+AC.L2-3.1.9,EXAMINE,3,system audit logs and records,42,43
+AC.L2-3.1.9,EXAMINE,4,system design documentation,42,43
+AC.L2-3.1.9,EXAMINE,5,user acknowledgements of notification message or banner,42,43
+AC.L2-3.1.9,EXAMINE,6,system security plan,42,43
+AC.L2-3.1.9,EXAMINE,7,system use notification messages,42,43
+AC.L2-3.1.9,EXAMINE,8,system configuration settings and associated documentation,42,43
+AC.L2-3.1.9,EXAMINE,9,other relevant documents or records,42,43
+AC.L2-3.1.9,INTERVIEW,1,System or network administrators,42,43
+AC.L2-3.1.9,INTERVIEW,2,personnel with information security responsibilities,42,43
+AC.L2-3.1.9,INTERVIEW,3,personnel with responsibility for providing legal advice,42,43
+AC.L2-3.1.9,INTERVIEW,4,system developers,42,43
+AC.L2-3.1.9,TEST,1,Mechanisms implementing system use notification,42,43
+AC.L2-3.1.10,EXAMINE,1,Access control policy,44,45
+AC.L2-3.1.10,EXAMINE,2,procedures addressing session lock,44,45
+AC.L2-3.1.10,EXAMINE,3,procedures addressing identification and authentication,44,45
+AC.L2-3.1.10,EXAMINE,4,system design documentation,44,45
+AC.L2-3.1.10,EXAMINE,5,system configuration settings and associated documentation,44,45
+AC.L2-3.1.10,EXAMINE,6,system security plan,44,45
+AC.L2-3.1.10,EXAMINE,7,other relevant documents or records,44,45
+AC.L2-3.1.10,INTERVIEW,1,System or network administrators,44,45
+AC.L2-3.1.10,INTERVIEW,2,personnel with information security responsibilities,44,45
+AC.L2-3.1.10,INTERVIEW,3,system developers,44,45
+AC.L2-3.1.10,TEST,1,Mechanisms implementing access control policy for session lock,44,45
+AC.L2-3.1.11,EXAMINE,1,Access control policy,46,47
+AC.L2-3.1.11,EXAMINE,2,procedures addressing session termination,46,47
+AC.L2-3.1.11,EXAMINE,3,system design documentation,46,47
+AC.L2-3.1.11,EXAMINE,4,system security plan,46,47
+AC.L2-3.1.11,EXAMINE,5,system configuration settings and associated documentation,46,47
+AC.L2-3.1.11,EXAMINE,6,list of conditions or trigger events requiring session disconnect,46,47
+AC.L2-3.1.11,EXAMINE,7,system audit logs and records,46,47
+AC.L2-3.1.11,EXAMINE,8,other relevant documents or records,46,47
+AC.L2-3.1.11,INTERVIEW,1,System or network administrators,46,47
+AC.L2-3.1.11,INTERVIEW,2,personnel with information security responsibilities,46,47
+AC.L2-3.1.11,INTERVIEW,3,system developers,46,47
+AC.L2-3.1.11,TEST,1,Mechanisms implementing user session termination,46,47
+AC.L2-3.1.12,EXAMINE,1,Access control policy,48,50
+AC.L2-3.1.12,EXAMINE,2,procedures addressing remote access implementation and usage (including restrictions),48,50
+AC.L2-3.1.12,EXAMINE,3,configuration management plan,48,50
+AC.L2-3.1.12,EXAMINE,4,system security plan,48,50
+AC.L2-3.1.12,EXAMINE,5,system design documentation,48,50
+AC.L2-3.1.12,EXAMINE,6,system configuration settings and associated documentation,48,50
+AC.L2-3.1.12,EXAMINE,7,remote access authorizations,48,50
+AC.L2-3.1.12,EXAMINE,8,system audit logs and records,48,50
+AC.L2-3.1.12,EXAMINE,9,other relevant documents or records,48,50
+AC.L2-3.1.12,INTERVIEW,1,Personnel with responsibilities for managing remote access connections,48,50
+AC.L2-3.1.12,INTERVIEW,2,system or network administrators,48,50
+AC.L2-3.1.12,INTERVIEW,3,personnel with information security responsibilities,48,50
+AC.L2-3.1.12,TEST,1,Remote access management capability for the system,48,50
+AC.L2-3.1.13,EXAMINE,1,Access control policy,51,52
+AC.L2-3.1.13,EXAMINE,2,procedures addressing remote access to the system,51,52
+AC.L2-3.1.13,EXAMINE,3,system security plan,51,52
+AC.L2-3.1.13,EXAMINE,4,system design documentation,51,52
+AC.L2-3.1.13,EXAMINE,5,system configuration settings and associated documentation,51,52
+AC.L2-3.1.13,EXAMINE,6,cryptographic mechanisms and associated configuration documentation,51,52
+AC.L2-3.1.13,EXAMINE,7,system audit logs and records,51,52
+AC.L2-3.1.13,EXAMINE,8,other relevant documents or records,51,52
+AC.L2-3.1.13,INTERVIEW,1,System or network administrators,51,52
+AC.L2-3.1.13,INTERVIEW,2,personnel with information security responsibilities,51,52
+AC.L2-3.1.13,INTERVIEW,3,system developers,51,52
+AC.L2-3.1.13,TEST,1,Cryptographic mechanisms protecting remote access sessions,51,52
+AC.L2-3.1.14,EXAMINE,1,Access control policy,53,54
+AC.L2-3.1.14,EXAMINE,2,procedures addressing re mote access to the system,53,54
+AC.L2-3.1.14,EXAMINE,3,system security plan,53,54
+AC.L2-3.1.14,EXAMINE,4,system design documentation,53,54
+AC.L2-3.1.14,EXAMINE,5,list of all managed network access control points,53,54
+AC.L2-3.1.14,EXAMINE,6,system configuration settings and associated documentation,53,54
+AC.L2-3.1.14,EXAMINE,7,system audit logs and records,53,54
+AC.L2-3.1.14,EXAMINE,8,other relevant documents or records,53,54
+AC.L2-3.1.14,INTERVIEW,1,System or network administrators,53,54
+AC.L2-3.1.14,INTERVIEW,2,personnel with information security responsibilities,53,54
+AC.L2-3.1.14,TEST,1,Mechanisms routing all remote accesses through managed network access control points,53,54
+AC.L2-3.1.15,EXAMINE,1,Access control policy,55,57
+AC.L2-3.1.15,EXAMINE,2,procedures addressing remote access to the system,55,57
+AC.L2-3.1.15,EXAMINE,3,system configuration settings and associated documentation,55,57
+AC.L2-3.1.15,EXAMINE,4,system security plan,55,57
+AC.L2-3.1.15,EXAMINE,5,system audit logs and records,55,57
+AC.L2-3.1.15,EXAMINE,6,other relevant documents or records,55,57
+AC.L2-3.1.15,INTERVIEW,1,System or network administrators,55,57
+AC.L2-3.1.15,INTERVIEW,2,personnel with information security responsibilities,55,57
+AC.L2-3.1.15,TEST,1,Mechanisms implementing remote access management,55,57
+AC.L2-3.1.16,EXAMINE,1,Access control policy,58,59
+AC.L2-3.1.16,EXAMINE,2,configuration management plan,58,59
+AC.L2-3.1.16,EXAMINE,3,procedures addressing wireless access implementation and usage (including restrictions),58,59
+AC.L2-3.1.16,EXAMINE,4,system security plan,58,59
+AC.L2-3.1.16,EXAMINE,5,system design documentation,58,59
+AC.L2-3.1.16,EXAMINE,6,system configuration settings and associated documentation,58,59
+AC.L2-3.1.16,EXAMINE,7,wireless access authorizations,58,59
+AC.L2-3.1.16,EXAMINE,8,system audit logs and records,58,59
+AC.L2-3.1.16,EXAMINE,9,other relevant documents or records,58,59
+AC.L2-3.1.16,INTERVIEW,1,Personnel with responsibilities for managing wireless access connections,58,59
+AC.L2-3.1.16,INTERVIEW,2,personnel with information security responsibilities,58,59
+AC.L2-3.1.16,TEST,1,Wireless access management capability for the system,58,59
+AC.L2-3.1.17,EXAMINE,1,Access control policy,60,61
+AC.L2-3.1.17,EXAMINE,2,system design documentation,60,61
+AC.L2-3.1.17,EXAMINE,3,procedures addressing wireless implementation and usage (including restrictions),60,61
+AC.L2-3.1.17,EXAMINE,4,system security plan,60,61
+AC.L2-3.1.17,EXAMINE,5,system configuration settings and associated documentation,60,61
+AC.L2-3.1.17,EXAMINE,6,system audit logs and records,60,61
+AC.L2-3.1.17,EXAMINE,7,other relevant documents or records,60,61
+AC.L2-3.1.17,INTERVIEW,1,System or network administrators,60,61
+AC.L2-3.1.17,INTERVIEW,2,personnel with information security responsibilities,60,61
+AC.L2-3.1.17,INTERVIEW,3,system developers,60,61
+AC.L2-3.1.17,TEST,1,Mechanisms implementing wireless access protections to the system,60,61
+AC.L2-3.1.18,EXAMINE,1,Access control policy,62,63
+AC.L2-3.1.18,EXAMINE,2,authorizations for mobile device connections to organizational systems,62,63
+AC.L2-3.1.18,EXAMINE,3,procedures addressing access control for mobile device usage (including restrictions),62,63
+AC.L2-3.1.18,EXAMINE,4,system design documentation,62,63
+AC.L2-3.1.18,EXAMINE,5,configuration management plan,62,63
+AC.L2-3.1.18,EXAMINE,6,system security plan,62,63
+AC.L2-3.1.18,EXAMINE,7,system audit logs and records,62,63
+AC.L2-3.1.18,EXAMINE,8,system configuration settings and associated documentation,62,63
+AC.L2-3.1.18,EXAMINE,9,other relevant documents or records,62,63
+AC.L2-3.1.18,INTERVIEW,1,Personnel using mobile devices to access organizational systems,62,63
+AC.L2-3.1.18,INTERVIEW,2,system or network administrators,62,63
+AC.L2-3.1.18,INTERVIEW,3,personnel with information security responsibilities,62,63
+AC.L2-3.1.18,TEST,1,Access control capability authorizing mobile device connections to organizational systems,62,63
+AC.L2-3.1.19,EXAMINE,1,Access control policy,64,65
+AC.L2-3.1.19,EXAMINE,2,procedures addressing access control for mobile devices,64,65
+AC.L2-3.1.19,EXAMINE,3,system design documentation,64,65
+AC.L2-3.1.19,EXAMINE,4,system configuration settings and associated documentation,64,65
+AC.L2-3.1.19,EXAMINE,5,encryption mechanisms and associated configuration documentation,64,65
+AC.L2-3.1.19,EXAMINE,6,system security plan,64,65
+AC.L2-3.1.19,EXAMINE,7,system audit logs and records,64,65
+AC.L2-3.1.19,EXAMINE,8,other relevant documents or records,64,65
+AC.L2-3.1.19,INTERVIEW,1,Personnel with access control responsibilities for mobile devices,64,65
+AC.L2-3.1.19,INTERVIEW,2,system or network administrators,64,65
+AC.L2-3.1.19,INTERVIEW,3,personnel with information security responsibilities,64,65
+AC.L2-3.1.19,TEST,1,Encryption mechanisms protecting confidentiality of information on mobile devices,64,65
+AC.L2-3.1.20,EXAMINE,1,Access control policy,66,68
+AC.L2-3.1.20,EXAMINE,2,procedures addressing the use of external systems,66,68
+AC.L2-3.1.20,EXAMINE,3,terms and conditions for external systems,66,68
+AC.L2-3.1.20,EXAMINE,4,system security plan,66,68
+AC.L2-3.1.20,EXAMINE,5,list of applications accessible from external systems,66,68
+AC.L2-3.1.20,EXAMINE,6,system configuration settings and associated documentation,66,68
+AC.L2-3.1.20,EXAMINE,7,system connection or processing agreements,66,68
+AC.L2-3.1.20,EXAMINE,8,account management documents,66,68
+AC.L2-3.1.20,EXAMINE,9,other relevant documents or records,66,68
+AC.L2-3.1.20,INTERVIEW,1,Personnel with responsibilities for defining terms and conditions for use of external systems to access organizational systems,66,68
+AC.L2-3.1.20,INTERVIEW,2,system or network administrators,66,68
+AC.L2-3.1.20,INTERVIEW,3,personnel with information security responsibilities,66,68
+AC.L2-3.1.20,TEST,1,Mechanisms implementing terms and conditions on use of external systems,66,68
+AC.L2-3.1.21,EXAMINE,1,Access control policy,69,70
+AC.L2-3.1.21,EXAMINE,2,procedures addressing the use of external systems,69,70
+AC.L2-3.1.21,EXAMINE,3,system security plan,69,70
+AC.L2-3.1.21,EXAMINE,4,system configuration settings and associated documentation,69,70
+AC.L2-3.1.21,EXAMINE,5,system connection or processing agreements,69,70
+AC.L2-3.1.21,EXAMINE,6,account management documents,69,70
+AC.L2-3.1.21,EXAMINE,7,other relevant documents or records,69,70
+AC.L2-3.1.21,INTERVIEW,1,Personnel with responsibilities for restricting or prohibiting use of organization-controlled storage devices on external systems,69,70
+AC.L2-3.1.21,INTERVIEW,2,sy stem or network administrators,69,70
+AC.L2-3.1.21,INTERVIEW,3,personnel with information security responsibilities,69,70
+AC.L2-3.1.21,TEST,1,Mechanisms implementing restrictions on use of portable storage devices,69,70
+AC.L2-3.1.22,EXAMINE,1,Access control policy,71,72
+AC.L2-3.1.22,EXAMINE,2,procedures addressing publicly accessible content,71,72
+AC.L2-3.1.22,EXAMINE,3,system security plan,71,72
+AC.L2-3.1.22,EXAMINE,4,list of users authorized to post publicly accessible content on organizational systems,71,72
+AC.L2-3.1.22,EXAMINE,5,training materials and/or records,71,72
+AC.L2-3.1.22,EXAMINE,6,records of publicly accessible information reviews,71,72
+AC.L2-3.1.22,EXAMINE,7,records of response to nonpublic information on public websites,71,72
+AC.L2-3.1.22,EXAMINE,8,system audit logs and records,71,72
+AC.L2-3.1.22,EXAMINE,9,security awareness training records,71,72
+AC.L2-3.1.22,EXAMINE,10,other relevant documents or records,71,72
+AC.L2-3.1.22,INTERVIEW,1,Personnel with responsibilities for managing publicly accessible information posted on organizational systems,71,72
+AC.L2-3.1.22,INTERVIEW,2,personnel with information securit y responsibilities,71,72
+AC.L2-3.1.22,TEST,1,Mechanisms implementing management of publicly accessible content,71,72
+AT.L2-3.2.1,EXAMINE,1,Security awareness and training policy,73,75
+AT.L2-3.2.1,EXAMINE,2,procedures addressing security awareness training implementation,73,75
+AT.L2-3.2.1,EXAMINE,3,relevant codes of federal regulations,73,75
+AT.L2-3.2.1,EXAMINE,4,security awareness training curriculum,73,75
+AT.L2-3.2.1,EXAMINE,5,security awareness training materials,73,75
+AT.L2-3.2.1,EXAMINE,6,system security plan,73,75
+AT.L2-3.2.1,EXAMINE,7,training records,73,75
+AT.L2-3.2.1,EXAMINE,8,other relevant documents or records,73,75
+AT.L2-3.2.1,INTERVIEW,1,Personnel with responsibilities for security awareness training,73,75
+AT.L2-3.2.1,INTERVIEW,2,personnel with information security responsibilities,73,75
+AT.L2-3.2.1,INTERVIEW,3,personnel composing the general system user community,73,75
+AT.L2-3.2.1,INTERVIEW,4,personnel with responsibilities for role-based awareness training,73,75
+AT.L2-3.2.1,TEST,1,Mechanisms managing security awareness training,73,75
+AT.L2-3.2.1,TEST,2,mechanisms managing role-based security training,73,75
+AT.L2-3.2.2,EXAMINE,1,Security awareness and training policy,76,77
+AT.L2-3.2.2,EXAMINE,2,procedures addressing security training implementation,76,77
+AT.L2-3.2.2,EXAMINE,3,codes of federal regulations,76,77
+AT.L2-3.2.2,EXAMINE,4,security training curriculum,76,77
+AT.L2-3.2.2,EXAMINE,5,security training materials,76,77
+AT.L2-3.2.2,EXAMINE,6,system security plan,76,77
+AT.L2-3.2.2,EXAMINE,7,training records,76,77
+AT.L2-3.2.2,EXAMINE,8,other relevant documents or records,76,77
+AT.L2-3.2.2,INTERVIEW,1,Personnel with responsibilities for role- based security training,76,77
+AT.L2-3.2.2,INTERVIEW,2,personnel with assigned system security roles and responsibilities,76,77
+AT.L2-3.2.2,INTERVIEW,3,personnel with responsibilities for security awareness training,76,77
+AT.L2-3.2.2,INTERVIEW,4,personnel with information security responsibilities,76,77
+AT.L2-3.2.2,INTERVIEW,5,personnel representing the general system user community,76,77
+AT.L2-3.2.2,TEST,1,Mechanisms managing role-based security training,76,77
+AT.L2-3.2.2,TEST,2,mechanisms managing security awareness training,76,77
+AT.L2-3.2.3,EXAMINE,1,Security awareness and training policy,78,79
+AT.L2-3.2.3,EXAMINE,2,procedures addressing security awareness training implementation,78,79
+AT.L2-3.2.3,EXAMINE,3,security awareness training curriculum,78,79
+AT.L2-3.2.3,EXAMINE,4,security awareness training materials,78,79
+AT.L2-3.2.3,EXAMINE,5,insider threat policy and procedures,78,79
+AT.L2-3.2.3,EXAMINE,6,system security plan,78,79
+AT.L2-3.2.3,EXAMINE,7,other relevant documents or records,78,79
+AT.L2-3.2.3,INTERVIEW,1,Personnel that participate in security awareness training,78,79
+AT.L2-3.2.3,INTERVIEW,2,personnel with responsibilities for basic security awareness training,78,79
+AT.L2-3.2.3,INTERVIEW,3,personnel with information security responsibilities,78,79
+AT.L2-3.2.3,TEST,1,Mechanisms managing insider threat training,78,79
+AU.L2-3.3.1,EXAMINE,1,Audit and accountability policy,80,82
+AU.L2-3.3.1,EXAMINE,2,procedures addressing auditable events,80,82
+AU.L2-3.3.1,EXAMINE,3,system security plan,80,82
+AU.L2-3.3.1,EXAMINE,4,system design documentation,80,82
+AU.L2-3.3.1,EXAMINE,5,system configuration settings and associated documentation,80,82
+AU.L2-3.3.1,EXAMINE,6,procedures addressing control of audit records,80,82
+AU.L2-3.3.1,EXAMINE,7,procedures addressing audit record generation,80,82
+AU.L2-3.3.1,EXAMINE,8,system audit logs and records,80,82
+AU.L2-3.3.1,EXAMINE,9,system auditable events,80,82
+AU.L2-3.3.1,EXAMINE,10,system incident reports,80,82
+AU.L2-3.3.1,EXAMINE,11,other relevant documents or records,80,82
+AU.L2-3.3.1,INTERVIEW,1,Personnel with audit and accountability responsibilities,80,82
+AU.L2-3.3.1,INTERVIEW,2,personnel with information security responsibilities,80,82
+AU.L2-3.3.1,INTERVIEW,3,"personnel with audit review, analysis and reporting responsibilities",80,82
+AU.L2-3.3.1,INTERVIEW,4,system or network administrators,80,82
+AU.L2-3.3.1,TEST,1,"Mechanisms implementing system audit logging]. 62 NIST SP 800-171A, p. 21. AU.L2-3.3.1 - System Auditing",80,82
+AU.L2-3.3.2,EXAMINE,1,Audit and accountability policy,83,84
+AU.L2-3.3.2,EXAMINE,2,procedures addressing audit records and event types,83,84
+AU.L2-3.3.2,EXAMINE,3,system security plan,83,84
+AU.L2-3.3.2,EXAMINE,4,system design documentation,83,84
+AU.L2-3.3.2,EXAMINE,5,system configuration settings and associated documentation,83,84
+AU.L2-3.3.2,EXAMINE,6,procedures addressing audit record generation,83,84
+AU.L2-3.3.2,EXAMINE,7,"procedures addressing audit review, analysis, and reporting",83,84
+AU.L2-3.3.2,EXAMINE,8,reports of audit findings,83,84
+AU.L2-3.3.2,EXAMINE,9,system audit logs and records,83,84
+AU.L2-3.3.2,EXAMINE,10,system events,83,84
+AU.L2-3.3.2,EXAMINE,11,system incident reports,83,84
+AU.L2-3.3.2,EXAMINE,12,other relevant documents or records,83,84
+AU.L2-3.3.2,INTERVIEW,1,Personnel with audit and accountability responsibilities,83,84
+AU.L2-3.3.2,INTERVIEW,2,personnel with information security responsibilities,83,84
+AU.L2-3.3.2,INTERVIEW,3,system or network administrators,83,84
+AU.L2-3.3.2,TEST,1,Mechanisms implementing system audit logging,83,84
+AU.L2-3.3.3,EXAMINE,1,Audit and accountability policy,85,86
+AU.L2-3.3.3,EXAMINE,2,procedures addressing audit records and event types,85,86
+AU.L2-3.3.3,EXAMINE,3,system security plan,85,86
+AU.L2-3.3.3,EXAMINE,4,list of organization- defined event types to be logged,85,86
+AU.L2-3.3.3,EXAMINE,5,reviewed and updated records of logged event types,85,86
+AU.L2-3.3.3,EXAMINE,6,system audit logs and records,85,86
+AU.L2-3.3.3,EXAMINE,7,system incident reports,85,86
+AU.L2-3.3.3,EXAMINE,8,other relevant documents or records,85,86
+AU.L2-3.3.3,INTERVIEW,1,Personnel with audit and accountability responsibilities,85,86
+AU.L2-3.3.3,INTERVIEW,2,personnel with information security responsibilities,85,86
+AU.L2-3.3.3,TEST,1,Mechanisms supporting review and update of logged event types,85,86
+AU.L2-3.3.4,EXAMINE,1,Audit and accountability policy,87,88
+AU.L2-3.3.4,EXAMINE,2,procedures addressing response to audit logging processing failures,87,88
+AU.L2-3.3.4,EXAMINE,3,system design documentation,87,88
+AU.L2-3.3.4,EXAMINE,4,system security plan,87,88
+AU.L2-3.3.4,EXAMINE,5,system configuration settings and associated documentation,87,88
+AU.L2-3.3.4,EXAMINE,6,list of personnel to be notified in case of an audit logging processing failure,87,88
+AU.L2-3.3.4,EXAMINE,7,system incident reports,87,88
+AU.L2-3.3.4,EXAMINE,8,system audit logs and records,87,88
+AU.L2-3.3.4,EXAMINE,9,other relevant documents or records,87,88
+AU.L2-3.3.4,INTERVIEW,1,Personnel with audit and accountability responsibilities,87,88
+AU.L2-3.3.4,INTERVIEW,2,personnel with information security responsibilities,87,88
+AU.L2-3.3.4,INTERVIEW,3,system or network administrators,87,88
+AU.L2-3.3.4,INTERVIEW,4,system developers,87,88
+AU.L2-3.3.4,TEST,1,SELECT FR OM: Mechanisms implementing system response to audit logging process failures,87,88
+AU.L2-3.3.5,EXAMINE,1,Audit and accountability policy,89,90
+AU.L2-3.3.5,EXAMINE,2,"procedures addressing audit record review, analysis, and reporting",89,90
+AU.L2-3.3.5,EXAMINE,3,system security plan,89,90
+AU.L2-3.3.5,EXAMINE,4,system design documentation,89,90
+AU.L2-3.3.5,EXAMINE,5,system configuration settings and associated documentation,89,90
+AU.L2-3.3.5,EXAMINE,6,procedures addressing investigation of and response to suspicious activities,89,90
+AU.L2-3.3.5,EXAMINE,7,system audit logs and records across different repositories,89,90
+AU.L2-3.3.5,EXAMINE,8,other relevant documents or records,89,90
+AU.L2-3.3.5,INTERVIEW,1,"Personnel with audit record review, analysis, and reporting responsibilities",89,90
+AU.L2-3.3.5,INTERVIEW,2,personnel with information security responsibilities,89,90
+AU.L2-3.3.5,TEST,1,Mechanisms supporting analysis and correlation of audit records,89,90
+AU.L2-3.3.5,TEST,2,"mechanisms integrating audit review, analysis and reporting",89,90
+AU.L2-3.3.6,EXAMINE,1,Audit and accountability policy,91,92
+AU.L2-3.3.6,EXAMINE,2,procedures addressing audit record reduction and report generation,91,92
+AU.L2-3.3.6,EXAMINE,3,system design documentation,91,92
+AU.L2-3.3.6,EXAMINE,4,system security plan,91,92
+AU.L2-3.3.6,EXAMINE,5,system configuration settings and associated documentation,91,92
+AU.L2-3.3.6,EXAMINE,6,"audit record reduction, review, analy sis, and reporting tools",91,92
+AU.L2-3.3.6,EXAMINE,7,system audit logs and records,91,92
+AU.L2-3.3.6,EXAMINE,8,other relevant documents or records,91,92
+AU.L2-3.3.6,INTERVIEW,1,Personnel with audit record reduction and report generation responsibilities,91,92
+AU.L2-3.3.6,INTERVIEW,2,personnel with information security responsibilities,91,92
+AU.L2-3.3.6,TEST,1,Audit record reduction and report generation capability,91,92
+AU.L2-3.3.7,EXAMINE,1,Audit and accountability policy,93,94
+AU.L2-3.3.7,EXAMINE,2,procedures addressing time stamp generation,93,94
+AU.L2-3.3.7,EXAMINE,3,system design documentation,93,94
+AU.L2-3.3.7,EXAMINE,4,system security plan,93,94
+AU.L2-3.3.7,EXAMINE,5,system configuration settings and associ ated documentation,93,94
+AU.L2-3.3.7,EXAMINE,6,system audit logs and records,93,94
+AU.L2-3.3.7,EXAMINE,7,other relevant documents or records,93,94
+AU.L2-3.3.7,INTERVIEW,1,Personnel with information security responsibilities,93,94
+AU.L2-3.3.7,INTERVIEW,2,system or network administrators,93,94
+AU.L2-3.3.7,INTERVIEW,3,system developers,93,94
+AU.L2-3.3.7,TEST,1,Mechanisms implementing time stamp generation,93,94
+AU.L2-3.3.7,TEST,2,mechanisms implementing internal information system clock synchronization,93,94
+AU.L2-3.3.8,EXAMINE,1,Audit and accountability policy,95,96
+AU.L2-3.3.8,EXAMINE,2,access control policy and procedures,95,96
+AU.L2-3.3.8,EXAMINE,3,procedures addressing protection of audit information,95,96
+AU.L2-3.3.8,EXAMINE,4,system security plan,95,96
+AU.L2-3.3.8,EXAMINE,5,system design documentation,95,96
+AU.L2-3.3.8,EXAMINE,6,"system configuration settings and associated documentation, system audit logs and records",95,96
+AU.L2-3.3.8,EXAMINE,7,audit logging tools,95,96
+AU.L2-3.3.8,EXAMINE,8,other relevant documents or records,95,96
+AU.L2-3.3.8,INTERVIEW,1,Personnel with audit and accountability responsibilities,95,96
+AU.L2-3.3.8,INTERVIEW,2,personnel with information security responsibilities,95,96
+AU.L2-3.3.8,INTERVIEW,3,system or network administrators,95,96
+AU.L2-3.3.8,INTERVIEW,4,system developers,95,96
+AU.L2-3.3.8,TEST,1,Mechanisms implementing audit information protection,95,96
+AU.L2-3.3.9,EXAMINE,1,Audit and accountability policy,97,98
+AU.L2-3.3.9,EXAMINE,2,access control policy and procedures,97,98
+AU.L2-3.3.9,EXAMINE,3,procedures addressing protection of audit information,97,98
+AU.L2-3.3.9,EXAMINE,4,system security plan,97,98
+AU.L2-3.3.9,EXAMINE,5,system design documentation,97,98
+AU.L2-3.3.9,EXAMINE,6,system configuration setting s and associated documentation,97,98
+AU.L2-3.3.9,EXAMINE,7,access authorizations,97,98
+AU.L2-3.3.9,EXAMINE,8,system-generated list of privileged users with access to management of audit logging functionality,97,98
+AU.L2-3.3.9,EXAMINE,9,access control list,97,98
+AU.L2-3.3.9,EXAMINE,10,system audit logs and records,97,98
+AU.L2-3.3.9,EXAMINE,11,other relevant documents or records,97,98
+AU.L2-3.3.9,INTERVIEW,1,Personnel with audit and accountability responsibilities,97,98
+AU.L2-3.3.9,INTERVIEW,2,personnel with information security responsibilities,97,98
+AU.L2-3.3.9,INTERVIEW,3,system or network administrators,97,98
+AU.L2-3.3.9,INTERVIEW,4,system developers,97,98
+AU.L2-3.3.9,TEST,1,Mechanisms managing access to audit logging functionality,97,98
+CM.L2-3.4.1,EXAMINE,1,Configuration management policy,99,101
+CM.L2-3.4.1,EXAMINE,2,procedures addressing the baseline configuration of the system,99,101
+CM.L2-3.4.1,EXAMINE,3,procedures addressing system inventory,99,101
+CM.L2-3.4.1,EXAMINE,4,system security plan,99,101
+CM.L2-3.4.1,EXAMINE,5,configuration management plan,99,101
+CM.L2-3.4.1,EXAMINE,6,system inventory records,99,101
+CM.L2-3.4.1,EXAMINE,7,inventory review and update records,99,101
+CM.L2-3.4.1,EXAMINE,8,enterprise architecture documentation,99,101
+CM.L2-3.4.1,EXAMINE,9,system design documentation,99,101
+CM.L2-3.4.1,EXAMINE,10,system architecture and configuration documentation,99,101
+CM.L2-3.4.1,EXAMINE,11,system configuration settings and associated documentation,99,101
+CM.L2-3.4.1,EXAMINE,12,change control records,99,101
+CM.L2-3.4.1,EXAMINE,13,system component installation records,99,101
+CM.L2-3.4.1,EXAMINE,14,system component removal records,99,101
+CM.L2-3.4.1,EXAMINE,15,other relevant documents or records,99,101
+CM.L2-3.4.1,INTERVIEW,1,Personnel with configuration management responsibilities,99,101
+CM.L2-3.4.1,INTERVIEW,2,personnel with responsibilities for establishing the system inventory,99,101
+CM.L2-3.4.1,INTERVIEW,3,personnel with responsibilities for updating the system inventory,99,101
+CM.L2-3.4.1,INTERVIEW,4,personnel with information security responsibilities,99,101
+CM.L2-3.4.1,INTERVIEW,5,"system or network administrators]. 80 NIST SP 800-171A, p. 26. CM.L2-3.4.1 - System Baselining",99,101
+CM.L2-3.4.1,TEST,1,Organizational processes for managing baseline configurations,99,101
+CM.L2-3.4.1,TEST,2,mechanisms supporting configuration control of the baseline configuration,99,101
+CM.L2-3.4.1,TEST,3,organizational processes for developing and documenting an inventory of system components,99,101
+CM.L2-3.4.1,TEST,4,organizational processes for updating inventory of system components,99,101
+CM.L2-3.4.1,TEST,5,mechanisms supporting or implementing the system inventory,99,101
+CM.L2-3.4.1,TEST,6,mechanisms implementing updating of the system inventory,99,101
+CM.L2-3.4.2,EXAMINE,1,Configuration management policy,102,103
+CM.L2-3.4.2,EXAMINE,2,baseline configuration,102,103
+CM.L2-3.4.2,EXAMINE,3,procedures addressing configuration settings for the system,102,103
+CM.L2-3.4.2,EXAMINE,4,configuration management plan,102,103
+CM.L2-3.4.2,EXAMINE,5,system security plan,102,103
+CM.L2-3.4.2,EXAMINE,6,system design documentation,102,103
+CM.L2-3.4.2,EXAMINE,7,system configuration settings and associated documentation,102,103
+CM.L2-3.4.2,EXAMINE,8,security configuration checklists,102,103
+CM.L2-3.4.2,EXAMINE,9,evidence supporting approved deviations from established configuration settings,102,103
+CM.L2-3.4.2,EXAMINE,10,change control records,102,103
+CM.L2-3.4.2,EXAMINE,11,system audit logs and records,102,103
+CM.L2-3.4.2,EXAMINE,12,other relevant documents or records,102,103
+CM.L2-3.4.2,INTERVIEW,1,Personnel with security configuration management responsibilities,102,103
+CM.L2-3.4.2,INTERVIEW,2,personnel with information security responsibilities,102,103
+CM.L2-3.4.2,INTERVIEW,3,system or network administrators,102,103
+CM.L2-3.4.2,TEST,1,Organizational processes for managing configuration settings,102,103
+CM.L2-3.4.2,TEST,2,"mechanisms that implement, monitor, and/or control system configuration settings",102,103
+CM.L2-3.4.2,TEST,3,mechanisms that identify and/or document deviations from established configuration settings,102,103
+CM.L2-3.4.2,TEST,4,processes for managing baseline configurations,102,103
+CM.L2-3.4.2,TEST,5,mechanisms supporting configuration control of baseline configurations,102,103
+CM.L2-3.4.3,EXAMINE,1,Configuration management policy,104,105
+CM.L2-3.4.3,EXAMINE,2,procedures addressing system configuration change control,104,105
+CM.L2-3.4.3,EXAMINE,3,configuration management plan,104,105
+CM.L2-3.4.3,EXAMINE,4,system architecture and configuration documentation,104,105
+CM.L2-3.4.3,EXAMINE,5,system security plan,104,105
+CM.L2-3.4.3,EXAMINE,6,change control records,104,105
+CM.L2-3.4.3,EXAMINE,7,system audit logs and records,104,105
+CM.L2-3.4.3,EXAMINE,8,change control audit and review reports,104,105
+CM.L2-3.4.3,EXAMINE,9,agenda/minutes from configuration change control oversight meetings,104,105
+CM.L2-3.4.3,EXAMINE,10,other relevant documents or records,104,105
+CM.L2-3.4.3,INTERVIEW,1,Personnel with configuration change control responsibilities,104,105
+CM.L2-3.4.3,INTERVIEW,2,personnel with information security responsibilities,104,105
+CM.L2-3.4.3,INTERVIEW,3,system or network administrators,104,105
+CM.L2-3.4.3,INTERVIEW,4,members of change control board or similar,104,105
+CM.L2-3.4.3,TEST,1,Organizational processes for configuration change control,104,105
+CM.L2-3.4.3,TEST,2,mechanisms that implement configuration change control,104,105
+CM.L2-3.4.4,EXAMINE,1,Configuration management policy,106,107
+CM.L2-3.4.4,EXAMINE,2,procedures addressing security impact analysis for system changes,106,107
+CM.L2-3.4.4,EXAMINE,3,configuration management plan,106,107
+CM.L2-3.4.4,EXAMINE,4,security impact analysis documentation,106,107
+CM.L2-3.4.4,EXAMINE,5,system security plan,106,107
+CM.L2-3.4.4,EXAMINE,6,analysis tools and associated outputs,106,107
+CM.L2-3.4.4,EXAMINE,7,change control records,106,107
+CM.L2-3.4.4,EXAMINE,8,system audit logs and records,106,107
+CM.L2-3.4.4,EXAMINE,9,other relevant documents or records,106,107
+CM.L2-3.4.4,INTERVIEW,1,Personnel with responsibility for conducting security impact analysis,106,107
+CM.L2-3.4.4,INTERVIEW,2,personnel with information security responsibilities,106,107
+CM.L2-3.4.4,INTERVIEW,3,system or network administrators,106,107
+CM.L2-3.4.4,TEST,1,Organizational processes for security impact analysis,106,107
+CM.L2-3.4.5,EXAMINE,1,Configuration management policy,108,110
+CM.L2-3.4.5,EXAMINE,2,procedures addressing access restrictions for changes to the system,108,110
+CM.L2-3.4.5,EXAMINE,3,system security plan,108,110
+CM.L2-3.4.5,EXAMINE,4,configuration management plan,108,110
+CM.L2-3.4.5,EXAMINE,5,system design documentation,108,110
+CM.L2-3.4.5,EXAMINE,6,system architecture and configuration documentation,108,110
+CM.L2-3.4.5,EXAMINE,7,system configuration settings and associated documentation,108,110
+CM.L2-3.4.5,EXAMINE,8,logical access approvals,108,110
+CM.L2-3.4.5,EXAMINE,9,physical access approvals,108,110
+CM.L2-3.4.5,EXAMINE,10,access credentials,108,110
+CM.L2-3.4.5,EXAMINE,11,change control records,108,110
+CM.L2-3.4.5,EXAMINE,12,system audit logs and records,108,110
+CM.L2-3.4.5,EXAMINE,13,other relevant documents or records,108,110
+CM.L2-3.4.5,INTERVIEW,1,Personnel with logical access control responsibilities,108,110
+CM.L2-3.4.5,INTERVIEW,2,personnel with physical access control responsibilities,108,110
+CM.L2-3.4.5,INTERVIEW,3,personnel with information security responsibilities,108,110
+CM.L2-3.4.5,INTERVIEW,4,system or network administrators,108,110
+CM.L2-3.4.5,TEST,1,Organizational processes for managing access restrictions associated with changes to the system,108,110
+CM.L2-3.4.5,TEST,2,"mechanisms supporting, implementing, and enforcing access restrictions associated with changes to the system]. 88 NIST SP 800-171A, p. 28. CM.L2-3.4.5 - Access Restrictions for Change",108,110
+CM.L2-3.4.6,EXAMINE,1,Configuration management policy,111,112
+CM.L2-3.4.6,EXAMINE,2,configuration management plan,111,112
+CM.L2-3.4.6,EXAMINE,3,procedures addressing least functionality in the system,111,112
+CM.L2-3.4.6,EXAMINE,4,system security plan,111,112
+CM.L2-3.4.6,EXAMINE,5,system design documentation,111,112
+CM.L2-3.4.6,EXAMINE,6,system configuration settings and associated documentation,111,112
+CM.L2-3.4.6,EXAMINE,7,security configuration checklists,111,112
+CM.L2-3.4.6,EXAMINE,8,other relevant documents or records,111,112
+CM.L2-3.4.6,INTERVIEW,1,Personnel with security configuration management responsibilities,111,112
+CM.L2-3.4.6,INTERVIEW,2,personnel with information security responsibilities,111,112
+CM.L2-3.4.6,INTERVIEW,3,system or network administrators,111,112
+CM.L2-3.4.6,TEST,1,"Organiza tional processes prohibiting or restricting functions, ports, protocols, or services",111,112
+CM.L2-3.4.6,TEST,2,"mechanisms implementing restrictions or prohibition of functions, ports, protocols, or services",111,112
+CM.L2-3.4.7,EXAMINE,1,Configuration management policy,113,115
+CM.L2-3.4.7,EXAMINE,2,procedures addressing least functionality in the system,113,115
+CM.L2-3.4.7,EXAMINE,3,configuration management plan,113,115
+CM.L2-3.4.7,EXAMINE,4,system security plan,113,115
+CM.L2-3.4.7,EXAMINE,5,system design documentation,113,115
+CM.L2-3.4.7,EXAMINE,6,security configuration checklists,113,115
+CM.L2-3.4.7,EXAMINE,7,system configuration settings and associated documentation,113,115
+CM.L2-3.4.7,EXAMINE,8,specifications for preventing software program execution,113,115
+CM.L2-3.4.7,EXAMINE,9,"documented reviews of programs, functions, ports, protocols, and/or services",113,115
+CM.L2-3.4.7,EXAMINE,10,change control records,113,115
+CM.L2-3.4.7,EXAMINE,11,system audit logs and records,113,115
+CM.L2-3.4.7,EXAMINE,12,"other relevant documents or records]. 92 NIST SP 800-171A, p. 29. CM.L2-3.4.7 - Nonessential Functionality",113,115
+CM.L2-3.4.7,INTERVIEW,1,"Personnel with responsibilities for reviewing programs, functions, ports, protocols, and services on the system",113,115
+CM.L2-3.4.7,INTERVIEW,2,personnel with information security responsibilities,113,115
+CM.L2-3.4.7,INTERVIEW,3,system or network administrators,113,115
+CM.L2-3.4.7,INTERVIEW,4,system developers,113,115
+CM.L2-3.4.7,TEST,1,"Organizational processes for reviewing and disabling nonessential programs, functions, ports, protocols, or services",113,115
+CM.L2-3.4.7,TEST,2,"mechanisms implementing review and handling of nonessential programs, functions, ports, protocols, or services",113,115
+CM.L2-3.4.7,TEST,3,organizational processes preventing program execution on the system,113,115
+CM.L2-3.4.7,TEST,4,organizational processes for software program usage and restrictions,113,115
+CM.L2-3.4.7,TEST,5,mechanisms supporting or implementing software program usage and restrictions,113,115
+CM.L2-3.4.7,TEST,6,mechanisms preventing program execution on the system,113,115
+CM.L2-3.4.8,EXAMINE,1,Configuration management policy,116,117
+CM.L2-3.4.8,EXAMINE,2,procedures addressing least functionality in the system,116,117
+CM.L2-3.4.8,EXAMINE,3,system security plan,116,117
+CM.L2-3.4.8,EXAMINE,4,configuration management plan,116,117
+CM.L2-3.4.8,EXAMINE,5,system design documentation,116,117
+CM.L2-3.4.8,EXAMINE,6,system configuration settings and associated documentation,116,117
+CM.L2-3.4.8,EXAMINE,7,list of software programs not authorized to execute on the system,116,117
+CM.L2-3.4.8,EXAMINE,8,list of software programs authorized to execute on the system,116,117
+CM.L2-3.4.8,EXAMINE,9,security configuration checklists,116,117
+CM.L2-3.4.8,EXAMINE,10,review and update records associated with list of authorized or unauthorized software programs,116,117
+CM.L2-3.4.8,EXAMINE,11,change control records,116,117
+CM.L2-3.4.8,EXAMINE,12,system audit logs and records,116,117
+CM.L2-3.4.8,EXAMINE,13,other relevant documents or records,116,117
+CM.L2-3.4.8,INTERVIEW,1,Personnel with responsibilities for identifying software authorized or not authorized to execute on the system,116,117
+CM.L2-3.4.8,INTERVIEW,2,personnel with information security responsibilities,116,117
+CM.L2-3.4.8,INTERVIEW,3,system or network administrators,116,117
+CM.L2-3.4.8,TEST,1,"Organizational process for identifying, reviewing, and updating programs authorized or not authorized to execute on the system",116,117
+CM.L2-3.4.8,TEST,2,process for implementing blacklisting or whitelisting,116,117
+CM.L2-3.4.8,TEST,3,mechanisms supporting or implementing blacklisting or whitelisting,116,117
+CM.L2-3.4.9,EXAMINE,1,Configuration management policy,118,119
+CM.L2-3.4.9,EXAMINE,2,procedures addressing user installed software,118,119
+CM.L2-3.4.9,EXAMINE,3,configuration management plan,118,119
+CM.L2-3.4.9,EXAMINE,4,system security plan,118,119
+CM.L2-3.4.9,EXAMINE,5,system design documentation,118,119
+CM.L2-3.4.9,EXAMINE,6,system configuration settings and associated documentation,118,119
+CM.L2-3.4.9,EXAMINE,7,list of rules governing user- installed software,118,119
+CM.L2-3.4.9,EXAMINE,8,system monitoring records,118,119
+CM.L2-3.4.9,EXAMINE,9,system audit logs and records,118,119
+CM.L2-3.4.9,EXAMINE,10,continuous monitoring strategy,118,119
+CM.L2-3.4.9,EXAMINE,11,other relevant documents or records,118,119
+CM.L2-3.4.9,INTERVIEW,1,Personnel with responsibilities for governing user -installed software,118,119
+CM.L2-3.4.9,INTERVIEW,2,"personnel operating, using, or maintaining the system",118,119
+CM.L2-3.4.9,INTERVIEW,3,personnel monitoring compliance with user -installed software policy,118,119
+CM.L2-3.4.9,INTERVIEW,4,personnel with information security responsibilities,118,119
+CM.L2-3.4.9,INTERVIEW,5,system or network administrators,118,119
+CM.L2-3.4.9,TEST,1,Organizational processes governing user -installed software on the system,118,119
+CM.L2-3.4.9,TEST,2,mechanisms enforcing rules or methods for governing the installation of software by users,118,119
+CM.L2-3.4.9,TEST,3,mechanisms monitoring policy compliance,118,119
+IA.L2-3.5.1,EXAMINE,1,Identification and authentication policy,120,121
+IA.L2-3.5.1,EXAMINE,2,procedures addressing user identification and authentication,120,121
+IA.L2-3.5.1,EXAMINE,3,"system security plan, system design documentation",120,121
+IA.L2-3.5.1,EXAMINE,4,system configuration settings and associated documentation,120,121
+IA.L2-3.5.1,EXAMINE,5,system audit logs and records,120,121
+IA.L2-3.5.1,EXAMINE,6,list of system accounts,120,121
+IA.L2-3.5.1,EXAMINE,7,other relevant documents or records,120,121
+IA.L2-3.5.1,INTERVIEW,1,Personnel with system operations responsibilities,120,121
+IA.L2-3.5.1,INTERVIEW,2,personnel with information security responsibilities,120,121
+IA.L2-3.5.1,INTERVIEW,3,system or network administrators,120,121
+IA.L2-3.5.1,INTERVIEW,4,personnel with account management responsibilities,120,121
+IA.L2-3.5.1,INTERVIEW,5,system developers,120,121
+IA.L2-3.5.1,TEST,1,Organizational processes for uniquely identifying and authenticating users,120,121
+IA.L2-3.5.1,TEST,2,mechanisms supporting or implementing identification and authentication capability,120,121
+IA.L2-3.5.2,EXAMINE,1,Identification and authentication policy,122,124
+IA.L2-3.5.2,EXAMINE,2,system security plan,122,124
+IA.L2-3.5.2,EXAMINE,3,procedures addressing authenticator management,122,124
+IA.L2-3.5.2,EXAMINE,4,procedures addressing user identification and authentication,122,124
+IA.L2-3.5.2,EXAMINE,5,system design documentation,122,124
+IA.L2-3.5.2,EXAMINE,6,list of system authenticator types,122,124
+IA.L2-3.5.2,EXAMINE,7,system configuration settings and associated documentation,122,124
+IA.L2-3.5.2,EXAMINE,8,change control records associated with managing system authenticators,122,124
+IA.L2-3.5.2,EXAMINE,9,system audit logs and records,122,124
+IA.L2-3.5.2,EXAMINE,10,other relevant documents or records,122,124
+IA.L2-3.5.2,INTERVIEW,1,Personnel with authenticator management responsibilities,122,124
+IA.L2-3.5.2,INTERVIEW,2,personnel with information security responsibilities,122,124
+IA.L2-3.5.2,INTERVIEW,3,system or network administrators,122,124
+IA.L2-3.5.2,TEST,1,Mechanisms supporting or implementing authenticator management capability,122,124
+IA.L2-3.5.3,EXAMINE,1,Identification and authentication policy,125,127
+IA.L2-3.5.3,EXAMINE,2,procedu res addressing user identification and authentication,125,127
+IA.L2-3.5.3,EXAMINE,3,system security plan,125,127
+IA.L2-3.5.3,EXAMINE,4,system design documentation,125,127
+IA.L2-3.5.3,EXAMINE,5,system configuration settings and associated documentation,125,127
+IA.L2-3.5.3,EXAMINE,6,system audit logs and records,125,127
+IA.L2-3.5.3,EXAMINE,7,list of system accounts,125,127
+IA.L2-3.5.3,EXAMINE,8,other relevant documents or records,125,127
+IA.L2-3.5.3,INTERVIEW,1,Personnel with authenticator management responsibilities,125,127
+IA.L2-3.5.3,INTERVIEW,2,personnel with information security responsibilities,125,127
+IA.L2-3.5.3,INTERVIEW,3,system or network administrators,125,127
+IA.L2-3.5.3,TEST,1,Mechanisms supporting or implementing authenticator management capability,125,127
+IA.L2-3.5.4,EXAMINE,1,Identification and authentication policy,128,129
+IA.L2-3.5.4,EXAMINE,2,procedures addressing user identification and authentication,128,129
+IA.L2-3.5.4,EXAMINE,3,system security plan,128,129
+IA.L2-3.5.4,EXAMINE,4,system design documentation,128,129
+IA.L2-3.5.4,EXAMINE,5,system configuration settings and associated documentation,128,129
+IA.L2-3.5.4,EXAMINE,6,system audit logs and records,128,129
+IA.L2-3.5.4,EXAMINE,7,list of privileged system accounts,128,129
+IA.L2-3.5.4,EXAMINE,8,other relevant documents or records,128,129
+IA.L2-3.5.4,INTERVIEW,1,Personnel with system operations responsibilities,128,129
+IA.L2-3.5.4,INTERVIEW,2,personnel with account management responsibilities,128,129
+IA.L2-3.5.4,INTERVIEW,3,personnel with information security responsibilities,128,129
+IA.L2-3.5.4,INTERVIEW,4,system or network administrators,128,129
+IA.L2-3.5.4,INTERVIEW,5,system developers,128,129
+IA.L2-3.5.4,TEST,1,Mechanisms supporting or implementing identification and authentication capability or replay resistant authentication mechanisms,128,129
+IA.L2-3.5.5,EXAMINE,1,Identification and authentication policy,130,131
+IA.L2-3.5.5,EXAMINE,2,system security plan,130,131
+IA.L2-3.5.5,EXAMINE,3,procedures addressing authenticator management,130,131
+IA.L2-3.5.5,EXAMINE,4,procedures addressing user identification and authentication,130,131
+IA.L2-3.5.5,EXAMINE,5,system design documentation,130,131
+IA.L2-3.5.5,EXAMINE,6,list of system authenticator types,130,131
+IA.L2-3.5.5,EXAMINE,7,system configuration settings and associated documentation,130,131
+IA.L2-3.5.5,EXAMINE,8,change control records associated with managing system authenticators,130,131
+IA.L2-3.5.5,EXAMINE,9,system audit logs and records,130,131
+IA.L2-3.5.5,EXAMINE,10,other relevant documents or records,130,131
+IA.L2-3.5.5,INTERVIEW,1,Personnel with authenticator management responsibilities,130,131
+IA.L2-3.5.5,INTERVIEW,2,personnel with information security responsibilities,130,131
+IA.L2-3.5.5,INTERVIEW,3,system or network administrators,130,131
+IA.L2-3.5.5,TEST,1,Mechanisms supporting or implementing authenticator management capability,130,131
+IA.L2-3.5.6,EXAMINE,1,Identification and authentication policy,132,133
+IA.L2-3.5.6,EXAMINE,2,procedures addressing identifier management,132,133
+IA.L2-3.5.6,EXAMINE,3,procedures addressing account management,132,133
+IA.L2-3.5.6,EXAMINE,4,system security plan,132,133
+IA.L2-3.5.6,EXAMINE,5,system design documentation,132,133
+IA.L2-3.5.6,EXAMINE,6,system configuration settings and associated documentation,132,133
+IA.L2-3.5.6,EXAMINE,7,list of system accounts,132,133
+IA.L2-3.5.6,EXAMINE,8,list of identifiers generated from physical access control devices,132,133
+IA.L2-3.5.6,EXAMINE,9,other relevant documents or records,132,133
+IA.L2-3.5.6,INTERVIEW,1,Personnel with identifier management responsibilities,132,133
+IA.L2-3.5.6,INTERVIEW,2,personnel with information security responsibilities,132,133
+IA.L2-3.5.6,INTERVIEW,3,system or network administrators,132,133
+IA.L2-3.5.6,INTERVIEW,4,system developers,132,133
+IA.L2-3.5.6,TEST,1,Mechanisms supporting or implementing identifier management,132,133
+IA.L2-3.5.7,EXAMINE,1,Identification and authentication policy,134,135
+IA.L2-3.5.7,EXAMINE,2,password policy,134,135
+IA.L2-3.5.7,EXAMINE,3,procedures addressing authenticator management,134,135
+IA.L2-3.5.7,EXAMINE,4,system security plan,134,135
+IA.L2-3.5.7,EXAMINE,5,system configuration settings and associated documentation,134,135
+IA.L2-3.5.7,EXAMINE,6,system design documentation,134,135
+IA.L2-3.5.7,EXAMINE,7,password configurations and associated documentation,134,135
+IA.L2-3.5.7,EXAMINE,8,other relevant documents or records,134,135
+IA.L2-3.5.7,INTERVIEW,1,Personnel with authenticator management responsibilities,134,135
+IA.L2-3.5.7,INTERVIEW,2,personnel with information security responsibilities,134,135
+IA.L2-3.5.7,INTERVIEW,3,system or network administrators,134,135
+IA.L2-3.5.7,TEST,1,Mechanisms s upporting or implementing authenticator management capability,134,135
+IA.L2-3.5.8,EXAMINE,1,Identification and authentication policy,136,137
+IA.L2-3.5.8,EXAMINE,2,password policy,136,137
+IA.L2-3.5.8,EXAMINE,3,procedures addressing authenticator management,136,137
+IA.L2-3.5.8,EXAMINE,4,system security plan,136,137
+IA.L2-3.5.8,EXAMINE,5,system design documentation,136,137
+IA.L2-3.5.8,EXAMINE,6,system configuration settings and associated documentation,136,137
+IA.L2-3.5.8,EXAMINE,7,password configurations and associated documentation,136,137
+IA.L2-3.5.8,EXAMINE,8,other relevant documents or records,136,137
+IA.L2-3.5.8,INTERVIEW,1,Personnel with authenticator management responsibilities,136,137
+IA.L2-3.5.8,INTERVIEW,2,personnel with information security responsibilities,136,137
+IA.L2-3.5.8,INTERVIEW,3,system or network administrators,136,137
+IA.L2-3.5.8,INTERVIEW,4,system developers,136,137
+IA.L2-3.5.8,TEST,1,Mechanisms supporting or implementing password -based authenticator management capability,136,137
+IA.L2-3.5.9,EXAMINE,1,Identification and authentication policy,138,139
+IA.L2-3.5.9,EXAMINE,2,password policy,138,139
+IA.L2-3.5.9,EXAMINE,3,procedures addressing authenticator management,138,139
+IA.L2-3.5.9,EXAMINE,4,system security plan,138,139
+IA.L2-3.5.9,EXAMINE,5,system configuration settings and associated documentation,138,139
+IA.L2-3.5.9,EXAMINE,6,system design documentation,138,139
+IA.L2-3.5.9,EXAMINE,7,password configurations and associated documentation,138,139
+IA.L2-3.5.9,EXAMINE,8,other relevant documents or records,138,139
+IA.L2-3.5.9,INTERVIEW,1,Personnel with authenticator management responsibilities,138,139
+IA.L2-3.5.9,INTERVIEW,2,personnel with information security responsibilities,138,139
+IA.L2-3.5.9,INTERVIEW,3,system or network administrators,138,139
+IA.L2-3.5.9,INTERVIEW,4,system developers,138,139
+IA.L2-3.5.9,TEST,1,Mechanisms supporting or implementing password -based authenticator management capability,138,139
+IA.L2-3.5.10,EXAMINE,1,Identification and authentication policy,140,141
+IA.L2-3.5.10,EXAMINE,2,system security plan,140,141
+IA.L2-3.5.10,EXAMINE,3,procedures addressing authenticator management,140,141
+IA.L2-3.5.10,EXAMINE,4,procedures addressing user identification and authentication,140,141
+IA.L2-3.5.10,EXAMINE,5,system design documentation,140,141
+IA.L2-3.5.10,EXAMINE,6,list of system authenticator types,140,141
+IA.L2-3.5.10,EXAMINE,7,system configuration settings and associated documentation,140,141
+IA.L2-3.5.10,EXAMINE,8,change control records associated with managing system authenticators,140,141
+IA.L2-3.5.10,EXAMINE,9,system audit logs and records,140,141
+IA.L2-3.5.10,EXAMINE,10,other relevant documents or records,140,141
+IA.L2-3.5.10,INTERVIEW,1,Personnel with authenticator management responsibilities,140,141
+IA.L2-3.5.10,INTERVIEW,2,personnel with information security responsibilities,140,141
+IA.L2-3.5.10,INTERVIEW,3,system or network administrators,140,141
+IA.L2-3.5.10,TEST,1,Mechanisms supporting or implementing authenticator management capability,140,141
+IA.L2-3.5.11,EXAMINE,1,Identification and authentication policy,142,143
+IA.L2-3.5.11,EXAMINE,2,procedures addressing authenticator feedback,142,143
+IA.L2-3.5.11,EXAMINE,3,system security plan,142,143
+IA.L2-3.5.11,EXAMINE,4,system design documentation,142,143
+IA.L2-3.5.11,EXAMINE,5,system configuration settings and associated documentation,142,143
+IA.L2-3.5.11,EXAMINE,6,system audit logs and records,142,143
+IA.L2-3.5.11,EXAMINE,7,other relevant documents or records,142,143
+IA.L2-3.5.11,INTERVIEW,1,Personnel with information security responsibilities,142,143
+IA.L2-3.5.11,INTERVIEW,2,system or network administrators,142,143
+IA.L2-3.5.11,INTERVIEW,3,system developers,142,143
+IA.L2-3.5.11,TEST,1,Mechanisms supporting or implementing the obscuring of feedback of authentication information during authentication,142,143
+IR.L2-3.6.1,EXAMINE,1,Incident response policy,144,146
+IR.L2-3.6.1,EXAMINE,2,contingency planning policy,144,146
+IR.L2-3.6.1,EXAMINE,3,procedures addressing incident handling,144,146
+IR.L2-3.6.1,EXAMINE,4,procedures addressing incident response assistance,144,146
+IR.L2-3.6.1,EXAMINE,5,incident response plan,144,146
+IR.L2-3.6.1,EXAMINE,6,contingency plan,144,146
+IR.L2-3.6.1,EXAMINE,7,system security plan,144,146
+IR.L2-3.6.1,EXAMINE,8,procedures addressing incident response training,144,146
+IR.L2-3.6.1,EXAMINE,9,incident response training curriculum,144,146
+IR.L2-3.6.1,EXAMINE,10,incident response training materials,144,146
+IR.L2-3.6.1,EXAMINE,11,incident response training records,144,146
+IR.L2-3.6.1,EXAMINE,12,other relevant documents or records,144,146
+IR.L2-3.6.1,INTERVIEW,1,Personnel with incident handling responsibilities,144,146
+IR.L2-3.6.1,INTERVIEW,2,personnel with contingency planning responsibilities,144,146
+IR.L2-3.6.1,INTERVIEW,3,personnel with incident response training and operational responsibilities,144,146
+IR.L2-3.6.1,INTERVIEW,4,personnel with incident response assistance and support responsibilities,144,146
+IR.L2-3.6.1,INTERVIEW,5,personnel with access to incident response support and assistance capability,144,146
+IR.L2-3.6.1,INTERVIEW,6,personnel with information security responsibilities,144,146
+IR.L2-3.6.1,TEST,1,Incident-handling capability for the organization,144,146
+IR.L2-3.6.1,TEST,2,organizational processes for incident response assistance,144,146
+IR.L2-3.6.1,TEST,3,"mechanisms supporting or implementing incident response assistance]. 120 NIST SP 800-171A, p. 36. IR.L2-3.6.1 - Incident Handling",144,146
+IR.L2-3.6.2,EXAMINE,1,Incident response policy,147,149
+IR.L2-3.6.2,EXAMINE,2,procedures addressing incident monitoring,147,149
+IR.L2-3.6.2,EXAMINE,3,incident response records and documentation,147,149
+IR.L2-3.6.2,EXAMINE,4,procedures addressing incident reportin g,147,149
+IR.L2-3.6.2,EXAMINE,5,incident reporting records and documentation,147,149
+IR.L2-3.6.2,EXAMINE,6,incident response plan,147,149
+IR.L2-3.6.2,EXAMINE,7,system security plan,147,149
+IR.L2-3.6.2,EXAMINE,8,other relevant documents or records,147,149
+IR.L2-3.6.2,INTERVIEW,1,Personnel with incident monitoring responsibilities,147,149
+IR.L2-3.6.2,INTERVIEW,2,personnel with incident reporting responsibilities,147,149
+IR.L2-3.6.2,INTERVIEW,3,personnel who have or should have reported incidents,147,149
+IR.L2-3.6.2,INTERVIEW,4,personnel (authorities) to whom incident information is to be reported,147,149
+IR.L2-3.6.2,INTERVIEW,5,personnel with information security responsibilities,147,149
+IR.L2-3.6.2,TEST,1,Incident monitoring capability for the organization,147,149
+IR.L2-3.6.2,TEST,2,mechanisms supporting or implementing tracking and documenting of system security incidents,147,149
+IR.L2-3.6.2,TEST,3,organizational processes for incident reporting,147,149
+IR.L2-3.6.2,TEST,4,mechanisms supporting or implementing incident reporting,147,149
+IR.L2-3.6.3,EXAMINE,1,Incident response policy,150,151
+IR.L2-3.6.3,EXAMINE,2,contingency planning policy,150,151
+IR.L2-3.6.3,EXAMINE,3,procedures addressing incident response testing,150,151
+IR.L2-3.6.3,EXAMINE,4,procedures addressing contingency plan testing,150,151
+IR.L2-3.6.3,EXAMINE,5,incident response testing material,150,151
+IR.L2-3.6.3,EXAMINE,6,incident response test results,150,151
+IR.L2-3.6.3,EXAMINE,7,incident response test plan,150,151
+IR.L2-3.6.3,EXAMINE,8,incident response plan,150,151
+IR.L2-3.6.3,EXAMINE,9,contingency plan,150,151
+IR.L2-3.6.3,EXAMINE,10,system security plan,150,151
+IR.L2-3.6.3,EXAMINE,11,other relevant documents or records,150,151
+IR.L2-3.6.3,INTERVIEW,1,Personnel with incident response testing responsibilities,150,151
+IR.L2-3.6.3,INTERVIEW,2,personnel with information security responsibilities,150,151
+IR.L2-3.6.3,INTERVIEW,3,personnel with responsibilities for testing plans related to incident response,150,151
+IR.L2-3.6.3,TEST,1,Mechanisms and processes for incident response,150,151
+MA.L2-3.7.1,EXAMINE,1,System maintenance policy,152,153
+MA.L2-3.7.1,EXAMINE,2,procedures addressing controlled system maintenance,152,153
+MA.L2-3.7.1,EXAMINE,3,maintenance records,152,153
+MA.L2-3.7.1,EXAMINE,4,manufacturer or vendor maintenance specifications,152,153
+MA.L2-3.7.1,EXAMINE,5,equipment sanitiz ation records,152,153
+MA.L2-3.7.1,EXAMINE,6,media sanitization records,152,153
+MA.L2-3.7.1,EXAMINE,7,system security plan,152,153
+MA.L2-3.7.1,EXAMINE,8,other relevant documents or records,152,153
+MA.L2-3.7.1,INTERVIEW,1,Personnel with system maintenance responsibilities,152,153
+MA.L2-3.7.1,INTERVIEW,2,personnel with information security responsibilities,152,153
+MA.L2-3.7.1,INTERVIEW,3,personnel responsible for media sanitization,152,153
+MA.L2-3.7.1,INTERVIEW,4,system or network administrators,152,153
+MA.L2-3.7.1,TEST,1,"Organizational processes for scheduling, performing, documenting, reviewing, approving, and monitoring maintenance and repairs for systems",152,153
+MA.L2-3.7.1,TEST,2,organizational processes for sanitizing system components,152,153
+MA.L2-3.7.1,TEST,3,mechanisms supporting or implementing controlled maintenance,152,153
+MA.L2-3.7.1,TEST,4,mechanisms implementing sanitization of system components,152,153
+MA.L2-3.7.2,EXAMINE,1,System maintenance policy,154,155
+MA.L2-3.7.2,EXAMINE,2,procedures addressing system maintenance tools and media,154,155
+MA.L2-3.7.2,EXAMINE,3,maintenance records,154,155
+MA.L2-3.7.2,EXAMINE,4,system maintenance tools and associated documentation,154,155
+MA.L2-3.7.2,EXAMINE,5,maintenance tool inspection records,154,155
+MA.L2-3.7.2,EXAMINE,6,system security plan,154,155
+MA.L2-3.7.2,EXAMINE,7,other relevant documents or records,154,155
+MA.L2-3.7.2,INTERVIEW,1,Personnel with system maintenance responsibilities,154,155
+MA.L2-3.7.2,INTERVIEW,2,personnel with information security responsibilities,154,155
+MA.L2-3.7.2,TEST,1,"Organizational processes for approving, controlling, and monitoring maintenance tools",154,155
+MA.L2-3.7.2,TEST,2,"mechanisms supporting or implementing approval, control, and monitoring of maintenance tools",154,155
+MA.L2-3.7.2,TEST,3,organizational processes for inspecting maintenance tools,154,155
+MA.L2-3.7.2,TEST,4,mechanisms supporting or implementing inspection of maintenance tools,154,155
+MA.L2-3.7.2,TEST,5,organizational process for inspecting media for malicious code,154,155
+MA.L2-3.7.2,TEST,6,mechanisms supporting or implementing inspection of media used for maintenance,154,155
+MA.L2-3.7.3,EXAMINE,1,System maintenance policy,156,157
+MA.L2-3.7.3,EXAMINE,2,procedures addressing controlled system maintenance,156,157
+MA.L2-3.7.3,EXAMINE,3,maintenance records,156,157
+MA.L2-3.7.3,EXAMINE,4,manufacturer or vendor maintenance specifications,156,157
+MA.L2-3.7.3,EXAMINE,5,equipment sanitization records,156,157
+MA.L2-3.7.3,EXAMINE,6,media sanitization records,156,157
+MA.L2-3.7.3,EXAMINE,7,system security plan,156,157
+MA.L2-3.7.3,EXAMINE,8,other relevant documents or records,156,157
+MA.L2-3.7.3,INTERVIEW,1,Personnel with system maintenance responsibilities,156,157
+MA.L2-3.7.3,INTERVIEW,2,personnel with information security responsibilities,156,157
+MA.L2-3.7.3,INTERVIEW,3,personnel responsible for media sanitization,156,157
+MA.L2-3.7.3,INTERVIEW,4,system or network administrators,156,157
+MA.L2-3.7.3,TEST,1,"SELECT FR OM: Organizational processes for scheduling, performing, documenting, reviewing, approving, and monitoring maintenance and repairs for systems",156,157
+MA.L2-3.7.3,TEST,2,organizational processes for sanitizing system components,156,157
+MA.L2-3.7.3,TEST,3,mechanisms supporting or implementing controlled maintenance,156,157
+MA.L2-3.7.3,TEST,4,mechanisms implementing sanitization of system components,156,157
+MA.L2-3.7.4,EXAMINE,1,System maintenance policy,158,159
+MA.L2-3.7.4,EXAMINE,2,procedures addressing system maintenance tools,158,159
+MA.L2-3.7.4,EXAMINE,3,system maintenance tools and associated documentation,158,159
+MA.L2-3.7.4,EXAMINE,4,maintenance records,158,159
+MA.L2-3.7.4,EXAMINE,5,system security plan,158,159
+MA.L2-3.7.4,EXAMINE,6,other relevant documents or records,158,159
+MA.L2-3.7.4,INTERVIEW,1,Personnel with system maintenance responsibilities,158,159
+MA.L2-3.7.4,INTERVIEW,2,personnel with information security responsibilities,158,159
+MA.L2-3.7.4,TEST,1,Organizational process for inspecting media for malicious code,158,159
+MA.L2-3.7.4,TEST,2,mechanisms supporting or implementing inspection of media used for maintenance,158,159
+MA.L2-3.7.5,EXAMINE,1,System maintenance policy,160,162
+MA.L2-3.7.5,EXAMINE,2,procedures addressing nonlocal system maintenance,160,162
+MA.L2-3.7.5,EXAMINE,3,system security plan,160,162
+MA.L2-3.7.5,EXAMINE,4,system design documentation,160,162
+MA.L2-3.7.5,EXAMINE,5,system configuration settings and associated documentation,160,162
+MA.L2-3.7.5,EXAMINE,6,maintenance records,160,162
+MA.L2-3.7.5,EXAMINE,7,diagnostic records,160,162
+MA.L2-3.7.5,EXAMINE,8,other relevant documents or records,160,162
+MA.L2-3.7.5,INTERVIEW,1,Personnel with system maintenance responsibilities,160,162
+MA.L2-3.7.5,INTERVIEW,2,personnel with information security responsibilities,160,162
+MA.L2-3.7.5,INTERVIEW,3,system or network administrators,160,162
+MA.L2-3.7.5,TEST,1,Organizational processes for managing nonlocal maintenance,160,162
+MA.L2-3.7.5,TEST,2,"mechanisms implementing, supporting, and managing nonlocal maintenance",160,162
+MA.L2-3.7.5,TEST,3,mechanisms for strong authentication of nonlocal maintenance diagnostic sessions,160,162
+MA.L2-3.7.5,TEST,4,mechanisms for terminating nonlocal maintenance sessions and network connections,160,162
+MA.L2-3.7.6,EXAMINE,1,System maintenance policy,163,164
+MA.L2-3.7.6,EXAMINE,2,procedures addressing maintenance personnel,163,164
+MA.L2-3.7.6,EXAMINE,3,service provider contracts,163,164
+MA.L2-3.7.6,EXAMINE,4,service- level agreements,163,164
+MA.L2-3.7.6,EXAMINE,5,list of authorized personnel,163,164
+MA.L2-3.7.6,EXAMINE,6,maintenance records,163,164
+MA.L2-3.7.6,EXAMINE,7,access control records,163,164
+MA.L2-3.7.6,EXAMINE,8,system security plan,163,164
+MA.L2-3.7.6,EXAMINE,9,other relevant documents or records,163,164
+MA.L2-3.7.6,INTERVIEW,1,Personnel with system maintenance responsibilities,163,164
+MA.L2-3.7.6,INTERVIEW,2,personnel with information security responsibilities,163,164
+MA.L2-3.7.6,TEST,1,Organizational processes for authorizing and managing maintenance personnel,163,164
+MA.L2-3.7.6,TEST,2,mechanisms supporting or implementing authorization of maintenance personnel,163,164
+MP.L2-3.8.1,EXAMINE,1,System media protection policy,165,166
+MP.L2-3.8.1,EXAMINE,2,procedures addressing media storage,165,166
+MP.L2-3.8.1,EXAMINE,3,procedures addressing media access restrictions,165,166
+MP.L2-3.8.1,EXAMINE,4,access control policy and procedures,165,166
+MP.L2-3.8.1,EXAMINE,5,physical and environmental protection policy and procedures,165,166
+MP.L2-3.8.1,EXAMINE,6,system security plan,165,166
+MP.L2-3.8.1,EXAMINE,7,media storage facilities,165,166
+MP.L2-3.8.1,EXAMINE,8,access control records,165,166
+MP.L2-3.8.1,EXAMINE,9,other relevant documents or records,165,166
+MP.L2-3.8.1,INTERVIEW,1,Personnel with system media protection responsibilities,165,166
+MP.L2-3.8.1,INTERVIEW,2,personnel with information security responsibilities,165,166
+MP.L2-3.8.1,INTERVIEW,3,system or network administrators,165,166
+MP.L2-3.8.1,TEST,1,Organizat ional processes for restricting information media,165,166
+MP.L2-3.8.1,TEST,2,mechanisms supporting or implementing media access restrictions,165,166
+MP.L2-3.8.2,EXAMINE,1,System media protection policy,167,168
+MP.L2-3.8.2,EXAMINE,2,procedures addressing media storage,167,168
+MP.L2-3.8.2,EXAMINE,3,physical and environmental protection policy and procedures,167,168
+MP.L2-3.8.2,EXAMINE,4,access control policy and procedures,167,168
+MP.L2-3.8.2,EXAMINE,5,system security plan,167,168
+MP.L2-3.8.2,EXAMINE,6,system media,167,168
+MP.L2-3.8.2,EXAMINE,7,designated controlled areas,167,168
+MP.L2-3.8.2,EXAMINE,8,other relevant documents or records,167,168
+MP.L2-3.8.2,INTERVIEW,1,Personnel with system media protection and storage responsibilities,167,168
+MP.L2-3.8.2,INTERVIEW,2,personnel with information security responsibilities,167,168
+MP.L2-3.8.2,TEST,1,Organizational processes for storing media,167,168
+MP.L2-3.8.2,TEST,2,mechanisms supporting or implementing secure media storage and media protection,167,168
+MP.L2-3.8.3,EXAMINE,1,System media protection policy,169,170
+MP.L2-3.8.3,EXAMINE,2,procedures addressing media sanitization and disposal,169,170
+MP.L2-3.8.3,EXAMINE,3,applicable standards and policies addressing media sanitization,169,170
+MP.L2-3.8.3,EXAMINE,4,system security plan,169,170
+MP.L2-3.8.3,EXAMINE,5,media sanitization records,169,170
+MP.L2-3.8.3,EXAMINE,6,system audit logs and records,169,170
+MP.L2-3.8.3,EXAMINE,7,system design documentation,169,170
+MP.L2-3.8.3,EXAMINE,8,system configuration settings and associated documentation,169,170
+MP.L2-3.8.3,EXAMINE,9,other relevant documents or records,169,170
+MP.L2-3.8.3,INTERVIEW,1,Personnel with media sanitization responsibilities,169,170
+MP.L2-3.8.3,INTERVIEW,2,personnel with information security responsibilities,169,170
+MP.L2-3.8.3,INTERVIEW,3,system or network administrators,169,170
+MP.L2-3.8.3,TEST,1,Organizational processes for media sanitization,169,170
+MP.L2-3.8.3,TEST,2,mechanisms supporting or implementing media sanitization,169,170
+MP.L2-3.8.4,EXAMINE,1,System media protection policy,171,172
+MP.L2-3.8.4,EXAMINE,2,procedures addressing media marking,171,172
+MP.L2-3.8.4,EXAMINE,3,physical and environmental protection policy and procedures,171,172
+MP.L2-3.8.4,EXAMINE,4,system security plan,171,172
+MP.L2-3.8.4,EXAMINE,5,list of system media marking security attributes,171,172
+MP.L2-3.8.4,EXAMINE,6,designated controlled areas,171,172
+MP.L2-3.8.4,EXAMINE,7,other relevant documents or records,171,172
+MP.L2-3.8.4,INTERVIEW,1,Personnel with system media protection and marking responsibilities,171,172
+MP.L2-3.8.4,INTERVIEW,2,personnel with information security responsibilities,171,172
+MP.L2-3.8.4,TEST,1,Organizational processes for marking information media,171,172
+MP.L2-3.8.4,TEST,2,mechanisms supporting or implementing media marking,171,172
+MP.L2-3.8.5,EXAMINE,1,System media protection policy,173,174
+MP.L2-3.8.5,EXAMINE,2,procedures addressing media storage,173,174
+MP.L2-3.8.5,EXAMINE,3,physical and environmental protection policy and procedures,173,174
+MP.L2-3.8.5,EXAMINE,4,access control policy and procedures,173,174
+MP.L2-3.8.5,EXAMINE,5,system security plan,173,174
+MP.L2-3.8.5,EXAMINE,6,system media,173,174
+MP.L2-3.8.5,EXAMINE,7,designated controlled areas,173,174
+MP.L2-3.8.5,EXAMINE,8,other relevant documents or records,173,174
+MP.L2-3.8.5,INTERVIEW,1,Personnel with system media protection and storage responsibilities,173,174
+MP.L2-3.8.5,INTERVIEW,2,personnel with information security responsibilities,173,174
+MP.L2-3.8.5,INTERVIEW,3,system or network administrators,173,174
+MP.L2-3.8.5,TEST,1,Organizational processes for storing media,173,174
+MP.L2-3.8.5,TEST,2,mechanisms supporting or implementing media storage and media protection,173,174
+MP.L2-3.8.6,EXAMINE,1,System media protection policy,175,176
+MP.L2-3.8.6,EXAMINE,2,procedures addressing media transport,175,176
+MP.L2-3.8.6,EXAMINE,3,system design documentation,175,176
+MP.L2-3.8.6,EXAMINE,4,system security plan,175,176
+MP.L2-3.8.6,EXAMINE,5,system configuration settings and associated documentation,175,176
+MP.L2-3.8.6,EXAMINE,6,system media transport records,175,176
+MP.L2-3.8.6,EXAMINE,7,system audit logs and records,175,176
+MP.L2-3.8.6,EXAMINE,8,other relevant documents or records,175,176
+MP.L2-3.8.6,INTERVIEW,1,Personnel with system media transport responsibilities,175,176
+MP.L2-3.8.6,INTERVIEW,2,personnel with information security responsibilities,175,176
+MP.L2-3.8.6,TEST,1,Cryptographic mechanisms protecting information on digital media during transportation outside controlled areas,175,176
+MP.L2-3.8.7,EXAMINE,1,System media protection policy,177,178
+MP.L2-3.8.7,EXAMINE,2,system use policy,177,178
+MP.L2-3.8.7,EXAMINE,3,procedures addressing media usage restrictions,177,178
+MP.L2-3.8.7,EXAMINE,4,system security plan,177,178
+MP.L2-3.8.7,EXAMINE,5,rules of behavior,177,178
+MP.L2-3.8.7,EXAMINE,6,system design documentation,177,178
+MP.L2-3.8.7,EXAMINE,7,system configuration settings and associated documentation,177,178
+MP.L2-3.8.7,EXAMINE,8,system audit logs and records,177,178
+MP.L2-3.8.7,EXAMINE,9,other relevant documents or records,177,178
+MP.L2-3.8.7,INTERVIEW,1,Personnel with system media use responsibilities,177,178
+MP.L2-3.8.7,INTERVIEW,2,personnel with information security responsibilities,177,178
+MP.L2-3.8.7,INTERVIEW,3,system or network administrators,177,178
+MP.L2-3.8.7,TEST,1,Organizational processes for media use,177,178
+MP.L2-3.8.7,TEST,2,mechanisms restricting or prohibiting use of system media on systems or system components,177,178
+MP.L2-3.8.8,EXAMINE,1,System media protection policy,179,180
+MP.L2-3.8.8,EXAMINE,2,system use policy,179,180
+MP.L2-3.8.8,EXAMINE,3,procedures addressing media usage restrictions,179,180
+MP.L2-3.8.8,EXAMINE,4,system security plan,179,180
+MP.L2-3.8.8,EXAMINE,5,rules of behavior,179,180
+MP.L2-3.8.8,EXAMINE,6,system configuration settings and associated documentation,179,180
+MP.L2-3.8.8,EXAMINE,7,system design documentation,179,180
+MP.L2-3.8.8,EXAMINE,8,system audit logs and records,179,180
+MP.L2-3.8.8,EXAMINE,9,other relevant documents or records,179,180
+MP.L2-3.8.8,INTERVIEW,1,Personnel with system media use responsibilities,179,180
+MP.L2-3.8.8,INTERVIEW,2,personnel with information security responsibilities,179,180
+MP.L2-3.8.8,INTERVIEW,3,system or network administrators,179,180
+MP.L2-3.8.8,TEST,1,SELECT FRO M: Organizational processes for media use,179,180
+MP.L2-3.8.8,TEST,2,mechanisms prohibiting use of media on systems or system components,179,180
+MP.L2-3.8.9,EXAMINE,1,Procedures addressing system backup,181,182
+MP.L2-3.8.9,EXAMINE,2,system configuration settings and associated documentation,181,182
+MP.L2-3.8.9,EXAMINE,3,security plan,181,182
+MP.L2-3.8.9,EXAMINE,4,backup storage locations,181,182
+MP.L2-3.8.9,EXAMINE,5,system backup logs or records,181,182
+MP.L2-3.8.9,EXAMINE,6,other relevant documents or records,181,182
+MP.L2-3.8.9,INTERVIEW,1,Personnel with system backup responsibilities,181,182
+MP.L2-3.8.9,INTERVIEW,2,personnel with information security responsibilities,181,182
+MP.L2-3.8.9,TEST,1,Organizational processes for conducting system backups,181,182
+MP.L2-3.8.9,TEST,2,mechanisms supporting or implementing system backups,181,182
+PS.L2-3.9.1,EXAMINE,1,Personnel security policy,183,184
+PS.L2-3.9.1,EXAMINE,2,procedures addressing personnel screening,183,184
+PS.L2-3.9.1,EXAMINE,3,records of screened personnel,183,184
+PS.L2-3.9.1,EXAMINE,4,system security plan,183,184
+PS.L2-3.9.1,EXAMINE,5,other relevant documents or records,183,184
+PS.L2-3.9.1,INTERVIEW,1,Personnel with personnel security responsibilities,183,184
+PS.L2-3.9.1,INTERVIEW,2,personnel with information security responsibilities,183,184
+PS.L2-3.9.1,TEST,1,Organizational processes for personnel screening,183,184
+PS.L2-3.9.2,EXAMINE,1,Personnel security policy,185,187
+PS.L2-3.9.2,EXAMINE,2,procedures addressing personnel transfer and termination,185,187
+PS.L2-3.9.2,EXAMINE,3,records of personnel transfer and termination actions,185,187
+PS.L2-3.9.2,EXAMINE,4,list of system accounts,185,187
+PS.L2-3.9.2,EXAMINE,5,records of terminated or revoked authenticators and credentials,185,187
+PS.L2-3.9.2,EXAMINE,6,records of exit interviews,185,187
+PS.L2-3.9.2,EXAMINE,7,other relevant documents or records,185,187
+PS.L2-3.9.2,INTERVIEW,1,Personnel with personnel security responsibilities,185,187
+PS.L2-3.9.2,INTERVIEW,2,personnel with account management responsibilities,185,187
+PS.L2-3.9.2,INTERVIEW,3,system or network administrators,185,187
+PS.L2-3.9.2,INTERVIEW,4,personnel with information security responsibilities,185,187
+PS.L2-3.9.2,TEST,1,Organizational processes for personnel transfer and termination,185,187
+PS.L2-3.9.2,TEST,2,mechanisms supporting or implementing personnel transfer and termination notifications,185,187
+PS.L2-3.9.2,TEST,3,mechanisms for disabling system access and revoking authenticators,185,187
+PE.L2-3.10.1,EXAMINE,1,Physical and environmental protection policy,188,189
+PE.L2-3.10.1,EXAMINE,2,procedures addressing physical access authorizations,188,189
+PE.L2-3.10.1,EXAMINE,3,system security plan,188,189
+PE.L2-3.10.1,EXAMINE,4,authorized personnel access list,188,189
+PE.L2-3.10.1,EXAMINE,5,authorization credentials,188,189
+PE.L2-3.10.1,EXAMINE,6,physical access list reviews,188,189
+PE.L2-3.10.1,EXAMINE,7,physical access termination records and associated documentation,188,189
+PE.L2-3.10.1,EXAMINE,8,other relevant documents or records,188,189
+PE.L2-3.10.1,INTERVIEW,1,Personnel with physical access authorization responsibilities,188,189
+PE.L2-3.10.1,INTERVIEW,2,personnel with physical access to system facility,188,189
+PE.L2-3.10.1,INTERVIEW,3,personnel with information security responsibilities,188,189
+PE.L2-3.10.1,TEST,1,Organizational processes for physical access authorizations,188,189
+PE.L2-3.10.1,TEST,2,mechanisms supporting or implementing physical access authorizations,188,189
+PE.L2-3.10.2,EXAMINE,1,Physical and environmental protection policy,190,191
+PE.L2-3.10.2,EXAMINE,2,procedures addressing physical access monitoring,190,191
+PE.L2-3.10.2,EXAMINE,3,system security plan,190,191
+PE.L2-3.10.2,EXAMINE,4,physical access logs or records,190,191
+PE.L2-3.10.2,EXAMINE,5,physical access monitoring records,190,191
+PE.L2-3.10.2,EXAMINE,6,physical access log reviews,190,191
+PE.L2-3.10.2,EXAMINE,7,other relevant documents or records,190,191
+PE.L2-3.10.2,INTERVIEW,1,Personnel with physical access monitoring responsibilities,190,191
+PE.L2-3.10.2,INTERVIEW,2,personnel with incident response responsibilities,190,191
+PE.L2-3.10.2,INTERVIEW,3,personnel with information security responsibilities,190,191
+PE.L2-3.10.2,TEST,1,Organizational processes for monitoring physical access,190,191
+PE.L2-3.10.2,TEST,2,mechanisms supporting or implementing physical access monitoring,190,191
+PE.L2-3.10.2,TEST,3,mechanisms supporting or implementing the review of physical access logs,190,191
+PE.L2-3.10.3,EXAMINE,1,Physical and environmental protection policy,192,193
+PE.L2-3.10.3,EXAMINE,2,procedures addressing physical access control,192,193
+PE.L2-3.10.3,EXAMINE,3,system security plan,192,193
+PE.L2-3.10.3,EXAMINE,4,physical access control logs or records,192,193
+PE.L2-3.10.3,EXAMINE,5,inventory records of physical access control devices,192,193
+PE.L2-3.10.3,EXAMINE,6,system entry and exit points,192,193
+PE.L2-3.10.3,EXAMINE,7,records of key and lock combination changes,192,193
+PE.L2-3.10.3,EXAMINE,8,storage locations for physical access control devices,192,193
+PE.L2-3.10.3,EXAMINE,9,physical access control devices,192,193
+PE.L2-3.10.3,EXAMINE,10,list of security safeguards controlling access to designated publicly accessible areas within facility,192,193
+PE.L2-3.10.3,EXAMINE,11,other relevant documents or records,192,193
+PE.L2-3.10.3,INTERVIEW,1,Personnel with physical access control responsibilities,192,193
+PE.L2-3.10.3,INTERVIEW,2,personnel with information security responsibilities,192,193
+PE.L2-3.10.3,TEST,1,Organizatio nal processes for physical access control,192,193
+PE.L2-3.10.3,TEST,2,mechanisms supporting or implementing physical access control,192,193
+PE.L2-3.10.3,TEST,3,physical access control devices,192,193
+PE.L2-3.10.4,EXAMINE,1,Physical and environmental protection policy,194,195
+PE.L2-3.10.4,EXAMINE,2,procedures addressing physical access control,194,195
+PE.L2-3.10.4,EXAMINE,3,system security plan,194,195
+PE.L2-3.10.4,EXAMINE,4,physical access control logs or records,194,195
+PE.L2-3.10.4,EXAMINE,5,inventory records of physical access control devices,194,195
+PE.L2-3.10.4,EXAMINE,6,system entry and exit points,194,195
+PE.L2-3.10.4,EXAMINE,7,records of key and lock combina tion changes,194,195
+PE.L2-3.10.4,EXAMINE,8,storage locations for physical access control devices,194,195
+PE.L2-3.10.4,EXAMINE,9,physical access control devices,194,195
+PE.L2-3.10.4,EXAMINE,10,list of security safeguards controlling access to designated publicly accessible areas within facility,194,195
+PE.L2-3.10.4,EXAMINE,11,other relevant documents or records,194,195
+PE.L2-3.10.4,INTERVIEW,1,Personnel with physical access control responsibilities,194,195
+PE.L2-3.10.4,INTERVIEW,2,personnel with information security responsibilities,194,195
+PE.L2-3.10.4,TEST,1,Organizational processes for physical access control,194,195
+PE.L2-3.10.4,TEST,2,mechanisms supporting or implementing physical access control,194,195
+PE.L2-3.10.4,TEST,3,physical access control devices,194,195
+PE.L2-3.10.5,EXAMINE,1,Physical and environmental protection policy,196,197
+PE.L2-3.10.5,EXAMINE,2,procedures addressing physical access control,196,197
+PE.L2-3.10.5,EXAMINE,3,system security plan,196,197
+PE.L2-3.10.5,EXAMINE,4,physical access control logs or records,196,197
+PE.L2-3.10.5,EXAMINE,5,inventory records of physical access control devices,196,197
+PE.L2-3.10.5,EXAMINE,6,system entry and exit points,196,197
+PE.L2-3.10.5,EXAMINE,7,records of key and lock combination changes,196,197
+PE.L2-3.10.5,EXAMINE,8,storage locations for physical access control devices,196,197
+PE.L2-3.10.5,EXAMINE,9,physical access control devices,196,197
+PE.L2-3.10.5,EXAMINE,10,list of security safeguards controlling access to designated publicly accessible areas within facility,196,197
+PE.L2-3.10.5,EXAMINE,11,other relevant documents or records,196,197
+PE.L2-3.10.5,INTERVIEW,1,Personnel with physical access control responsibilities,196,197
+PE.L2-3.10.5,INTERVIEW,2,personnel with information security responsibilities,196,197
+PE.L2-3.10.5,TEST,1,Organizational processes for physical access control,196,197
+PE.L2-3.10.5,TEST,2,mechanisms supporting or implementing physical access control,196,197
+PE.L2-3.10.5,TEST,3,physical access control devices,196,197
+PE.L2-3.10.6,EXAMINE,1,Physical and environmental protection policy,198,199
+PE.L2-3.10.6,EXAMINE,2,procedures addressing alternate work sites for personnel,198,199
+PE.L2-3.10.6,EXAMINE,3,system security plan,198,199
+PE.L2-3.10.6,EXAMINE,4,list of safeguards required for alternate work sites,198,199
+PE.L2-3.10.6,EXAMINE,5,assessments of safeguards at alternate work sites,198,199
+PE.L2-3.10.6,EXAMINE,6,other relevant documents or records,198,199
+PE.L2-3.10.6,INTERVIEW,1,Personnel approving use of alternate work sites,198,199
+PE.L2-3.10.6,INTERVIEW,2,personnel using alternate work sites,198,199
+PE.L2-3.10.6,INTERVIEW,3,personnel assessing controls at alternate work sites,198,199
+PE.L2-3.10.6,INTERVIEW,4,personnel with information security responsibilities,198,199
+PE.L2-3.10.6,TEST,1,Organizational processes for security at alternate work sites,198,199
+PE.L2-3.10.6,TEST,2,mechanisms supporting alternate wo rk sites,198,199
+PE.L2-3.10.6,TEST,3,safeguards employed at alternate work sites,198,199
+PE.L2-3.10.6,TEST,4,means of communications between personnel at alternate work sites and security personnel,198,199
+RA.L2-3.11.1,EXAMINE,1,Risk assessment policy,200,202
+RA.L2-3.11.1,EXAMINE,2,security planning policy and procedures,200,202
+RA.L2-3.11.1,EXAMINE,3,procedures addressing organizational risk assessments,200,202
+RA.L2-3.11.1,EXAMINE,4,system security plan,200,202
+RA.L2-3.11.1,EXAMINE,5,risk assessment,200,202
+RA.L2-3.11.1,EXAMINE,6,risk assessment results,200,202
+RA.L2-3.11.1,EXAMINE,7,risk assessment reviews,200,202
+RA.L2-3.11.1,EXAMINE,8,risk assessment updates,200,202
+RA.L2-3.11.1,EXAMINE,9,other relevant documents or records,200,202
+RA.L2-3.11.1,INTERVIEW,1,Personnel with risk assessment responsibilities,200,202
+RA.L2-3.11.1,INTERVIEW,2,personnel with information security responsibilities,200,202
+RA.L2-3.11.1,TEST,1,Organizational processes for risk assessment,200,202
+RA.L2-3.11.1,TEST,2,"mechanisms supporting or for conducting, documenting, reviewing, disseminating, and updating the risk assessment",200,202
+RA.L2-3.11.2,EXAMINE,1,Risk assessment policy,203,205
+RA.L2-3.11.2,EXAMINE,2,procedures addressing vulnerability scanning,203,205
+RA.L2-3.11.2,EXAMINE,3,risk assessment,203,205
+RA.L2-3.11.2,EXAMINE,4,system security plan,203,205
+RA.L2-3.11.2,EXAMINE,5,security assessment report,203,205
+RA.L2-3.11.2,EXAMINE,6,vulnerability scanning tools and associated configuration documentation,203,205
+RA.L2-3.11.2,EXAMINE,7,vulnerability scanning results,203,205
+RA.L2-3.11.2,EXAMINE,8,patch and vulnerability management records,203,205
+RA.L2-3.11.2,EXAMINE,9,other relevant documents or records,203,205
+RA.L2-3.11.2,INTERVIEW,1,"Personnel with risk assessment, security assessment and vulnerability scanning responsibilities",203,205
+RA.L2-3.11.2,INTERVIEW,2,personnel with vulnerability scan analysis and remediation responsibilities,203,205
+RA.L2-3.11.2,INTERVIEW,3,personnel with information security responsibilities,203,205
+RA.L2-3.11.2,INTERVIEW,4,system or network administrators,203,205
+RA.L2-3.11.2,TEST,1,"Organizational processes for vulnerability scanning, analysis, remediation, and information sharing",203,205
+RA.L2-3.11.2,TEST,2,"mechanisms supporting or implementing vulnerability scanning, analysis, remediation, and information sharing]. 174 NIST SP 800-171A, pp. 49-50. RA.L2-3.11.2 - Vulnerability Scan",203,205
+RA.L2-3.11.3,EXAMINE,1,Risk assessment policy,206,207
+RA.L2-3.11.3,EXAMINE,2,procedures addressing vulnerability scanning,206,207
+RA.L2-3.11.3,EXAMINE,3,risk assessment,206,207
+RA.L2-3.11.3,EXAMINE,4,system security plan,206,207
+RA.L2-3.11.3,EXAMINE,5,security assessment report,206,207
+RA.L2-3.11.3,EXAMINE,6,vulnerability scanning tools and associated configuration documentation,206,207
+RA.L2-3.11.3,EXAMINE,7,vulnerability scanning results,206,207
+RA.L2-3.11.3,EXAMINE,8,patch and vulnerability management records,206,207
+RA.L2-3.11.3,EXAMINE,9,other relevant documents or records,206,207
+RA.L2-3.11.3,INTERVIEW,1,"Personnel with risk assessment, security assessment and vulnerability scanning responsibilities",206,207
+RA.L2-3.11.3,INTERVIEW,2,personnel with vulnerability scan analysis responsibilities,206,207
+RA.L2-3.11.3,INTERVIEW,3,personnel with vulnerability remediation responsibilities,206,207
+RA.L2-3.11.3,INTERVIEW,4,personnel with information security responsibilities,206,207
+RA.L2-3.11.3,INTERVIEW,5,system or network administrators,206,207
+RA.L2-3.11.3,TEST,1,"Organizational processes for vulnerability scanning, analysis, remediation, and information sharing",206,207
+RA.L2-3.11.3,TEST,2,"mechanisms supporting or implementing vulnerability scanning, analysis, remediation, and information sharing",206,207
+CA.L2-3.12.1,EXAMINE,1,Security assessment and authorization policy,208,210
+CA.L2-3.12.1,EXAMINE,2,procedures addressing security assessment planning,208,210
+CA.L2-3.12.1,EXAMINE,3,procedures addressing security assessments,208,210
+CA.L2-3.12.1,EXAMINE,4,security assessment plan,208,210
+CA.L2-3.12.1,EXAMINE,5,system security plan,208,210
+CA.L2-3.12.1,EXAMINE,6,other relevant documents or records,208,210
+CA.L2-3.12.1,INTERVIEW,1,Personnel with security assessment responsibilities,208,210
+CA.L2-3.12.1,INTERVIEW,2,personnel with information security responsibilities,208,210
+CA.L2-3.12.1,TEST,1,"Mechanisms supporting security assessment, security assessment plan development, and security assessment reporting",208,210
+CA.L2-3.12.2,EXAMINE,1,Security assessment and authorization policy,211,213
+CA.L2-3.12.2,EXAMINE,2,procedures addressing plan of action,211,213
+CA.L2-3.12.2,EXAMINE,3,system security plan,211,213
+CA.L2-3.12.2,EXAMINE,4,security assessment plan,211,213
+CA.L2-3.12.2,EXAMINE,5,security assessment report,211,213
+CA.L2-3.12.2,EXAMINE,6,security assessment evidence,211,213
+CA.L2-3.12.2,EXAMINE,7,plan of action,211,213
+CA.L2-3.12.2,EXAMINE,8,other relevant documents or records,211,213
+CA.L2-3.12.2,INTERVIEW,1,Personnel with plan of action development and implementation responsibilities,211,213
+CA.L2-3.12.2,INTERVIEW,2,personnel with information security responsibilities,211,213
+CA.L2-3.12.2,TEST,1,"Mechanisms for developing, implementing, and maintaining plan of action",211,213
+CA.L2-3.12.3,EXAMINE,1,Security planning policy,214,215
+CA.L2-3.12.3,EXAMINE,2,organizational procedures addressing system security plan development and implementation,214,215
+CA.L2-3.12.3,EXAMINE,3,procedures addressing system security plan reviews and updates,214,215
+CA.L2-3.12.3,EXAMINE,4,enterprise architecture documentation,214,215
+CA.L2-3.12.3,EXAMINE,5,system security plan,214,215
+CA.L2-3.12.3,EXAMINE,6,records of system security plan reviews and updates,214,215
+CA.L2-3.12.3,EXAMINE,7,other relevant documents or records,214,215
+CA.L2-3.12.3,INTERVIEW,1,Personnel with security planning and system security plan implementation responsibilities,214,215
+CA.L2-3.12.3,INTERVIEW,2,personnel with information security responsibilities,214,215
+CA.L2-3.12.3,TEST,1,"Organizational processes for system security plan development, review, update, and approval",214,215
+CA.L2-3.12.3,TEST,2,mechanisms supporting the system security plan,214,215
+CA.L2-3.12.4,EXAMINE,1,Security planning policy,216,218
+CA.L2-3.12.4,EXAMINE,2,procedures addressing system security plan development and implementation,216,218
+CA.L2-3.12.4,EXAMINE,3,procedures addressing system security plan reviews and updates,216,218
+CA.L2-3.12.4,EXAMINE,4,enterprise architecture documentation,216,218
+CA.L2-3.12.4,EXAMINE,5,system security plan,216,218
+CA.L2-3.12.4,EXAMINE,6,records of system security plan reviews and updates,216,218
+CA.L2-3.12.4,EXAMINE,7,other relevant documents or records,216,218
+CA.L2-3.12.4,INTERVIEW,1,Personnel with security planning and system security plan implementation responsibilities,216,218
+CA.L2-3.12.4,INTERVIEW,2,personnel with information security responsibilities,216,218
+CA.L2-3.12.4,TEST,1,"Organizational processes for system security plan development, review, update, and approval",216,218
+CA.L2-3.12.4,TEST,2,"mechanisms supporting the system security plan]. 184 NIST SP 800-171A, p. 52. CA.L2-3.12.4 - System Security Plan",216,218
+SC.L2-3.13.1,EXAMINE,1,System and communications protection policy,219,221
+SC.L2-3.13.1,EXAMINE,2,procedures addressing boundary protection,219,221
+SC.L2-3.13.1,EXAMINE,3,system security plan,219,221
+SC.L2-3.13.1,EXAMINE,4,list of key internal boundaries of the system,219,221
+SC.L2-3.13.1,EXAMINE,5,system design documentation,219,221
+SC.L2-3.13.1,EXAMINE,6,boundary protection hardware and software,219,221
+SC.L2-3.13.1,EXAMINE,7,enterprise security architecture documentation,219,221
+SC.L2-3.13.1,EXAMINE,8,system audit logs and records,219,221
+SC.L2-3.13.1,EXAMINE,9,system configuration settings and associated documentation,219,221
+SC.L2-3.13.1,EXAMINE,10,other relevant documents or records,219,221
+SC.L2-3.13.1,INTERVIEW,1,System or network administrators,219,221
+SC.L2-3.13.1,INTERVIEW,2,personnel with information security responsibilities,219,221
+SC.L2-3.13.1,INTERVIEW,3,system developers,219,221
+SC.L2-3.13.1,INTERVIEW,4,personnel with boundary protection responsibilities,219,221
+SC.L2-3.13.1,TEST,1,"Mechanisms implementing boundary protection capability]. 187 NIST SP 800-171A, p. 53. SC.L2-3.13.1 - Boundary Protection [CUI Data",219,221
+SC.L2-3.13.2,EXAMINE,1,Security planning policy,222,224
+SC.L2-3.13.2,EXAMINE,2,procedures addressing system security plan development and implementation,222,224
+SC.L2-3.13.2,EXAMINE,3,procedures addressing system security plan reviews and updates,222,224
+SC.L2-3.13.2,EXAMINE,4,enterprise architecture documentation,222,224
+SC.L2-3.13.2,EXAMINE,5,system security plan,222,224
+SC.L2-3.13.2,EXAMINE,6,records of system security plan reviews and updates,222,224
+SC.L2-3.13.2,EXAMINE,7,system and communications protection policy,222,224
+SC.L2-3.13.2,EXAMINE,8,"procedures addressing security engineering principles used in the specification, design, development, implementation, and modification of the system",222,224
+SC.L2-3.13.2,EXAMINE,9,security architecture documentation,222,224
+SC.L2-3.13.2,EXAMINE,10,security requirements and specifications for the system,222,224
+SC.L2-3.13.2,EXAMINE,11,system design documentation,222,224
+SC.L2-3.13.2,EXAMINE,12,system configuration settings and associated documentation,222,224
+SC.L2-3.13.2,EXAMINE,13,other relevant documents or records,222,224
+SC.L2-3.13.2,INTERVIEW,1,Personnel with responsibility for determining information system security requirements,222,224
+SC.L2-3.13.2,INTERVIEW,2,"personnel with information system design, development, implementation, and modification responsibilities",222,224
+SC.L2-3.13.2,INTERVIEW,3,personnel with security planning and system security plan implementation responsibilities,222,224
+SC.L2-3.13.2,INTERVIEW,4,"personnel with information security responsibilities]. 189 NIST SP 800-171A, pp. 53-54. SC.L2-3.13.2 - Security Engineering",222,224
+SC.L2-3.13.2,TEST,1,"Organizational processes for system security plan development, review, update, and approval",222,224
+SC.L2-3.13.2,TEST,2,mechanisms supporting the system security plan,222,224
+SC.L2-3.13.2,TEST,3,"processes for applying security engineering principles in system specification, design, development, implementation, and modification",222,224
+SC.L2-3.13.2,TEST,4,"automated mechanisms supporting the application of security engineering principles in information system specification, design, development, implementation, and modification",222,224
+SC.L2-3.13.3,EXAMINE,1,System and communications protection policy,225,226
+SC.L2-3.13.3,EXAMINE,2,procedures addressing application partitioning,225,226
+SC.L2-3.13.3,EXAMINE,3,system design documentation,225,226
+SC.L2-3.13.3,EXAMINE,4,system configuration settings and associated documentation,225,226
+SC.L2-3.13.3,EXAMINE,5,system security plan,225,226
+SC.L2-3.13.3,EXAMINE,6,system audit logs and records,225,226
+SC.L2-3.13.3,EXAMINE,7,other relevant documents or records,225,226
+SC.L2-3.13.3,INTERVIEW,1,System or network administrators,225,226
+SC.L2-3.13.3,INTERVIEW,2,personnel with information security responsibilities,225,226
+SC.L2-3.13.3,INTERVIEW,3,system developer,225,226
+SC.L2-3.13.3,TEST,1,Separation of user functionality from system management functionality,225,226
+SC.L2-3.13.4,EXAMINE,1,System and communications protection policy,227,228
+SC.L2-3.13.4,EXAMINE,2,procedures addressing application partitioning,227,228
+SC.L2-3.13.4,EXAMINE,3,system security plan,227,228
+SC.L2-3.13.4,EXAMINE,4,system design documentation,227,228
+SC.L2-3.13.4,EXAMINE,5,system configuration settings and associated documentation,227,228
+SC.L2-3.13.4,EXAMINE,6,system audit logs and records,227,228
+SC.L2-3.13.4,EXAMINE,7,other relevant documents or records,227,228
+SC.L2-3.13.4,INTERVIEW,1,System or network administrators,227,228
+SC.L2-3.13.4,INTERVIEW,2,personnel with information security responsibilities,227,228
+SC.L2-3.13.4,INTERVIEW,3,system developer,227,228
+SC.L2-3.13.4,TEST,1,Separation of user functionality from system management functionality,227,228
+SC.L2-3.13.5,EXAMINE,1,System and commun ications protection policy,229,230
+SC.L2-3.13.5,EXAMINE,2,procedures addressing boundary protection,229,230
+SC.L2-3.13.5,EXAMINE,3,system security plan,229,230
+SC.L2-3.13.5,EXAMINE,4,list of key internal boundaries of the system,229,230
+SC.L2-3.13.5,EXAMINE,5,system design documentation,229,230
+SC.L2-3.13.5,EXAMINE,6,boundary protection hardware and software,229,230
+SC.L2-3.13.5,EXAMINE,7,system configuration settings and associated documentation,229,230
+SC.L2-3.13.5,EXAMINE,8,enterprise security architecture documentation,229,230
+SC.L2-3.13.5,EXAMINE,9,system audit logs and records,229,230
+SC.L2-3.13.5,EXAMINE,10,other relevant documents or records,229,230
+SC.L2-3.13.5,INTERVIEW,1,System or network administrators,229,230
+SC.L2-3.13.5,INTERVIEW,2,personnel with information security responsibilities,229,230
+SC.L2-3.13.5,INTERVIEW,3,system developers,229,230
+SC.L2-3.13.5,INTERVIEW,4,personnel with boundary protection responsibilities,229,230
+SC.L2-3.13.5,TEST,1,Mechanisms implementing boundary protection capability,229,230
+SC.L2-3.13.6,EXAMINE,1,System and communications protection policy,231,232
+SC.L2-3.13.6,EXAMINE,2,procedures addressing boundary protection,231,232
+SC.L2-3.13.6,EXAMINE,3,system security plan,231,232
+SC.L2-3.13.6,EXAMINE,4,system design documentation,231,232
+SC.L2-3.13.6,EXAMINE,5,system configuration settings and associated documentation,231,232
+SC.L2-3.13.6,EXAMINE,6,system audit logs and records,231,232
+SC.L2-3.13.6,EXAMINE,7,other relevant documents or records,231,232
+SC.L2-3.13.6,INTERVIEW,1,System or network administrators,231,232
+SC.L2-3.13.6,INTERVIEW,2,personnel with information security responsibilities,231,232
+SC.L2-3.13.6,INTERVIEW,3,system developer,231,232
+SC.L2-3.13.6,INTERVIEW,4,personnel with boundary protection responsibilities,231,232
+SC.L2-3.13.6,TEST,1,Mechanisms implementing traffic management at managed interfaces,231,232
+SC.L2-3.13.7,EXAMINE,1,System and communications protection policy,233,234
+SC.L2-3.13.7,EXAMINE,2,procedures addressing boundary protection,233,234
+SC.L2-3.13.7,EXAMINE,3,system security plan,233,234
+SC.L2-3.13.7,EXAMINE,4,system design documentation,233,234
+SC.L2-3.13.7,EXAMINE,5,system hardware and software,233,234
+SC.L2-3.13.7,EXAMINE,6,system architecture,233,234
+SC.L2-3.13.7,EXAMINE,7,system configuration settings and associated documentation,233,234
+SC.L2-3.13.7,EXAMINE,8,system audit logs and records,233,234
+SC.L2-3.13.7,EXAMINE,9,other relevant documents or records,233,234
+SC.L2-3.13.7,INTERVIEW,1,System or network administrators,233,234
+SC.L2-3.13.7,INTERVIEW,2,personnel with information security responsibilities,233,234
+SC.L2-3.13.7,INTERVIEW,3,system developer,233,234
+SC.L2-3.13.7,INTERVIEW,4,personnel with boundary protection responsibilities,233,234
+SC.L2-3.13.7,TEST,1,Mechanisms implementing boundary protection capability,233,234
+SC.L2-3.13.7,TEST,2,m echanisms supporting or restricting non-remote connections,233,234
+SC.L2-3.13.8,EXAMINE,1,System and communications protection policy,235,236
+SC.L2-3.13.8,EXAMINE,2,procedures addressing transmission confidentiality and integrity,235,236
+SC.L2-3.13.8,EXAMINE,3,system security plan,235,236
+SC.L2-3.13.8,EXAMINE,4,system design documentation,235,236
+SC.L2-3.13.8,EXAMINE,5,system configuration settings and associated documentation,235,236
+SC.L2-3.13.8,EXAMINE,6,system audit logs and records,235,236
+SC.L2-3.13.8,EXAMINE,7,other relevant documents or records,235,236
+SC.L2-3.13.8,INTERVIEW,1,System or network administrators,235,236
+SC.L2-3.13.8,INTERVIEW,2,personnel with information security responsibilities,235,236
+SC.L2-3.13.8,INTERVIEW,3,system developer,235,236
+SC.L2-3.13.8,TEST,1,Cryptographic mechanisms or mechanisms supporting or implementing transmission confidentiality,235,236
+SC.L2-3.13.8,TEST,2,organizational processes for defining and implementing alternative physical safeguards,235,236
+SC.L2-3.13.9,EXAMINE,1,System and communications protection policy,237,238
+SC.L2-3.13.9,EXAMINE,2,procedures addressing network disconnect,237,238
+SC.L2-3.13.9,EXAMINE,3,system design documentation,237,238
+SC.L2-3.13.9,EXAMINE,4,system security plan,237,238
+SC.L2-3.13.9,EXAMINE,5,system configuration settings and associated documentation,237,238
+SC.L2-3.13.9,EXAMINE,6,system audit logs and records,237,238
+SC.L2-3.13.9,EXAMINE,7,other relevant documents or records,237,238
+SC.L2-3.13.9,INTERVIEW,1,System or network administrators,237,238
+SC.L2-3.13.9,INTERVIEW,2,personnel with information security responsibilities,237,238
+SC.L2-3.13.9,INTERVIEW,3,system developer,237,238
+SC.L2-3.13.9,TEST,1,Mechanisms supporting or implementing network disconnect capability,237,238
+SC.L2-3.13.10,EXAMINE,1,System and communications protection policy,239,241
+SC.L2-3.13.10,EXAMINE,2,procedures addressing cryptographic key establishment and management,239,241
+SC.L2-3.13.10,EXAMINE,3,system security plan,239,241
+SC.L2-3.13.10,EXAMINE,4,system design documentation,239,241
+SC.L2-3.13.10,EXAMINE,5,cryptographic mechanisms,239,241
+SC.L2-3.13.10,EXAMINE,6,system configuration settings and associated documentation,239,241
+SC.L2-3.13.10,EXAMINE,7,system audit logs and records,239,241
+SC.L2-3.13.10,EXAMINE,8,other relevant documents or records,239,241
+SC.L2-3.13.10,INTERVIEW,1,System or network administrators,239,241
+SC.L2-3.13.10,INTERVIEW,2,personnel with information security responsibilities,239,241
+SC.L2-3.13.10,INTERVIEW,3,personnel with responsibilities for cryptographic key establishment and management,239,241
+SC.L2-3.13.10,TEST,1,Mechanisms supporting or implementing cryptographic key establishment and management,239,241
+SC.L2-3.13.11,EXAMINE,1,System and communications protection policy,242,243
+SC.L2-3.13.11,EXAMINE,2,procedures addressing cryptographic protection,242,243
+SC.L2-3.13.11,EXAMINE,3,system security plan,242,243
+SC.L2-3.13.11,EXAMINE,4,system design documentation,242,243
+SC.L2-3.13.11,EXAMINE,5,system configuration settings and associated documentation,242,243
+SC.L2-3.13.11,EXAMINE,6,cryptographic module validation certificates,242,243
+SC.L2-3.13.11,EXAMINE,7,list of FIPS-validated cryptographic modules,242,243
+SC.L2-3.13.11,EXAMINE,8,system audit logs and records,242,243
+SC.L2-3.13.11,EXAMINE,9,any other relevant documents or records,242,243
+SC.L2-3.13.11,INTERVIEW,1,System or network administrators,242,243
+SC.L2-3.13.11,INTERVIEW,2,personnel with information security responsibilities,242,243
+SC.L2-3.13.11,INTERVIEW,3,system developers,242,243
+SC.L2-3.13.11,INTERVIEW,4,personnel with responsibilities for cryptographic protection,242,243
+SC.L2-3.13.11,TEST,1,Mechanisms supporting or implementing cryptographic protection,242,243
+SC.L2-3.13.12,EXAMINE,1,System and communications protection policy,244,245
+SC.L2-3.13.12,EXAMINE,2,procedures addressing collaborative computing,244,245
+SC.L2-3.13.12,EXAMINE,3,access control policy and procedures,244,245
+SC.L2-3.13.12,EXAMINE,4,system security plan,244,245
+SC.L2-3.13.12,EXAMINE,5,system design doc umentation,244,245
+SC.L2-3.13.12,EXAMINE,6,system audit logs and records,244,245
+SC.L2-3.13.12,EXAMINE,7,system configuration settings and associated documentation,244,245
+SC.L2-3.13.12,EXAMINE,8,other relevant documents or records,244,245
+SC.L2-3.13.12,INTERVIEW,1,System or network administrators,244,245
+SC.L2-3.13.12,INTERVIEW,2,personnel with information security responsibilities,244,245
+SC.L2-3.13.12,INTERVIEW,3,system developer,244,245
+SC.L2-3.13.12,INTERVIEW,4,personnel with responsibilities for managing collaborative computing devices,244,245
+SC.L2-3.13.12,TEST,1,Mechanisms supporting or implementing management of remote activation of collaborative computing devices,244,245
+SC.L2-3.13.12,TEST,2,mechanisms providing an indication of use of collaborative computing devices,244,245
+SC.L2-3.13.13,EXAMINE,1,System and communications protection policy,246,247
+SC.L2-3.13.13,EXAMINE,2,procedures addressing mobile code,246,247
+SC.L2-3.13.13,EXAMINE,3,"mobile code usage restrictions, mobile code implementation policy and procedures",246,247
+SC.L2-3.13.13,EXAMINE,4,system audit logs and records,246,247
+SC.L2-3.13.13,EXAMINE,5,system security plan,246,247
+SC.L2-3.13.13,EXAMINE,6,list of acceptable mobile code and mobile code technologies,246,247
+SC.L2-3.13.13,EXAMINE,7,list of unacceptable mobile code and mobile technologies,246,247
+SC.L2-3.13.13,EXAMINE,8,authorization records,246,247
+SC.L2-3.13.13,EXAMINE,9,system monitoring records,246,247
+SC.L2-3.13.13,EXAMINE,10,other relevant documents or records,246,247
+SC.L2-3.13.13,INTERVIEW,1,System or network administrators,246,247
+SC.L2-3.13.13,INTERVIEW,2,personnel with information security responsibilities,246,247
+SC.L2-3.13.13,INTERVIEW,3,personnel with responsibilities for managing mobile code,246,247
+SC.L2-3.13.13,TEST,1,"Organizational process for controlling, authorizing, monitoring, and restricting mobile code",246,247
+SC.L2-3.13.13,TEST,2,mechanisms supporting or implementing the management of mobile code,246,247
+SC.L2-3.13.13,TEST,3,mechanisms supporting or implementing the monitoring of mobile code,246,247
+SC.L2-3.13.14,EXAMINE,1,System and communications protection policy,248,249
+SC.L2-3.13.14,EXAMINE,2,procedures addressing VoIP,248,249
+SC.L2-3.13.14,EXAMINE,3,VoIP usage restrictions,248,249
+SC.L2-3.13.14,EXAMINE,4,VoIP implementation guidance,248,249
+SC.L2-3.13.14,EXAMINE,5,system security plan,248,249
+SC.L2-3.13.14,EXAMINE,6,system design documentation,248,249
+SC.L2-3.13.14,EXAMINE,7,system audit logs and records,248,249
+SC.L2-3.13.14,EXAMINE,8,system configuration settings and associated documentation,248,249
+SC.L2-3.13.14,EXAMINE,9,system monitoring records,248,249
+SC.L2-3.13.14,EXAMINE,10,other relevant documents or records,248,249
+SC.L2-3.13.14,INTERVIEW,1,System or network administrators,248,249
+SC.L2-3.13.14,INTERVIEW,2,personnel with information security responsibilities,248,249
+SC.L2-3.13.14,INTERVIEW,3,personnel with responsibilities for managing VoIP,248,249
+SC.L2-3.13.14,TEST,1,"Organizational process for authorizing, monitoring, and controlling VoIP",248,249
+SC.L2-3.13.14,TEST,2,"mechanisms supporting or implementing authorizing, monitoring, and controlling VoIP",248,249
+SC.L2-3.13.15,EXAMINE,1,System and communications protection policy,250,251
+SC.L2-3.13.15,EXAMINE,2,procedures addressing session authenticity,250,251
+SC.L2-3.13.15,EXAMINE,3,system security plan,250,251
+SC.L2-3.13.15,EXAMINE,4,system design documentation,250,251
+SC.L2-3.13.15,EXAMINE,5,system configuration settings and associated documentation,250,251
+SC.L2-3.13.15,EXAMINE,6,system audit logs and records,250,251
+SC.L2-3.13.15,EXAMINE,7,other relevant documents or records,250,251
+SC.L2-3.13.15,INTERVIEW,1,System or network administrators,250,251
+SC.L2-3.13.15,INTERVIEW,2,personnel with information security responsibilities,250,251
+SC.L2-3.13.15,TEST,1,Mechanisms supporting or implementing session authenticity,250,251
+SC.L2-3.13.16,EXAMINE,1,System and communications protection policy,252,253
+SC.L2-3.13.16,EXAMINE,2,procedures addressing protection of information at rest,252,253
+SC.L2-3.13.16,EXAMINE,3,system security plan,252,253
+SC.L2-3.13.16,EXAMINE,4,system design documentation,252,253
+SC.L2-3.13.16,EXAMINE,5,list of information at rest requiring confidentiality protections,252,253
+SC.L2-3.13.16,EXAMINE,6,system configuration settings and associated documentation,252,253
+SC.L2-3.13.16,EXAMINE,7,cryptographic mechanisms and associated configuration documentation,252,253
+SC.L2-3.13.16,EXAMINE,8,other relevant documents or records,252,253
+SC.L2-3.13.16,INTERVIEW,1,System or network administrators,252,253
+SC.L2-3.13.16,INTERVIEW,2,personnel with information security responsibilities,252,253
+SC.L2-3.13.16,INTERVIEW,3,system developer,252,253
+SC.L2-3.13.16,TEST,1,Mechanisms supporting or implementing confidentiality protections for information at rest,252,253
+SI.L2-3.14.1,EXAMINE,1,System and information integrity policy,254,256
+SI.L2-3.14.1,EXAMINE,2,procedures addressing flaw remediation,254,256
+SI.L2-3.14.1,EXAMINE,3,procedures addressing configuration management,254,256
+SI.L2-3.14.1,EXAMINE,4,system security plan,254,256
+SI.L2-3.14.1,EXAMINE,5,list of flaws and vulnerabilities potentially affecting the system,254,256
+SI.L2-3.14.1,EXAMINE,6,"list of recent security flaw remediation actions performed on the system (e.g., list of installed patches, service packs, hot fixes, and other software updates to correct system flaws)",254,256
+SI.L2-3.14.1,EXAMINE,7,test results from th e installation of software and firmware updates to correct system flaws,254,256
+SI.L2-3.14.1,EXAMINE,8,installation/change control records for security -relevant software and firmware updates,254,256
+SI.L2-3.14.1,EXAMINE,9,other relevant documents or records,254,256
+SI.L2-3.14.1,INTERVIEW,1,System or network administrators,254,256
+SI.L2-3.14.1,INTERVIEW,2,personnel with information security responsibilities,254,256
+SI.L2-3.14.1,INTERVIEW,3,"personnel installing, configuring, and maintaining the system",254,256
+SI.L2-3.14.1,INTERVIEW,4,personnel with responsibility for flaw remediation,254,256
+SI.L2-3.14.1,INTERVIEW,5,personnel with configuration management responsibility,254,256
+SI.L2-3.14.1,TEST,1,"Organizat ional processes for identifying, reporting, and correcting system flaws",254,256
+SI.L2-3.14.1,TEST,2,organizational process for installing software and firmware updates,254,256
+SI.L2-3.14.1,TEST,3,"mechanisms 219 NIST SP 800-171A, p. 61. SI.L2-3.14.1 - Flaw Remediation [CUI Data] supporting or implementing reporting, and correcting system flaws",254,256
+SI.L2-3.14.1,TEST,4,mechanisms supporting or implementing testing software and firmware updates,254,256
+SI.L2-3.14.2,EXAMINE,1,System and information integrity policy,257,259
+SI.L2-3.14.2,EXAMINE,2,configuration management policy and procedures,257,259
+SI.L2-3.14.2,EXAMINE,3,procedures addressing malicious code protection,257,259
+SI.L2-3.14.2,EXAMINE,4,records of malicious code protection updates,257,259
+SI.L2-3.14.2,EXAMINE,5,malicious code protection mechanisms,257,259
+SI.L2-3.14.2,EXAMINE,6,system security plan,257,259
+SI.L2-3.14.2,EXAMINE,7,system configuration settings and associated documentation,257,259
+SI.L2-3.14.2,EXAMINE,8,record of actions initiated by malicious code protection mechanisms in response to malicious code detection,257,259
+SI.L2-3.14.2,EXAMINE,9,scan results from malicious code protection mechanisms,257,259
+SI.L2-3.14.2,EXAMINE,10,system design documentation,257,259
+SI.L2-3.14.2,EXAMINE,11,system audit logs and records,257,259
+SI.L2-3.14.2,EXAMINE,12,other relevant documents or records,257,259
+SI.L2-3.14.2,INTERVIEW,1,System or network administrators,257,259
+SI.L2-3.14.2,INTERVIEW,2,personnel with information security responsibilities,257,259
+SI.L2-3.14.2,INTERVIEW,3,"personnel installing, configuring, and maintaining the system",257,259
+SI.L2-3.14.2,INTERVIEW,4,personnel with responsibility for malicious code protection,257,259
+SI.L2-3.14.2,INTERVIEW,5,personnel with configuration management responsibility,257,259
+SI.L2-3.14.2,TEST,1,"Organizational processes for employing, updating, and configuring malicious code protection mechanisms",257,259
+SI.L2-3.14.2,TEST,2,organizational process for addressing false positives and resulting potential impact,257,259
+SI.L2-3.14.2,TEST,3,"mechanisms supporting or implementing employing, updating, and configuring malicious code protection mechanisms",257,259
+SI.L2-3.14.2,TEST,4,mechanisms supporting or implementing malicious code scanning and subsequent actions,257,259
+SI.L2-3.14.3,EXAMINE,1,System and information integrity policy,260,261
+SI.L2-3.14.3,EXAMINE,2,"procedures addressing security alerts, advisories, and directives",260,261
+SI.L2-3.14.3,EXAMINE,3,system security plan,260,261
+SI.L2-3.14.3,EXAMINE,4,records of security alerts and advisories,260,261
+SI.L2-3.14.3,EXAMINE,5,other relevant documents or records,260,261
+SI.L2-3.14.3,INTERVIEW,1,Personnel with security alert and advisory responsibilities,260,261
+SI.L2-3.14.3,INTERVIEW,2,"personnel implementing, operating, maintaining, and using the system",260,261
+SI.L2-3.14.3,INTERVIEW,3,"personnel, organizational elements, and external organizations to whom alerts, advisories, and directives are to be disseminated",260,261
+SI.L2-3.14.3,INTERVIEW,4,system or network administrators,260,261
+SI.L2-3.14.3,INTERVIEW,5,personnel with information security responsibilities,260,261
+SI.L2-3.14.3,TEST,1,"Organizational processes for defining, receiving, generating, disseminating, and complying with security alerts, advisories, and directives",260,261
+SI.L2-3.14.3,TEST,2,"mechanisms supporting or implementing definition, receipt, generation, and dissemination of security alerts, advisories, and directives",260,261
+SI.L2-3.14.3,TEST,3,mechanisms supporting or implementing security directives,260,261
+SI.L2-3.14.4,EXAMINE,1,System and information integrity policy,262,263
+SI.L2-3.14.4,EXAMINE,2,configuration management policy and procedures,262,263
+SI.L2-3.14.4,EXAMINE,3,procedures addressing malicious code protection,262,263
+SI.L2-3.14.4,EXAMINE,4,malicious code protection mechanisms,262,263
+SI.L2-3.14.4,EXAMINE,5,records of malicious code protection updates,262,263
+SI.L2-3.14.4,EXAMINE,6,system security plan,262,263
+SI.L2-3.14.4,EXAMINE,7,system design documentation,262,263
+SI.L2-3.14.4,EXAMINE,8,system configuration settings and associated documentation,262,263
+SI.L2-3.14.4,EXAMINE,9,scan results from malicious code protection mechanisms,262,263
+SI.L2-3.14.4,EXAMINE,10,record of actions initiated by malicious code protection mechanisms in response to malicious code detection,262,263
+SI.L2-3.14.4,EXAMINE,11,system audit logs and records,262,263
+SI.L2-3.14.4,EXAMINE,12,other relevant documents or records,262,263
+SI.L2-3.14.4,INTERVIEW,1,System or network administrators,262,263
+SI.L2-3.14.4,INTERVIEW,2,personnel with information security responsibilities,262,263
+SI.L2-3.14.4,INTERVIEW,3,"personnel installing, configuring, and maintaining the system",262,263
+SI.L2-3.14.4,INTERVIEW,4,personnel with responsibility for malicious code protection,262,263
+SI.L2-3.14.4,INTERVIEW,5,personnel with configuration management responsibility,262,263
+SI.L2-3.14.4,TEST,1,"Organizational processes for employing, updating, and configuring malicious code protection mechanisms",262,263
+SI.L2-3.14.4,TEST,2,organizational process for addressing false positives and resulting potential impact,262,263
+SI.L2-3.14.4,TEST,3,mechanisms supporting or implementing malicious code protection mechanisms (including updates and configurations),262,263
+SI.L2-3.14.4,TEST,4,mechanisms supporting or implementing malicious code scanning and subsequent actions,262,263
+SI.L2-3.14.5,EXAMINE,1,System and information integrity policy,264,265
+SI.L2-3.14.5,EXAMINE,2,configuration management policy and procedures,264,265
+SI.L2-3.14.5,EXAMINE,3,procedures addressing malicious code protection,264,265
+SI.L2-3.14.5,EXAMINE,4,malicious code protection mechanisms,264,265
+SI.L2-3.14.5,EXAMINE,5,records of malicious code protection updates,264,265
+SI.L2-3.14.5,EXAMINE,6,system security plan,264,265
+SI.L2-3.14.5,EXAMINE,7,system design documentation,264,265
+SI.L2-3.14.5,EXAMINE,8,system configuration settings and associated documentation,264,265
+SI.L2-3.14.5,EXAMINE,9,scan results from malicious code protection mechanisms,264,265
+SI.L2-3.14.5,EXAMINE,10,record of actions initiated by malicious code protection mechanisms in response to malicious code detection,264,265
+SI.L2-3.14.5,EXAMINE,11,system audit logs and records,264,265
+SI.L2-3.14.5,EXAMINE,12,other relevant documents or records,264,265
+SI.L2-3.14.5,INTERVIEW,1,System or network administrators,264,265
+SI.L2-3.14.5,INTERVIEW,2,personnel with information security responsibilities,264,265
+SI.L2-3.14.5,INTERVIEW,3,"personnel installing, configuring, and maintaining the system",264,265
+SI.L2-3.14.5,INTERVIEW,4,personnel with responsibility for malicious code protection,264,265
+SI.L2-3.14.5,INTERVIEW,5,personnel with configuration management responsibility,264,265
+SI.L2-3.14.5,TEST,1,"Organizational processes for employing, updating, and configuring malicious code protection mechanisms",264,265
+SI.L2-3.14.5,TEST,2,organizational process for addressing false positives and resulting potential impact,264,265
+SI.L2-3.14.5,TEST,3,mechanisms supporting or implementing malicious code protection mechanisms (including updates and configurations),264,265
+SI.L2-3.14.5,TEST,4,mechanisms supporting or implementing malicious code scanning and subsequent actions,264,265
+SI.L2-3.14.6,EXAMINE,1,System and information integrity policy,266,268
+SI.L2-3.14.6,EXAMINE,2,pr ocedures addressing system monitoring tools and techniques,266,268
+SI.L2-3.14.6,EXAMINE,3,continuous monitoring strategy,266,268
+SI.L2-3.14.6,EXAMINE,4,procedures addressing system monitoring tools and techniques,266,268
+SI.L2-3.14.6,EXAMINE,5,facility diagram or layout,266,268
+SI.L2-3.14.6,EXAMINE,6,system security plan,266,268
+SI.L2-3.14.6,EXAMINE,7,system monitoring tools and techniques documentation,266,268
+SI.L2-3.14.6,EXAMINE,8,system design documentation,266,268
+SI.L2-3.14.6,EXAMINE,9,locations within system where monitoring devices are deployed,266,268
+SI.L2-3.14.6,EXAMINE,10,system protocols,266,268
+SI.L2-3.14.6,EXAMINE,11,system configuration settings and associated documentation,266,268
+SI.L2-3.14.6,EXAMINE,12,system audit logs and records,266,268
+SI.L2-3.14.6,EXAMINE,13,other relevant documents or records,266,268
+SI.L2-3.14.6,INTERVIEW,1,System or network administrators,266,268
+SI.L2-3.14.6,INTERVIEW,2,personnel with information security responsibilities,266,268
+SI.L2-3.14.6,INTERVIEW,3,"personnel installing, configuring, and maintaining the system",266,268
+SI.L2-3.14.6,INTERVIEW,4,personnel with responsibility monitoring the system,266,268
+SI.L2-3.14.6,INTERVIEW,5,personnel with responsibility for the intrusion detection system,266,268
+SI.L2-3.14.6,TEST,1,Organizational processes for system monitoring,266,268
+SI.L2-3.14.6,TEST,2,mechanisms supporting or implementing intrusion detection capability and system monitoring,266,268
+SI.L2-3.14.6,TEST,3,mechanisms supporting or implementing system monitoring capability,266,268
+SI.L2-3.14.6,TEST,4,organizational processes for intrusion detection and system monitoring,266,268
+SI.L2-3.14.6,TEST,5,"mechanisms supporting or implementing the monitoring of inbound and outbound communications traffic]. 229 NIST SP 800-171A, pp. 63-64. SI.L2-3.14.6 - Monitor Communications for Attacks",266,268
+SI.L2-3.14.7,EXAMINE,1,Continuous monitoring strategy,269,276
+SI.L2-3.14.7,EXAMINE,2,system and information integrity policy,269,276
+SI.L2-3.14.7,EXAMINE,3,procedures addressing system monitoring tools and techniques,269,276
+SI.L2-3.14.7,EXAMINE,4,facility diagram/layout,269,276
+SI.L2-3.14.7,EXAMINE,5,system security plan,269,276
+SI.L2-3.14.7,EXAMINE,6,system design documentation,269,276
+SI.L2-3.14.7,EXAMINE,7,system monitoring tools and techniques documentation,269,276
+SI.L2-3.14.7,EXAMINE,8,locations within system where monitoring devices are deployed,269,276
+SI.L2-3.14.7,EXAMINE,9,system configuration settings and associated documentation,269,276
+SI.L2-3.14.7,EXAMINE,10,other relevant documents or records,269,276
+SI.L2-3.14.7,INTERVIEW,1,System or network administrators,269,276
+SI.L2-3.14.7,INTERVIEW,2,personnel with information security responsibilities,269,276
+SI.L2-3.14.7,INTERVIEW,3,"personnel installing, configuring, and maintaining th e system",269,276
+SI.L2-3.14.7,INTERVIEW,4,personnel with responsibility for monitoring the system,269,276
+SI.L2-3.14.7,TEST,1,Organizational processes for system monitoring,269,276
+SI.L2-3.14.7,TEST,2,mechanisms supporting or implementing system monitoring capability,269,276

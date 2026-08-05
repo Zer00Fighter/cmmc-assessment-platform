@@ -49,7 +49,10 @@ class WorkbookStyles:
             color=self.colors.navy,
         )
 
-    def configure_workbook(self, workbook: Workbook) -> None:
+    def configure_workbook(
+        self,
+        workbook: Workbook,
+    ) -> None:
         workbook.calculation.fullCalcOnLoad = True
         workbook.calculation.forceFullCalc = True
         workbook.calculation.calcMode = "auto"

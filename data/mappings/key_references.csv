@@ -1,0 +1,127 @@
+﻿requirement_id,reference_sequence,reference_text,source_page_start,source_page_end
+AC.L2-3.1.1,1,NIST SP 800-171 Rev. 2 3.1.1,22,24
+AC.L2-3.1.1,2,FAR Clause 52.204-21 b.1.i,22,24
+AC.L2-3.1.2,1,NIST SP 800-171 Rev. 2 3.1.2,25,26
+AC.L2-3.1.2,2,FAR Clause 52.204-21 b.1.ii,25,26
+AC.L2-3.1.3,1,NIST SP 800-171 Rev. 2 3.1.3,27,29
+AC.L2-3.1.4,1,NIST SP 800-171 Rev. 2 3.1.4,30,31
+AC.L2-3.1.5,1,NIST SP 800-171 Rev. 2 3.1.5,32,34
+AC.L2-3.1.6,1,NIST SP 800-171 Rev. 2 3.1.6,35,36
+AC.L2-3.1.7,1,NIST SP 800-171 Rev. 2 3.1.7,37,39
+AC.L2-3.1.8,1,NIST SP 800-171 Rev. 2 3.1.8,40,41
+AC.L2-3.1.9,1,NIST SP 800-171 Rev. 2 3.1.9,42,43
+AC.L2-3.1.10,1,NIST SP 800-171 Rev. 2 3.1.10,44,45
+AC.L2-3.1.11,1,NIST SP 800-171 Rev. 2 3.1.11 33 Review DoD Cybersecurity FAQ Q53.2 for information on minimum values.,46,47
+AC.L2-3.1.12,1,NIST SP 800-171 Rev. 2 3.1.12,48,50
+AC.L2-3.1.13,1,NIST SP 800-171 Rev. 2 3.1.13,51,52
+AC.L2-3.1.14,1,NIST SP 800-171 Rev. 2 3.1.14,53,54
+AC.L2-3.1.15,1,NIST SP 800-171 Rev. 2 3.1.15,55,57
+AC.L2-3.1.16,1,NIST SP 800-171 Rev. 2 3.1.16,58,59
+AC.L2-3.1.17,1,NIST SP 800-171 Rev. 2 3.1.17,60,61
+AC.L2-3.1.18,1,NIST SP 800-171 Rev. 2 3.1.18,62,63
+AC.L2-3.1.20,1,NIST SP 800-171 Rev. 2 3.1.20,66,68
+AC.L2-3.1.20,2,FAR Clause 52.204-21 b.1.iii,66,68
+AC.L2-3.1.21,1,NIST SP 800-171 Rev. 2 3.1.21,69,70
+AC.L2-3.1.22,1,NIST SP 800-171 Rev. 2 3.1.22,71,72
+AC.L2-3.1.22,2,FAR Clause 52.204-21 b.1.iv,71,72
+AT.L2-3.2.1,1,NIST SP 800-171 Rev. 2 3.2.1,73,75
+AT.L2-3.2.2,1,NIST SP 800-171 Rev. 2 3.2.2,76,77
+AT.L2-3.2.3,1,NIST SP 800-171 Rev. 2 3.2.3,78,79
+AU.L2-3.3.1,1,NIST SP 800-171 Rev. 2 3.3.1,80,82
+AU.L2-3.3.2,1,NIST SP 800-171 Rev. 2 3.3.2,83,84
+AU.L2-3.3.3,1,NIST SP 800-171 Rev. 2 3.3.3,85,86
+AU.L2-3.3.4,1,NIST SP 800-171 Rev. 2 3.3.4,87,88
+AU.L2-3.3.5,1,NIST SP 800-171 Rev. 2 3.3.5,89,90
+AU.L2-3.3.6,1,NIST SP 800-171 Rev. 2 3.3.6,91,92
+AU.L2-3.3.7,1,NIST SP 800-171 Rev. 2 3.3.7,93,94
+AU.L2-3.3.8,1,NIST SP 800-171 Rev. 2 3.3.8,95,96
+AU.L2-3.3.9,1,NIST SP 800-171 Rev. 2 3.3.9,97,98
+CM.L2-3.4.1,1,NIST SP 800-171 Rev. 2 3.4.1,99,101
+CM.L2-3.4.2,1,NIST SP 800-171 Rev. 2 3.4.2,102,103
+CM.L2-3.4.3,1,NIST SP 800-171 Rev. 2 3.4.3,104,105
+CM.L2-3.4.4,1,NIST SP 800-171 Rev. 2 3.4.4,106,107
+CM.L2-3.4.5,1,NIST SP 800-171 Rev. 2 3.4.5,108,110
+CM.L2-3.4.6,1,NIST SP 800-171 Rev. 2 3.4.6,111,112
+CM.L2-3.4.7,1,NIST SP 800-171 Rev. 2 3.4.7,113,115
+CM.L2-3.4.8,1,NIST SP 800-171 Rev. 2 3.4.8,116,117
+CM.L2-3.4.9,1,NIST SP 800-171 Rev. 2 3.4.9,118,119
+IA.L2-3.5.1,1,NIST SP 800-171 Rev. 2 3.5.1,120,121
+IA.L2-3.5.1,2,FAR Clause 52.204-21 b.1.v,120,121
+IA.L2-3.5.2,1,NIST SP 800-171 Rev. 2 3.5.2 IA.L2-3.5.2 - Authentication [CUI Data],122,124
+IA.L2-3.5.2,2,FAR Clause 52.204-21 b.1.vi,122,124
+IA.L2-3.5.3,1,NIST SP 800-171 Rev. 2 3.5.3,125,127
+IA.L2-3.5.4,1,NIST SP 800-171 Rev. 2 3.5.4,128,129
+IA.L2-3.5.5,1,NIST SP 800-171 Rev. 2 3.5.5,130,131
+IA.L2-3.5.6,1,NIST SP 800-171 Rev. 2 3.5.6,132,133
+IA.L2-3.5.7,1,NIST SP 800-171 Rev. 2 3.5.7,134,135
+IA.L2-3.5.8,1,NIST SP 800-171 Rev. 2 3.5.8,136,137
+IA.L2-3.5.9,1,NIST SP 800-171 Rev. 2 3.5.9,138,139
+IA.L2-3.5.10,1,NIST SP 800-171 Rev. 2 3.5.10,140,141
+IA.L2-3.5.11,1,NIST SP 800-171 Rev. 2 3.5.11,142,143
+IR.L2-3.6.1,1,NIST SP 800-171 Rev. 2 3.6.1,144,146
+IR.L2-3.6.2,1,NIST SP 800-171 Rev. 2 3.6.2,147,149
+IR.L2-3.6.3,1,NIST SP 800-171 Rev. 2 3.6.3,150,151
+MA.L2-3.7.1,1,NIST SP 800-171 Rev. 2 3.7.1,152,153
+MA.L2-3.7.2,1,NIST SP 800-171 Rev. 2 3.7.2,154,155
+MA.L2-3.7.3,1,NIST SP 800-171 Rev. 2 3.7.3,156,157
+MA.L2-3.7.4,1,NIST SP 800-171 Rev. 2 3.7.4,158,159
+MA.L2-3.7.5,1,NIST SP 800-171 Rev. 2 3.7.5,160,162
+MA.L2-3.7.6,1,NIST SP 800-171 Rev. 2 3.7.6,163,164
+MP.L2-3.8.1,1,NIST SP 800-171 Rev. 2 3.8.1,165,166
+MP.L2-3.8.2,1,NIST SP 800-171 Rev. 2 3.8.2,167,168
+MP.L2-3.8.3,1,NIST SP 800-171 Rev. 2 3.8.3,169,170
+MP.L2-3.8.3,2,FAR Clause 52.204-21 b.1.vii,169,170
+MP.L2-3.8.4,1,NIST SP 800-171 Rev. 2 3.8.4,171,172
+MP.L2-3.8.5,1,NIST SP 800-171 Rev. 2 3.8.5,173,174
+MP.L2-3.8.6,1,NIST SP 800-171 Rev. 2 3.8.6,175,176
+MP.L2-3.8.7,1,NIST SP 800-171 Rev. 2 3.8.7,177,178
+MP.L2-3.8.8,1,NIST SP 800-171 Rev. 2 3.8.8,179,180
+MP.L2-3.8.9,1,NIST SP 800-171 Rev. 2 3.8.9,181,182
+PS.L2-3.9.1,1,NIST SP 800-171 Rev. 2 3.9.1,183,184
+PS.L2-3.9.2,1,NIST SP 800-171 Rev. 2 3.9.2,185,187
+PE.L2-3.10.1,1,NIST SP 800-171 Rev. 2 3.10.1,188,189
+PE.L2-3.10.1,2,FAR Clause 52.204-21 b.1.viii,188,189
+PE.L2-3.10.2,1,NIST SP 800-171 Rev 2 3.10.2,190,191
+PE.L2-3.10.3,1,NIST SP 800-171 Rev. 2 3.10.3,192,193
+PE.L2-3.10.3,2,FAR Clause 52.204-21 Partial b.1.ix,192,193
+PE.L2-3.10.4,1,NIST SP 800-171 Rev. 2 3.10.4,194,195
+PE.L2-3.10.4,2,FAR Clause 52.204-21 Partial b.1.ix,194,195
+PE.L2-3.10.5,1,NIST SP 800-171 Rev. 2 3.10.5,196,197
+PE.L2-3.10.5,2,FAR Clause 52.204-21 Partial b.1.ix,196,197
+PE.L2-3.10.6,1,NIST SP 800-171 Rev. 2 3.10.6,198,199
+RA.L2-3.11.1,1,NIST SP 800-171 Rev. 2 3.11.1,200,202
+RA.L2-3.11.2,1,NIST SP 800-171 Rev. 2 3.11.2,203,205
+RA.L2-3.11.3,1,NIST SP 800-171 Rev. 2 3.11.3,206,207
+CA.L2-3.12.1,1,NIST SP 800-171 Rev. 2 3.12.1,208,210
+CA.L2-3.12.2,1,NIST SP 800-171 Rev. 2 3.12.2,211,213
+CA.L2-3.12.3,1,NIST SP 800-171 Rev. 2 3.12.3,214,215
+CA.L2-3.12.4,1,NIST SP 800-171 Rev. 2 3.12.4,216,218
+SC.L2-3.13.1,1,NIST SP 800-171 Rev. 2 3.13.1,219,221
+SC.L2-3.13.1,2,FAR Clause 52.204-21 b.1.x,219,221
+SC.L2-3.13.2,1,NIST SP 800-171 Rev. 2 3.13.2,222,224
+SC.L2-3.13.3,1,NIST SP 800-171 Rev. 2 3.13.3,225,226
+SC.L2-3.13.4,1,NIST SP 800-171 Rev. 2 3.13.4,227,228
+SC.L2-3.13.5,1,NIST SP 800-171 Rev. 2 3.13.5,229,230
+SC.L2-3.13.5,2,"FAR Clause 52.204-21 b.1.xi 196 NIST SP 800-171 Rev. 2, pp. 37-38.",229,230
+SC.L2-3.13.6,1,NIST SP 800-171 Rev. 2 3.13.6,231,232
+SC.L2-3.13.7,1,NIST SP 800-171 Rev. 2 3.13.7,233,234
+SC.L2-3.13.8,1,NIST SP 800-171 Rev. 2 3.13.8,235,236
+SC.L2-3.13.9,1,NIST SP 800-171 Rev. 2 3.13.9,237,238
+SC.L2-3.13.10,1,NIST SP 800-171 Rev. 2 3.13.10,239,241
+SC.L2-3.13.11,1,NIST SP 800-171 Rev. 2 3.13.11,242,243
+SC.L2-3.13.12,1,NIST SP 800-171 Rev. 2 3.13.12,244,245
+SC.L2-3.13.13,1,NIST SP 800-171 Rev. 2 3.13.13,246,247
+SC.L2-3.13.14,1,NIST SP 800-171 Rev. 2 3.13.14,248,249
+SC.L2-3.13.15,1,NIST SP 800-171 Rev. 2 3.13.15,250,251
+SC.L2-3.13.16,1,NIST SP 800-171 Rev. 2 3.13.16,252,253
+SI.L2-3.14.1,1,NIST SP 800-171 Rev. 2 3.14.1,254,256
+SI.L2-3.14.1,2,FAR Clause 52.204-21 b.1.xii,254,256
+SI.L2-3.14.2,1,NIST SP 800-171 Rev. 2 3.14.2,257,259
+SI.L2-3.14.2,2,FAR Clause 52.204-21 b.1.xiii,257,259
+SI.L2-3.14.3,1,NIST SP 800-171 Rev. 2 3.14.3,260,261
+SI.L2-3.14.4,1,NIST SP 800-171 Rev. 2 3.14.4,262,263
+SI.L2-3.14.4,2,FAR Clause 52.204-21 b.1.xiv,262,263
+SI.L2-3.14.5,1,NIST SP 800-171 Rev. 2 3.14.5,264,265
+SI.L2-3.14.5,2,FAR Clause 52.204-21 b.1.xv,264,265
+SI.L2-3.14.6,1,NIST SP 800-171 Rev. 2 3.14.6,266,268
+SI.L2-3.14.7,1,NIST SP 800-171 Rev. 2 3.14.7 Appendix A - Acronyms and Abbreviations Appendix A - Acronyms and Abbreviations AC Access Control AES Advanced Encryption Standard API Application Programming Interface AT Awareness and Training AU Audit and Accountability C3PAO CMMC Third-Party Assessment Organization CA Security Assessment CD-ROM Compact Disk Read-Only Memory CFR Code of Federal Regulations CM Configuration Management CMMC Cybersecurity Maturity Model Certification CMVP Cryptographic Module Validation Program CUI Controlled Unclassified Information CVE Common Vulnerabilities and Exposures CWE Common Weakness Enumeration DCMA Defense Contract Management Agency DFARS Defense Federal Acquisition Regulation Supplement DHC Device Health Check DIBCAC Defense Industrial Base Cybersecurity Assessment Center DMZ Demilitarized Zone DoD Department of Defense DVD Digital Versatile Disc or Digital Video Disc ESP External Service Provider FAQ Frequently Asked Question FAR Federal Acquisition Regulation FDDI Fiber Distributed Data Interface FDE Full Disk Encryption FIPS Federal Information Processing Standard FTP File Transfer Protocol IA Identification and Authentication ID Identification IDS Intrusion Detection System Appendix A - Acronyms and Abbreviations IoT Internet of Things IP Internet Protocol IPSec Internet Protocol Security IR Incident Response ISAC Information Sharing and Analysis Center ISDN Integrated Services Digital Network IT Information Technology LAN Local Area Network MA Maintenance MAC Media Access Control MDM Mobile Device Management MFA Multifactor Authentication MP Media Protection NARA National Archives and Records Administration NAS Networked Attached Storage NIST National Institute of Standards and Technology NSA National Security Agency NTP Network Time Protocol OS Operating System OSA Organization Seeking Assessment OSC Organization Seeking Certification OT Operational Technology PDA Personal Digital Assistant PE Physical Protection PIV Personal Identity Verification PKI Public Key Infrastructure POTS Plain Old Telephone Service PS Personnel Security RADIUS Remote Authentication Dial-in User Service RA Risk Assessment SC System and Communications Protection SI System and Information Integrity SMS Short Message Service SOC Security Operations Center Appendix A - Acronyms and Abbreviations SP Special Publication SSP System Security Plan TLS Transport Layer Security URL Universal Resource Locator (aka Uniform Resource Locator) USB Universal Serial Bus UTC Coordinated Universal Time UUENCODE Unix-to-Unix Encode VLAN Virtual Local Area Network VoIP Voice over Internet Protocol VPN Virtual Private Network WPA2-PSK WiFi Protected Access-Pre-shared Key This page intentionally left blank.,269,276
