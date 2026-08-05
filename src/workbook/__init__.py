@@ -13,6 +13,24 @@ from .worksheet_factory import WorksheetFactory
 
 from .poam_sheet import POAMSheetBuilder
 
+from .poam_sync import (
+    POAMSyncError,
+    POAMSyncResult,
+    POAMWorksheetSynchronizer,
+)
+
+from .formulas_sync import (
+    FormulaSynchronizer,
+    FormulaSyncResult,
+    FormulaSyncError,
+)
+
+from .workbook_pipeline import (
+    WorkbookPipeline,
+    WorkbookPipelineError,
+    WorkbookPipelineResult,
+)
+
 __all__ = [
     "EvidenceSheetBuilder",
     "ThemeColors",
@@ -23,4 +41,13 @@ __all__ = [
     "WorkbookStyles",
     "WorksheetFactory",
     "POAMSheetBuilder",
+    "POAMSyncError",
+    "POAMSyncResult",
+    "POAMWorksheetSynchronizer",
+    "FormulaSynchronizer",
+    "FormulaSyncResult",
+    "FormulaSyncError",
+    "WorkbookPipeline",
+    "WorkbookPipelineError",
+    "WorkbookPipelineResult",
 ]
