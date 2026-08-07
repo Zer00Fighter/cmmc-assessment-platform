@@ -172,11 +172,17 @@ class AssessmentMethodParser:
             "Plan of Action and Milestones",
             "EVIDENCE_POAM",
         ),
+        "poa and m": (
+            AssessmentObjectType.POAM,
+            "Plan of Action and Milestones",
+            "EVIDENCE_POAM",
+        ),
         "plan of action and milestones": (
             AssessmentObjectType.POAM,
             "Plan of Action and Milestones",
             "EVIDENCE_POAM",
         ),
+        
         "risk assessment": (
             AssessmentObjectType.RISK_ASSESSMENT,
             "Risk Assessment",
@@ -375,6 +381,7 @@ class AssessmentMethodParser:
         if (
             "plan of action" in normalized
             or "poa&m" in normalized
+            or "poa and m" in normalized
             or "poam" in normalized
         ):
             return AssessmentObjectType.POAM

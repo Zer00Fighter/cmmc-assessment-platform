@@ -26,6 +26,12 @@ from .assessment_method_parser import (
     AssessmentObjectType,
 )
 
+from .catalog_compiler import (
+    AssessmentProcedureRow,
+    CatalogCompiler,
+    CatalogCompilerError,
+)
+
 __all__ = [
     "ControlReference",
     "EvidenceGuidance",
@@ -46,4 +52,7 @@ __all__ = [
     "AssessmentMethodType",
     "AssessmentObject",
     "AssessmentObjectType",
+    "AssessmentProcedureRow",
+    "CatalogCompiler",
+    "CatalogCompilerError",
 ]
