@@ -291,7 +291,7 @@ def test_dashboard_is_updated_when_provided() -> None:
     )
 
     assert result.dashboard_updated is True
-    assert dashboard["B2"].value == "=TODAY()"
+    assert dashboard["M18"].value == "=TODAY()"
 
 
 def test_dashboard_is_optional() -> None:

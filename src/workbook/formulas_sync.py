@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from openpyxl.worksheet import worksheet
 from openpyxl.worksheet.worksheet import Worksheet
 
 
@@ -138,19 +139,12 @@ class FormulaSynchronizer:
     def _update_dashboard(
         self,
         worksheet: Worksheet,
-    ) -> None:
-
-        #
-        # Placeholder.
-        #
-        # Later sprints will populate live dashboard
-        # formulas and named ranges.
-        #
-        worksheet["B2"] = "=TODAY()"
+) -> None:
+        worksheet["M18"] = "=TODAY()"
 
     @staticmethod
     def _assessment_formula(
-    row: int,
+        row: int,
     ) -> str:
         return (
         f'=IF(OR('

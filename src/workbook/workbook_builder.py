@@ -4,7 +4,7 @@ import csv
 from pathlib import Path
 from typing import Dict, List
 
-from openpyxl import Workbook
+from openpyxl import Workbook, workbook
 from openpyxl.formatting.rule import FormulaRule
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
@@ -22,6 +22,8 @@ from src.workbook.evidence_sheet import EvidenceSheetBuilder
 from src.workbook.evidence_sheet import (
     EvidenceSheetBuilder,
 )
+
+from src.workbook.workbook_pipeline import WorkbookPipeline
 
 from src.workbook.poam_sheet import POAMSheetBuilder
 
@@ -87,6 +89,24 @@ class WorkbookBuilder:
         styles=self.styles,
         factory=self.factory,
         )
+
+        self.styles = WorkbookStyles()
+
+        self.factory = WorksheetFactory(
+        self.styles
+        )
+
+        self.evidence_builder = EvidenceSheetBuilder(
+        styles=self.styles,
+        factory=self.factory,
+        )
+
+        self.poam_builder = POAMSheetBuilder(
+        styles=self.styles,
+        factory=self.factory,
+        )
+
+        self.pipeline = WorkbookPipeline()
 
     def build(self) -> Path:
         controls = self._load_controls()
@@ -181,14 +201,16 @@ class WorkbookBuilder:
         )
 
         workbook.active = (
-            workbook.sheetnames.index("Cover")
+        workbook.sheetnames.index("Cover")
         )
 
         self.output_path.parent.mkdir(
-            parents=True,
-            exist_ok=True,
+        parents=True,
+        exist_ok=True,
+    
         )
 
+        self.pipeline.run(workbook)
         workbook.save(self.output_path)
 
         return self.output_path
