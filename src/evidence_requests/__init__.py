@@ -32,6 +32,23 @@ from .catalog_compiler import (
     CatalogCompilerError,
 )
 
+from .drl_model import (
+    DRLModelError,
+    DocumentationRequest,
+    DocumentationRequestCollection,
+    DocumentationRequestControl,
+    DocumentationRequestPriority,
+    DocumentationRequestStatus,
+    DocumentationRequestSummary,
+    DocumentationRequestType,
+)
+
+from .assessment_procedure_loader import (
+    AssessmentProcedureDataset,
+    AssessmentProcedureLoader,
+    AssessmentProcedureLoaderError,
+)
+
 __all__ = [
     "ControlReference",
     "EvidenceGuidance",
@@ -55,4 +72,15 @@ __all__ = [
     "AssessmentProcedureRow",
     "CatalogCompiler",
     "CatalogCompilerError",
+    "DRLModelError",
+    "DocumentationRequest",
+    "DocumentationRequestCollection",
+    "DocumentationRequestControl",
+    "DocumentationRequestPriority",
+    "DocumentationRequestStatus",
+    "DocumentationRequestSummary",
+    "DocumentationRequestType",
+    "AssessmentProcedureDataset",
+    "AssessmentProcedureLoader",
+    "AssessmentProcedureLoaderError",
 ]
