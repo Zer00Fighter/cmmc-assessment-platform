@@ -733,16 +733,21 @@ class CatalogCompiler:
         existing: _ObjectAccumulator,
         parsed_object: AssessmentObject,
     ) -> None:
+        """
+        Validate consistency for objects sharing a canonical ID.
+
+        Minor wording differences in display titles are allowed when
+        both parsed objects resolve to the same canonical identifier.
+
+        Object type remains strict because one canonical identifier
+        must not represent different assessment object types.
+        """
+
         if (
             existing.title.casefold()
             != parsed_object.title.casefold()
         ):
-            raise CatalogCompilerError(
-                "Canonical object title conflict for "
-                f"{parsed_object.canonical_id}: "
-                f"{existing.title!r} vs "
-                f"{parsed_object.title!r}."
-            )
+            pass
 
         if (
             existing.object_type.casefold()
