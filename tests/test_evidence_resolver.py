@@ -11,10 +11,10 @@ from src.evidence.evidence_resolver import (
 )
 
 
-def test_knowledge_contains_approved_first_twenty_objects() -> None:
-    assert len(EVIDENCE_KNOWLEDGE) == 20
+def test_knowledge_contains_approved_first_forty_objects() -> None:
+    assert len(EVIDENCE_KNOWLEDGE) == 40
     assert EVIDENCE_KNOWLEDGE[0].evidence_id == "EV-0001"
-    assert EVIDENCE_KNOWLEDGE[-1].evidence_id == "EV-0020"
+    assert EVIDENCE_KNOWLEDGE[-1].evidence_id == "EV-0040"
 
 
 def test_resolves_canonical_name_exactly() -> None:
@@ -64,9 +64,7 @@ def test_blank_name_is_unresolved() -> None:
 
 
 def test_resolve_many_preserves_input_order() -> None:
-    results = EvidenceResolver().resolve_many(
-        ("POA&M", "Unknown", "User Account List")
-    )
+    results = EvidenceResolver().resolve_many(("POA&M", "Unknown", "User Account List"))
 
     assert [result.evidence_id for result in results] == [
         "EV-0007",
@@ -89,6 +87,26 @@ def test_resolve_many_preserves_input_order() -> None:
     ),
 )
 def test_cross_framework_aliases_resolve(alias: str, evidence_id: str) -> None:
+    assert EvidenceResolver().resolve(alias).evidence_id == evidence_id
+
+
+@pytest.mark.parametrize(
+    ("alias", "evidence_id"),
+    (
+        ("Device Inventory", "EV-0021"),
+        ("Application Inventory", "EV-0022"),
+        ("Data Inventory", "EV-0023"),
+        ("Hardening Standard", "EV-0027"),
+        ("Change Tickets", "EV-0029"),
+        ("Network Topology Diagram", "EV-0031"),
+        ("System Design Documentation", "EV-0033"),
+        ("Firewall Rules", "EV-0035"),
+        ("System Logs", "EV-0036"),
+        ("SIEM Configuration", "EV-0039"),
+        ("SIEM Alerts", "EV-0040"),
+    ),
+)
+def test_sprint_3_5_aliases_resolve(alias: str, evidence_id: str) -> None:
     assert EvidenceResolver().resolve(alias).evidence_id == evidence_id
 
 
