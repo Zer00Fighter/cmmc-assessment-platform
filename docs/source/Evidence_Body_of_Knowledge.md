@@ -6,7 +6,7 @@
 
 # Purpose
 
-The Evidence Body of Knowledge (EBK) defines the canonical evidence artifacts used throughout the Assessment Platform.
+The Evidence Body of Knowledge (EBK) defines the canonical evidence artifacts used throughout Omni.
 
 The purpose of the EBK is to establish a consistent, framework-independent vocabulary for evidence requested during cybersecurity, privacy, governance, risk, compliance, and assurance engagements.
 
