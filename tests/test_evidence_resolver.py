@@ -11,26 +11,26 @@ from src.evidence.evidence_resolver import (
 )
 
 
-def test_knowledge_contains_three_complete_chunks() -> None:
-    assert len(EVIDENCE_KNOWLEDGE) == 30
+def test_knowledge_contains_approved_first_twenty_objects() -> None:
+    assert len(EVIDENCE_KNOWLEDGE) == 20
     assert EVIDENCE_KNOWLEDGE[0].evidence_id == "EV-0001"
-    assert EVIDENCE_KNOWLEDGE[-1].evidence_id == "EV-0030"
+    assert EVIDENCE_KNOWLEDGE[-1].evidence_id == "EV-0020"
 
 
 def test_resolves_canonical_name_exactly() -> None:
-    result = EvidenceResolver().resolve("Audit Logs")
+    result = EvidenceResolver().resolve("Credential Policy")
 
     assert result.status == EvidenceResolutionStatus.EXACT
-    assert result.evidence_id == "EV-0021"
-    assert result.evidence.canonical_name == "Audit Logs"
+    assert result.evidence_id == "EV-0016"
+    assert result.evidence.canonical_name == "Credential Policy"
 
 
 def test_resolves_alias_exactly() -> None:
-    result = EvidenceResolver().resolve("System Logs")
+    result = EvidenceResolver().resolve("Password Policy")
 
     assert result.status == EvidenceResolutionStatus.EXACT
-    assert result.evidence_id == "EV-0021"
-    assert result.matched_name == "System Logs"
+    assert result.evidence_id == "EV-0016"
+    assert result.matched_name == "Password Policy"
 
 
 def test_resolution_is_case_insensitive_and_trimmed() -> None:
@@ -40,11 +40,11 @@ def test_resolution_is_case_insensitive_and_trimmed() -> None:
     assert result.evidence_id == "EV-0001"
 
 
-def test_normalized_resolution_handles_punctuation() -> None:
+def test_punctuation_variation_is_not_resolved() -> None:
     result = EvidenceResolver().resolve("Access-Control Policy & Procedures")
 
-    assert result.status == EvidenceResolutionStatus.NORMALIZED
-    assert result.evidence_id == "EV-0011"
+    assert result.status == EvidenceResolutionStatus.UNRESOLVED
+    assert result.evidence_id is None
 
 
 def test_unknown_name_is_unresolved() -> None:
@@ -65,30 +65,26 @@ def test_blank_name_is_unresolved() -> None:
 
 def test_resolve_many_preserves_input_order() -> None:
     results = EvidenceResolver().resolve_many(
-        ("Firewall Rules", "Unknown", "Asset Inventory")
+        ("POA&M", "Unknown", "User Account List")
     )
 
     assert [result.evidence_id for result in results] == [
-        "EV-0020",
+        "EV-0007",
         None,
-        "EV-0014",
+        "EV-0011",
     ]
 
 
-def test_normalize_is_deterministic() -> None:
-    assert (
-        EvidenceResolver.normalize("  Policy & Procedures  ") == "policy and procedures"
-    )
-
-
-def test_ambiguous_normalized_names_are_rejected() -> None:
+def test_ambiguous_names_are_rejected() -> None:
     first = EvidenceObject(
         evidence_id="EV-A",
-        canonical_name="Policy & Procedure",
+        canonical_name="First Policy",
+        aliases=("Shared Name",),
     )
     second = EvidenceObject(
         evidence_id="EV-B",
-        canonical_name="Policy and Procedure",
+        canonical_name="Second Policy",
+        aliases=("shared name",),
     )
 
     with pytest.raises(
