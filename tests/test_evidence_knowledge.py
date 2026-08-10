@@ -64,12 +64,32 @@ EXPECTED_NAMES = (
     "Personnel Transfer Records",
     "Personnel Termination Records",
     "Security Training Records",
+    "Third-Party Inventory",
+    "Third-Party Risk Assessment",
+    "Third-Party Due Diligence Records",
+    "Third-Party Agreements",
+    "Third-Party Security Requirements",
+    "Third-Party Monitoring Records",
+    "Third-Party Review Records",
+    "Cryptographic Policy",
+    "Cryptographic Standards",
+    "Cryptographic Asset Inventory",
+    "Key Management Procedures",
+    "Key Management Records",
+    "Cryptographic Configuration",
+    "Certificate Inventory",
+    "Security Operations Procedures",
+    "Vulnerability Scan Report",
+    "Vulnerability Management Records",
+    "Patch Management Records",
+    "Malware Protection Configuration",
+    "Security Operations Reports",
 )
 
 
-def test_knowledge_contains_the_approved_first_sixty_objects() -> None:
+def test_knowledge_contains_the_approved_first_eighty_objects() -> None:
     assert tuple(item.evidence_id for item in EVIDENCE_KNOWLEDGE) == tuple(
-        f"EV-{index:04d}" for index in range(1, 61)
+        f"EV-{index:04d}" for index in range(1, 81)
     )
     assert tuple(item.canonical_name for item in EVIDENCE_KNOWLEDGE) == EXPECTED_NAMES
 
@@ -142,6 +162,28 @@ def test_sprint_3_6_objects_preserve_framework_agnostic_aliases() -> None:
     assert (
         "Security Awareness Training Records"
         in aliases_by_name["Security Training Records"]
+    )
+
+
+def test_sprint_3_7_objects_preserve_framework_agnostic_aliases() -> None:
+    aliases_by_name = {item.canonical_name: item.aliases for item in EVIDENCE_KNOWLEDGE}
+
+    assert "Vendor Inventory" in aliases_by_name["Third-Party Inventory"]
+    assert "Vendor Risk Assessment" in aliases_by_name["Third-Party Risk Assessment"]
+    assert (
+        "Third-Party Security Questionnaire"
+        in aliases_by_name["Third-Party Due Diligence Records"]
+    )
+    assert "Service Provider Agreements" in aliases_by_name["Third-Party Agreements"]
+    assert "Encryption Policy" in aliases_by_name["Cryptographic Policy"]
+    assert "Key Rotation Records" in aliases_by_name["Key Management Records"]
+    assert "TLS Certificate Inventory" in aliases_by_name["Certificate Inventory"]
+    assert "SOC Procedures" in aliases_by_name["Security Operations Procedures"]
+    assert "Vulnerability Scan Results" in aliases_by_name["Vulnerability Scan Report"]
+    assert "Patch Deployment Records" in aliases_by_name["Patch Management Records"]
+    assert (
+        "Endpoint Protection Configuration"
+        in aliases_by_name["Malware Protection Configuration"]
     )
 
 
