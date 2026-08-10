@@ -1,0 +1,14 @@
+.venv/
+.venv-python310-backup/
+
+__pycache__/
+*.py[cod]
+
+.pytest_cache/
+
+# Local analysis helpers and duplicate source material.
+inspect_real_171a.py
+docs/source/sp800-171a-assessment-procedures.xlsx
+
+# Generated workbook output.
+output/

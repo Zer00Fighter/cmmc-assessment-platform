@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Iterable, Iterator, Tuple
 
-from src.evidence_requests.evidence_object import (
+from src.evidence.evidence_object import (
     EvidenceCategory,
     EvidenceObject,
 )

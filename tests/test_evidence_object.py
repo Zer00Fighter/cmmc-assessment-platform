@@ -289,7 +289,7 @@ def test_category_enum_values() -> None:
     assert EvidenceCategory.INVENTORY.value == "Inventory"
     assert EvidenceCategory.LOG.value == "Log"
     assert EvidenceCategory.ASSESSMENT.value == "Assessment"
-    assert EvidenceCategory.POAM.value == "POA&M"
+    assert EvidenceCategory.REGISTER.value == "Register"
 
 
 def test_artifact_type_enum_values() -> None:
