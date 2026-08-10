@@ -7,6 +7,12 @@ from .evidence_object import (
     EvidenceObject,
     EvidenceObjectError,
 )
+from .evidence_resolver import (
+    EvidenceResolution,
+    EvidenceResolutionStatus,
+    EvidenceResolver,
+    EvidenceResolverError,
+)
 
 __all__ = [
     "EVIDENCE_KNOWLEDGE",
@@ -15,5 +21,9 @@ __all__ = [
     "EvidenceCategory",
     "EvidenceObject",
     "EvidenceObjectError",
+    "EvidenceResolution",
+    "EvidenceResolutionStatus",
+    "EvidenceResolver",
+    "EvidenceResolverError",
     "evidence_knowledge",
 ]

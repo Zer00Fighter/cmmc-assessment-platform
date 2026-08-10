@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Mapping, Sequence, Tuple
 
+from src.evidence.evidence_resolver import EvidenceResolver
 from src.evidence_requests.drl_model import (
     DocumentationRequest,
     DocumentationRequestCollection,
@@ -43,9 +44,7 @@ class RequestMergeRule:
             )
 
         normalized_titles = tuple(
-            title.strip()
-            for title in self.source_titles
-            if title.strip()
+            title.strip() for title in self.source_titles if title.strip()
         )
 
         if len(normalized_titles) < 2:
@@ -54,15 +53,11 @@ class RequestMergeRule:
                 "at least two non-blank titles."
             )
 
-        keys = {
-            title.casefold()
-            for title in normalized_titles
-        }
+        keys = {title.casefold() for title in normalized_titles}
 
         if len(keys) != len(normalized_titles):
             raise RequestOptimizerError(
-                "RequestMergeRule.source_titles cannot contain "
-                "duplicate titles."
+                "RequestMergeRule.source_titles cannot contain " "duplicate titles."
             )
 
         object.__setattr__(
@@ -85,10 +80,7 @@ class RequestMergeRule:
 
     @property
     def source_title_keys(self) -> Tuple[str, ...]:
-        return tuple(
-            title.casefold()
-            for title in self.source_titles
-        )
+        return tuple(title.casefold() for title in self.source_titles)
 
 
 def _default_request_merge_rules() -> Tuple[
@@ -140,9 +132,7 @@ class RequestOptimizerOptions:
 
     medium_priority_reuse_threshold: int = 2
 
-    suppress_titles: Tuple[str, ...] = field(
-        default_factory=_default_suppress_titles
-    )
+    suppress_titles: Tuple[str, ...] = field(default_factory=_default_suppress_titles)
 
     merge_rules: Tuple[RequestMergeRule, ...] = field(
         default_factory=_default_request_merge_rules
@@ -166,19 +156,14 @@ class RequestOptimizerOptions:
                 "medium_priority_reuse_threshold must be at least 1."
             )
 
-        if (
-            self.high_priority_reuse_threshold
-            < self.medium_priority_reuse_threshold
-        ):
+        if self.high_priority_reuse_threshold < self.medium_priority_reuse_threshold:
             raise RequestOptimizerError(
                 "high_priority_reuse_threshold cannot be lower than "
                 "medium_priority_reuse_threshold."
             )
 
         suppress_titles = tuple(
-            title.strip()
-            for title in self.suppress_titles
-            if title.strip()
+            title.strip() for title in self.suppress_titles if title.strip()
         )
 
         object.__setattr__(
@@ -200,14 +185,11 @@ class RequestOptimizerOptions:
 
         for rule in self.merge_rules:
             for title_key in rule.source_title_keys:
-                existing = title_to_package.get(
-                    title_key
-                )
+                existing = title_to_package.get(title_key)
 
                 if (
                     existing is not None
-                    and existing.casefold()
-                    != rule.package_title.casefold()
+                    and existing.casefold() != rule.package_title.casefold()
                 ):
                     raise RequestOptimizerError(
                         "A source title cannot belong to more than "
@@ -215,9 +197,7 @@ class RequestOptimizerOptions:
                         f"{title_key!r}."
                     )
 
-                title_to_package[
-                    title_key
-                ] = rule.package_title
+                title_to_package[title_key] = rule.package_title
 
 
 class RequestOptimizer:
@@ -236,48 +216,33 @@ class RequestOptimizer:
     def __init__(
         self,
         options: RequestOptimizerOptions | None = None,
+        resolver: EvidenceResolver | None = None,
     ) -> None:
-        self.options = (
-            options
-            or RequestOptimizerOptions()
-        )
+        self.options = options or RequestOptimizerOptions()
+        self.resolver = resolver or EvidenceResolver()
 
     def optimize(
         self,
         collection: DocumentationRequestCollection,
     ) -> DocumentationRequestCollection:
-        self._validate_collection_state(
-            collection
-        )
+        self._validate_collection_state(collection)
 
-        original_control_keys = (
-            self._collection_control_keys(
-                collection.requests
-            )
-        )
+        original_control_keys = self._collection_control_keys(collection.requests)
 
-        working = [
-            self._copy_request(request)
-            for request in collection.requests
-        ]
+        working = [self._copy_request(request) for request in collection.requests]
 
-        working = self._apply_merge_rules(
-            working
-        )
+        working = self._apply_merge_rules(working)
 
-        working = self._suppress_redundant_generic_requests(
-            working
-        )
+        working = self._apply_evidence_resolution(working)
+
+        working = self._suppress_redundant_generic_requests(working)
 
         working = sorted(
             working,
             key=lambda request: (
                 request.requested_item.casefold(),
                 request.evidence_type.value.casefold(),
-                tuple(
-                    control.control_id.casefold()
-                    for control in request.controls
-                ),
+                tuple(control.control_id.casefold() for control in request.controls),
             ),
         )
 
@@ -296,32 +261,18 @@ class RequestOptimizer:
             framework_id=collection.framework_id,
             engagement_name=collection.engagement_name,
             organization_name=collection.organization_name,
-            assessor_organization=(
-                collection.assessor_organization
-            ),
-            engagement_start_date=(
-                collection.engagement_start_date
-            ),
+            assessor_organization=(collection.assessor_organization),
+            engagement_start_date=(collection.engagement_start_date),
             requests=optimized_requests,
             notes=collection.notes,
         )
 
-        optimized_control_keys = (
-            self._collection_control_keys(
-                optimized.requests
-            )
-        )
+        optimized_control_keys = self._collection_control_keys(optimized.requests)
 
         if optimized_control_keys != original_control_keys:
-            missing = sorted(
-                original_control_keys
-                - optimized_control_keys
-            )
+            missing = sorted(original_control_keys - optimized_control_keys)
 
-            added = sorted(
-                optimized_control_keys
-                - original_control_keys
-            )
+            added = sorted(optimized_control_keys - original_control_keys)
 
             raise RequestOptimizerError(
                 "Optimization changed control coverage. "
@@ -330,39 +281,100 @@ class RequestOptimizer:
 
         return optimized
 
+    def _apply_evidence_resolution(
+        self,
+        requests: Sequence[DocumentationRequest],
+    ) -> List[DocumentationRequest]:
+        """Merge remaining aliases that resolve to one Evidence Object."""
+
+        grouped: Dict[str, List[DocumentationRequest]] = {}
+        unresolved: List[DocumentationRequest] = []
+        evidence_by_id = {}
+
+        for request in requests:
+            resolution = self.resolver.resolve(request.requested_item)
+
+            if not resolution.resolved:
+                unresolved.append(request)
+                continue
+
+            evidence_id = resolution.evidence_id
+            assert evidence_id is not None
+            grouped.setdefault(evidence_id, []).append(request)
+            evidence_by_id[evidence_id] = resolution.evidence
+
+        result = list(unresolved)
+
+        for evidence_id, matches in grouped.items():
+            if len(matches) == 1:
+                result.extend(matches)
+                continue
+
+            evidence = evidence_by_id[evidence_id]
+            controls = self._deduplicate_controls(
+                control for request in matches for control in request.controls
+            )
+            descriptions = self._deduplicate_text(
+                request.description for request in matches
+            )
+            source_titles = self._deduplicate_text(
+                request.requested_item for request in matches
+            )
+            description_parts = []
+            if descriptions:
+                description_parts.append(" | ".join(descriptions))
+            if source_titles:
+                description_parts.append(
+                    "Resolved source wording: " + ", ".join(source_titles)
+                )
+
+            evidence_type = next(
+                (
+                    request.evidence_type
+                    for request in matches
+                    if request.evidence_type != DocumentationRequestType.OTHER
+                ),
+                DocumentationRequestType.OTHER,
+            )
+
+            result.append(
+                DocumentationRequest(
+                    request_id="TEMP",
+                    requested_item=evidence.canonical_name,
+                    evidence_type=evidence_type,
+                    priority=self._highest_priority(
+                        (request.priority for request in matches),
+                        reuse_count=len(controls),
+                    ),
+                    controls=controls,
+                    description=" ".join(description_parts),
+                    review_status=(DocumentationRequestStatus.NOT_REQUESTED),
+                    generated=True,
+                )
+            )
+
+        return result
+
     def _apply_merge_rules(
         self,
-        requests: Sequence[
-            DocumentationRequest
-        ],
+        requests: Sequence[DocumentationRequest],
     ) -> List[DocumentationRequest]:
-        remaining = list(
-            requests
-        )
+        remaining = list(requests)
 
         for rule in self.options.merge_rules:
             matches = [
                 request
                 for request in remaining
-                if (
-                    request.requested_item
-                    .casefold()
-                    in rule.source_title_keys
-                )
+                if (request.requested_item.casefold() in rule.source_title_keys)
             ]
 
             if len(matches) < 2:
                 continue
 
-            match_ids = {
-                id(request)
-                for request in matches
-            }
+            match_ids = {id(request) for request in matches}
 
             remaining = [
-                request
-                for request in remaining
-                if id(request) not in match_ids
+                request for request in remaining if id(request) not in match_ids
             ]
 
             remaining.append(
@@ -376,43 +388,29 @@ class RequestOptimizer:
 
     def _merge_requests(
         self,
-        requests: Sequence[
-            DocumentationRequest
-        ],
+        requests: Sequence[DocumentationRequest],
         rule: RequestMergeRule,
     ) -> DocumentationRequest:
         controls = self._deduplicate_controls(
-            control
-            for request in requests
-            for control in request.controls
+            control for request in requests for control in request.controls
         )
 
         descriptions = self._deduplicate_text(
-            request.description
-            for request in requests
-            if request.description.strip()
+            request.description for request in requests if request.description.strip()
         )
 
         description = rule.description
 
         if descriptions:
-            source_description = " | ".join(
-                descriptions
-            )
+            source_description = " | ".join(descriptions)
 
             if description:
-                description = (
-                    f"{description} Source wording: "
-                    f"{source_description}"
-                )
+                description = f"{description} Source wording: " f"{source_description}"
             else:
                 description = source_description
 
         priority = self._highest_priority(
-            (
-                request.priority
-                for request in requests
-            ),
+            (request.priority for request in requests),
             reuse_count=len(controls),
         )
 
@@ -423,65 +421,37 @@ class RequestOptimizer:
             priority=priority,
             controls=controls,
             description=description,
-            review_status=(
-                DocumentationRequestStatus.NOT_REQUESTED
-            ),
+            review_status=(DocumentationRequestStatus.NOT_REQUESTED),
             generated=True,
         )
 
     def _suppress_redundant_generic_requests(
         self,
-        requests: Sequence[
-            DocumentationRequest
-        ],
+        requests: Sequence[DocumentationRequest],
     ) -> List[DocumentationRequest]:
-        suppress_keys = {
-            title.casefold()
-            for title in self.options.suppress_titles
-        }
+        suppress_keys = {title.casefold() for title in self.options.suppress_titles}
 
-        result: List[
-            DocumentationRequest
-        ] = []
+        result: List[DocumentationRequest] = []
 
-        for index, request in enumerate(
-            requests
-        ):
-            if (
-                request.requested_item.casefold()
-                not in suppress_keys
-            ):
-                result.append(
-                    request
-                )
+        for index, request in enumerate(requests):
+            if request.requested_item.casefold() not in suppress_keys:
+                result.append(request)
                 continue
 
-            request_control_keys = {
-                control.key
-                for control in request.controls
-            }
+            request_control_keys = {control.key for control in request.controls}
 
             other_control_keys = set()
 
-            for other_index, other in enumerate(
-                requests
-            ):
+            for other_index, other in enumerate(requests):
                 if other_index == index:
                     continue
 
-                other_control_keys.update(
-                    control.key
-                    for control in other.controls
-                )
+                other_control_keys.update(control.key for control in other.controls)
 
-            if request_control_keys.issubset(
-                other_control_keys
-            ):
+            if request_control_keys.issubset(other_control_keys):
                 continue
 
-            result.append(
-                request
-            )
+            result.append(request)
 
         return result
 
@@ -492,16 +462,11 @@ class RequestOptimizer:
         sequence: int,
     ) -> DocumentationRequest:
         return DocumentationRequest(
-            request_id=(
-                f"{self.options.request_prefix}-"
-                f"{sequence:03d}"
-            ),
+            request_id=(f"{self.options.request_prefix}-" f"{sequence:03d}"),
             requested_item=request.requested_item,
             evidence_type=request.evidence_type,
             priority=request.priority,
-            controls=list(
-                request.controls
-            ),
+            controls=list(request.controls),
             description=request.description,
             submitted=request.submitted,
             date_submitted=request.date_submitted,
@@ -526,9 +491,7 @@ class RequestOptimizer:
             requested_item=request.requested_item,
             evidence_type=request.evidence_type,
             priority=request.priority,
-            controls=list(
-                request.controls
-            ),
+            controls=list(request.controls),
             description=request.description,
             submitted=request.submitted,
             date_submitted=request.date_submitted,
@@ -546,9 +509,7 @@ class RequestOptimizer:
 
     def _highest_priority(
         self,
-        priorities: Iterable[
-            DocumentationRequestPriority
-        ],
+        priorities: Iterable[DocumentationRequestPriority],
         *,
         reuse_count: int,
     ) -> DocumentationRequestPriority:
@@ -560,58 +521,36 @@ class RequestOptimizer:
 
         existing = max(
             priorities,
-            key=lambda priority:
-                rank[priority],
+            key=lambda priority: rank[priority],
         )
 
-        calculated = self._priority_for_reuse(
-            reuse_count
-        )
+        calculated = self._priority_for_reuse(reuse_count)
 
         return max(
             (
                 existing,
                 calculated,
             ),
-            key=lambda priority:
-                rank[priority],
+            key=lambda priority: rank[priority],
         )
 
     def _priority_for_reuse(
         self,
         reuse_count: int,
     ) -> DocumentationRequestPriority:
-        if (
-            reuse_count
-            >= self.options
-            .high_priority_reuse_threshold
-        ):
-            return (
-                DocumentationRequestPriority.HIGH
-            )
+        if reuse_count >= self.options.high_priority_reuse_threshold:
+            return DocumentationRequestPriority.HIGH
 
-        if (
-            reuse_count
-            >= self.options
-            .medium_priority_reuse_threshold
-        ):
-            return (
-                DocumentationRequestPriority.MEDIUM
-            )
+        if reuse_count >= self.options.medium_priority_reuse_threshold:
+            return DocumentationRequestPriority.MEDIUM
 
         return DocumentationRequestPriority.LOW
 
     @staticmethod
     def _deduplicate_controls(
-        controls: Iterable[
-            DocumentationRequestControl
-        ],
-    ) -> List[
-        DocumentationRequestControl
-    ]:
-        result: List[
-            DocumentationRequestControl
-        ] = []
+        controls: Iterable[DocumentationRequestControl],
+    ) -> List[DocumentationRequestControl]:
+        result: List[DocumentationRequestControl] = []
 
         seen = set()
 
@@ -619,13 +558,9 @@ class RequestOptimizer:
             if control.key in seen:
                 continue
 
-            seen.add(
-                control.key
-            )
+            seen.add(control.key)
 
-            result.append(
-                control
-            )
+            result.append(control)
 
         return sorted(
             result,
@@ -653,29 +588,17 @@ class RequestOptimizer:
             if key in seen:
                 continue
 
-            seen.add(
-                key
-            )
+            seen.add(key)
 
-            result.append(
-                text
-            )
+            result.append(text)
 
         return result
 
     @staticmethod
     def _collection_control_keys(
-        requests: Sequence[
-            DocumentationRequest
-        ],
-    ) -> set[
-        Tuple[str, str]
-    ]:
-        return {
-            control.key
-            for request in requests
-            for control in request.controls
-        }
+        requests: Sequence[DocumentationRequest],
+    ) -> set[Tuple[str, str]]:
+        return {control.key for request in requests for control in request.controls}
 
     @staticmethod
     def _validate_collection_state(
@@ -695,10 +618,7 @@ class RequestOptimizer:
                     "been submitted."
                 )
 
-            if (
-                request.review_status
-                != DocumentationRequestStatus.NOT_REQUESTED
-            ):
+            if request.review_status != DocumentationRequestStatus.NOT_REQUESTED:
                 raise RequestOptimizerError(
                     "Only untouched generated DRLs can be optimized. "
                     f"Request {request.request_id!r} has status "

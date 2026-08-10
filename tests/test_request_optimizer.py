@@ -31,16 +31,10 @@ def control(
 def request(
     request_id: str,
     title: str,
-    controls: list[
-        DocumentationRequestControl
-    ],
+    controls: list[DocumentationRequestControl],
     *,
-    evidence_type: DocumentationRequestType = (
-        DocumentationRequestType.OTHER
-    ),
-    priority: DocumentationRequestPriority = (
-        DocumentationRequestPriority.LOW
-    ),
+    evidence_type: DocumentationRequestType = (DocumentationRequestType.OTHER),
+    priority: DocumentationRequestPriority = (DocumentationRequestPriority.LOW),
     description: str = "",
 ) -> DocumentationRequest:
     return DocumentationRequest(
@@ -54,9 +48,7 @@ def request(
 
 
 def collection(
-    requests: list[
-        DocumentationRequest
-    ],
+    requests: list[DocumentationRequest],
 ) -> DocumentationRequestCollection:
     return DocumentationRequestCollection(
         framework_id="CMMC_L2",
@@ -86,16 +78,11 @@ def test_optimizer_preserves_unique_control_coverage() -> None:
         ]
     )
 
-    optimized = RequestOptimizer().optimize(
-        raw
-    )
+    optimized = RequestOptimizer().optimize(raw)
 
     assert optimized.summary.unique_controls_supported == 3
 
-    assert {
-        item.control_id
-        for item in optimized.requests[0].controls
-    } == {
+    assert {item.control_id for item in optimized.requests[0].controls} == {
         "AC.L2-3.1.1",
         "AC.L2-3.1.2",
         "AC.L2-3.1.3",
@@ -122,21 +109,15 @@ def test_access_control_policy_variants_merge() -> None:
         ]
     )
 
-    optimized = RequestOptimizer().optimize(
-        raw
-    )
+    optimized = RequestOptimizer().optimize(raw)
 
     assert optimized.count == 1
 
     assert (
-        optimized.requests[0].requested_item
-        == "Access Control Policy and Procedures"
+        optimized.requests[0].requested_item == "Access Control Policy and Procedures"
     )
 
-    assert (
-        optimized.requests[0].evidence_type
-        == DocumentationRequestType.POLICY
-    )
+    assert optimized.requests[0].evidence_type == DocumentationRequestType.POLICY
 
 
 def test_account_lists_merge_into_inventory_package() -> None:
@@ -166,9 +147,7 @@ def test_account_lists_merge_into_inventory_package() -> None:
         ]
     )
 
-    optimized = RequestOptimizer().optimize(
-        raw
-    )
+    optimized = RequestOptimizer().optimize(raw)
 
     assert optimized.count == 1
 
@@ -177,12 +156,35 @@ def test_account_lists_merge_into_inventory_package() -> None:
         == "System and Privileged Account Inventory"
     )
 
-    assert (
-        optimized.requests[0].evidence_type
-        == DocumentationRequestType.INVENTORY
-    )
+    assert optimized.requests[0].evidence_type == DocumentationRequestType.INVENTORY
 
     assert optimized.requests[0].reuse_count == 3
+
+
+def test_evidence_resolver_merges_canonical_aliases() -> None:
+    raw = collection(
+        [
+            request(
+                "DRL-001",
+                "SSP",
+                [control("CA.L2-3.12.4", family="CA")],
+                evidence_type=(DocumentationRequestType.SYSTEM_SECURITY_PLAN),
+            ),
+            request(
+                "DRL-002",
+                "Information Security Plan",
+                [control("CA.L2-3.12.1", family="CA")],
+                evidence_type=(DocumentationRequestType.SYSTEM_SECURITY_PLAN),
+            ),
+        ]
+    )
+
+    optimized = RequestOptimizer().optimize(raw)
+
+    assert optimized.count == 1
+    assert optimized.requests[0].requested_item == "Security Plan"
+    assert optimized.requests[0].reuse_count == 2
+    assert "Resolved source wording" in (optimized.requests[0].description)
 
 
 def test_generic_request_is_suppressed_when_redundant() -> None:
@@ -209,24 +211,16 @@ def test_generic_request_is_suppressed_when_redundant() -> None:
                 [
                     control("AC.L2-3.1.2"),
                 ],
-                evidence_type=(
-                    DocumentationRequestType.INVENTORY
-                ),
+                evidence_type=(DocumentationRequestType.INVENTORY),
             ),
         ]
     )
 
-    optimized = RequestOptimizer().optimize(
-        raw
-    )
+    optimized = RequestOptimizer().optimize(raw)
 
-    assert (
-        "Other Relevant Documents or Records"
-        not in {
-            item.requested_item
-            for item in optimized.requests
-        }
-    )
+    assert "Other Relevant Documents or Records" not in {
+        item.requested_item for item in optimized.requests
+    }
 
     assert optimized.summary.unique_controls_supported == 2
 
@@ -252,17 +246,11 @@ def test_generic_request_is_kept_when_it_has_unique_control() -> None:
         ]
     )
 
-    optimized = RequestOptimizer().optimize(
-        raw
-    )
+    optimized = RequestOptimizer().optimize(raw)
 
-    assert (
-        "Other Relevant Documents or Records"
-        in {
-            item.requested_item
-            for item in optimized.requests
-        }
-    )
+    assert "Other Relevant Documents or Records" in {
+        item.requested_item for item in optimized.requests
+    }
 
     assert optimized.summary.unique_controls_supported == 2
 
@@ -287,22 +275,14 @@ def test_optimizer_regenerates_deterministic_ids() -> None:
         ]
     )
 
-    optimized = RequestOptimizer().optimize(
-        raw
-    )
+    optimized = RequestOptimizer().optimize(raw)
 
-    assert [
-        item.request_id
-        for item in optimized.requests
-    ] == [
+    assert [item.request_id for item in optimized.requests] == [
         "DRL-001",
         "DRL-002",
     ]
 
-    assert [
-        item.requested_item
-        for item in optimized.requests
-    ] == [
+    assert [item.requested_item for item in optimized.requests] == [
         "A Evidence",
         "Z Evidence",
     ]
@@ -317,9 +297,7 @@ def test_merge_preserves_highest_priority() -> None:
                 [
                     control("AC.L2-3.1.1"),
                 ],
-                priority=(
-                    DocumentationRequestPriority.HIGH
-                ),
+                priority=(DocumentationRequestPriority.HIGH),
             ),
             request(
                 "DRL-002",
@@ -327,21 +305,14 @@ def test_merge_preserves_highest_priority() -> None:
                 [
                     control("AC.L2-3.1.2"),
                 ],
-                priority=(
-                    DocumentationRequestPriority.LOW
-                ),
+                priority=(DocumentationRequestPriority.LOW),
             ),
         ]
     )
 
-    optimized = RequestOptimizer().optimize(
-        raw
-    )
+    optimized = RequestOptimizer().optimize(raw)
 
-    assert (
-        optimized.requests[0].priority
-        == DocumentationRequestPriority.HIGH
-    )
+    assert optimized.requests[0].priority == DocumentationRequestPriority.HIGH
 
 
 def test_merge_preserves_source_descriptions() -> None:
@@ -366,9 +337,7 @@ def test_merge_preserves_source_descriptions() -> None:
         ]
     )
 
-    optimized = RequestOptimizer().optimize(
-        raw
-    )
+    optimized = RequestOptimizer().optimize(raw)
 
     description = optimized.requests[0].description
 
@@ -396,16 +365,11 @@ def test_optimizer_does_not_mutate_input() -> None:
         ]
     )
 
-    RequestOptimizer().optimize(
-        raw
-    )
+    RequestOptimizer().optimize(raw)
 
     assert raw.count == 2
 
-    assert [
-        item.request_id
-        for item in raw.requests
-    ] == [
+    assert [item.request_id for item in raw.requests] == [
         "ORIGINAL-001",
         "ORIGINAL-002",
     ]
@@ -420,9 +384,7 @@ def test_submitted_request_cannot_be_optimized() -> None:
         ],
     )
 
-    submitted.mark_submitted(
-        file_name="policy.pdf"
-    )
+    submitted.mark_submitted(file_name="policy.pdf")
 
     raw = collection(
         [
@@ -434,9 +396,7 @@ def test_submitted_request_cannot_be_optimized() -> None:
         RequestOptimizerError,
         match="Submitted DRL requests cannot be optimized",
     ):
-        RequestOptimizer().optimize(
-            raw
-        )
+        RequestOptimizer().optimize(raw)
 
 
 def test_progressed_request_cannot_be_optimized() -> None:
@@ -448,9 +408,7 @@ def test_progressed_request_cannot_be_optimized() -> None:
         ],
     )
 
-    progressed.review_status = (
-        DocumentationRequestStatus.REQUESTED
-    )
+    progressed.review_status = DocumentationRequestStatus.REQUESTED
 
     raw = collection(
         [
@@ -462,6 +420,4 @@ def test_progressed_request_cannot_be_optimized() -> None:
         RequestOptimizerError,
         match="Only untouched generated DRLs can be optimized",
     ):
-        RequestOptimizer().optimize(
-            raw
-        )
+        RequestOptimizer().optimize(raw)
