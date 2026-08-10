@@ -50,6 +50,31 @@ def test_credential_policy_preserves_password_policy_as_an_alias() -> None:
     assert "Password Policy" in credential_policy.aliases
 
 
+def test_identity_and_access_objects_preserve_cross_framework_aliases() -> None:
+    aliases_by_name = {
+        item.canonical_name: item.aliases for item in EVIDENCE_KNOWLEDGE
+    }
+
+    assert "List of System Accounts" in aliases_by_name["Account Inventory"]
+    assert "Privileged Account List" in aliases_by_name[
+        "Privileged Account Inventory"
+    ]
+    assert "Access Approval Records" in aliases_by_name[
+        "Access Authorization Records"
+    ]
+    assert "Access Recertification Records" in aliases_by_name[
+        "Access Review Records"
+    ]
+    assert "Password Policy" in aliases_by_name["Credential Policy"]
+    assert "MFA Configuration" in aliases_by_name[
+        "Multi-Factor Authentication Configuration"
+    ]
+    assert "VPN Configuration" in aliases_by_name["Remote Access Configuration"]
+    assert "IdP Configuration" in aliases_by_name[
+        "Identity Provider Configuration"
+    ]
+
+
 def test_remediation_plan_is_not_a_poam_category() -> None:
     remediation_plan = EVIDENCE_KNOWLEDGE[6]
 

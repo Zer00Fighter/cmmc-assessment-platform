@@ -117,7 +117,12 @@ EVIDENCE_KNOWLEDGE: Tuple[EvidenceObject, ...] = (
     _evidence(
         "EV-0011",
         "Account Inventory",
-        aliases=("User Account List",),
+        aliases=(
+            "User Account List",
+            "Account List",
+            "System Account Inventory",
+            "List of System Accounts",
+        ),
         category=EvidenceCategory.INVENTORY,
         artifact_type=EvidenceArtifactType.DATASET,
         description="Inventory of organizational user and system accounts.",
@@ -125,7 +130,11 @@ EVIDENCE_KNOWLEDGE: Tuple[EvidenceObject, ...] = (
     _evidence(
         "EV-0012",
         "Privileged Account Inventory",
-        aliases=("Privileged Account List",),
+        aliases=(
+            "Privileged Account List",
+            "Administrative Account Inventory",
+            "Admin Account List",
+        ),
         category=EvidenceCategory.INVENTORY,
         artifact_type=EvidenceArtifactType.DATASET,
         description="Inventory of accounts assigned elevated or administrative privileges.",
@@ -133,7 +142,11 @@ EVIDENCE_KNOWLEDGE: Tuple[EvidenceObject, ...] = (
     _evidence(
         "EV-0013",
         "Access Authorization Records",
-        aliases=(),
+        aliases=(
+            "Access Approval Records",
+            "User Access Authorization Records",
+            "Access Authorization Forms",
+        ),
         category=EvidenceCategory.RECORD,
         artifact_type=EvidenceArtifactType.RECORD,
         description="Records approvals for granting or changing access privileges.",
@@ -141,7 +154,11 @@ EVIDENCE_KNOWLEDGE: Tuple[EvidenceObject, ...] = (
     _evidence(
         "EV-0014",
         "Access Review Records",
-        aliases=(),
+        aliases=(
+            "User Access Review Records",
+            "Access Recertification Records",
+            "Access Certification Records",
+        ),
         category=EvidenceCategory.RECORD,
         artifact_type=EvidenceArtifactType.RECORD,
         description="Records periodic reviews and recertification of access privileges.",
@@ -149,7 +166,11 @@ EVIDENCE_KNOWLEDGE: Tuple[EvidenceObject, ...] = (
     _evidence(
         "EV-0015",
         "Authentication Configuration",
-        aliases=(),
+        aliases=(
+            "Authentication Settings",
+            "Authentication System Configuration",
+            "Login Configuration",
+        ),
         category=EvidenceCategory.CONFIGURATION,
         artifact_type=EvidenceArtifactType.CONFIGURATION,
         description="Configuration governing how identities are authenticated.",
@@ -157,7 +178,11 @@ EVIDENCE_KNOWLEDGE: Tuple[EvidenceObject, ...] = (
     _evidence(
         "EV-0016",
         "Credential Policy",
-        aliases=("Password Policy",),
+        aliases=(
+            "Password Policy",
+            "Credential Management Policy",
+            "Authentication Credential Policy",
+        ),
         category=EvidenceCategory.POLICY,
         artifact_type=EvidenceArtifactType.DOCUMENT,
         description="Defines requirements for credentials throughout their lifecycle.",
@@ -165,7 +190,11 @@ EVIDENCE_KNOWLEDGE: Tuple[EvidenceObject, ...] = (
     _evidence(
         "EV-0017",
         "Authenticator Management Procedures",
-        aliases=(),
+        aliases=(
+            "Authenticator Procedures",
+            "Credential Management Procedures",
+            "Password Management Procedures",
+        ),
         category=EvidenceCategory.PROCEDURE,
         artifact_type=EvidenceArtifactType.DOCUMENT,
         description="Documents issuance, protection, replacement, and revocation of authenticators.",
@@ -173,7 +202,11 @@ EVIDENCE_KNOWLEDGE: Tuple[EvidenceObject, ...] = (
     _evidence(
         "EV-0018",
         "Multi-Factor Authentication Configuration",
-        aliases=(),
+        aliases=(
+            "MFA Configuration",
+            "Two-Factor Authentication Configuration",
+            "2FA Configuration",
+        ),
         category=EvidenceCategory.CONFIGURATION,
         artifact_type=EvidenceArtifactType.CONFIGURATION,
         description="Configuration enforcing the use of multiple authentication factors.",
@@ -181,7 +214,11 @@ EVIDENCE_KNOWLEDGE: Tuple[EvidenceObject, ...] = (
     _evidence(
         "EV-0019",
         "Remote Access Configuration",
-        aliases=(),
+        aliases=(
+            "Remote Access Settings",
+            "Remote Connectivity Configuration",
+            "VPN Configuration",
+        ),
         category=EvidenceCategory.CONFIGURATION,
         artifact_type=EvidenceArtifactType.CONFIGURATION,
         description="Configuration controlling and protecting remote system access.",
@@ -189,7 +226,11 @@ EVIDENCE_KNOWLEDGE: Tuple[EvidenceObject, ...] = (
     _evidence(
         "EV-0020",
         "Identity Provider Configuration",
-        aliases=(),
+        aliases=(
+            "IdP Configuration",
+            "Identity Management System Configuration",
+            "Directory Service Configuration",
+        ),
         category=EvidenceCategory.CONFIGURATION,
         artifact_type=EvidenceArtifactType.CONFIGURATION,
         description="Configuration of the service that establishes and manages identities.",

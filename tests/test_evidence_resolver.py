@@ -75,6 +75,23 @@ def test_resolve_many_preserves_input_order() -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    ("alias", "evidence_id"),
+    (
+        ("List of System Accounts", "EV-0011"),
+        ("Privileged Account List", "EV-0012"),
+        ("Access Approval Records", "EV-0013"),
+        ("Access Recertification Records", "EV-0014"),
+        ("Password Policy", "EV-0016"),
+        ("MFA Configuration", "EV-0018"),
+        ("VPN Configuration", "EV-0019"),
+        ("IdP Configuration", "EV-0020"),
+    ),
+)
+def test_cross_framework_aliases_resolve(alias: str, evidence_id: str) -> None:
+    assert EvidenceResolver().resolve(alias).evidence_id == evidence_id
+
+
 def test_ambiguous_names_are_rejected() -> None:
     first = EvidenceObject(
         evidence_id="EV-A",
