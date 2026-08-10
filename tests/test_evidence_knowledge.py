@@ -44,12 +44,32 @@ EXPECTED_NAMES = (
     "Log Review Records",
     "Security Monitoring Configuration",
     "Security Alerts",
+    "Incident Response Plan",
+    "Incident Response Procedures",
+    "Incident Records",
+    "Incident Response Exercise Records",
+    "Incident Communication Records",
+    "Business Continuity Plan",
+    "Disaster Recovery Plan",
+    "Backup Configuration",
+    "Backup Records",
+    "Recovery Test Records",
+    "Physical Security Plan",
+    "Physical Access Authorization Records",
+    "Physical Access Logs",
+    "Visitor Records",
+    "Physical Security Monitoring Records",
+    "Personnel Screening Records",
+    "Personnel Security Agreements",
+    "Personnel Transfer Records",
+    "Personnel Termination Records",
+    "Security Training Records",
 )
 
 
-def test_knowledge_contains_the_approved_first_forty_objects() -> None:
+def test_knowledge_contains_the_approved_first_sixty_objects() -> None:
     assert tuple(item.evidence_id for item in EVIDENCE_KNOWLEDGE) == tuple(
-        f"EV-{index:04d}" for index in range(1, 41)
+        f"EV-{index:04d}" for index in range(1, 61)
     )
     assert tuple(item.canonical_name for item in EVIDENCE_KNOWLEDGE) == EXPECTED_NAMES
 
@@ -101,6 +121,28 @@ def test_sprint_3_5_objects_preserve_framework_agnostic_aliases() -> None:
     assert "System Logs" in aliases_by_name["Audit Logs"]
     assert "SIEM Configuration" in aliases_by_name["Security Monitoring Configuration"]
     assert "SIEM Alerts" in aliases_by_name["Security Alerts"]
+
+
+def test_sprint_3_6_objects_preserve_framework_agnostic_aliases() -> None:
+    aliases_by_name = {item.canonical_name: item.aliases for item in EVIDENCE_KNOWLEDGE}
+
+    assert "IR Plan" in aliases_by_name["Incident Response Plan"]
+    assert "Incident Tickets" in aliases_by_name["Incident Records"]
+    assert (
+        "Tabletop Exercise Results"
+        in aliases_by_name["Incident Response Exercise Records"]
+    )
+    assert "BCP" in aliases_by_name["Business Continuity Plan"]
+    assert "DRP" in aliases_by_name["Disaster Recovery Plan"]
+    assert "Backup Logs" in aliases_by_name["Backup Records"]
+    assert "Badge Access Logs" in aliases_by_name["Physical Access Logs"]
+    assert "Visitor Logs" in aliases_by_name["Visitor Records"]
+    assert "Background Check Records" in aliases_by_name["Personnel Screening Records"]
+    assert "Offboarding Records" in aliases_by_name["Personnel Termination Records"]
+    assert (
+        "Security Awareness Training Records"
+        in aliases_by_name["Security Training Records"]
+    )
 
 
 def test_remediation_plan_is_not_a_poam_category() -> None:
