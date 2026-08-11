@@ -308,6 +308,76 @@ DEFAULT_EVIDENCE_SOURCE_MAPPINGS: Tuple[EvidenceSourceMapping, ...] = (
         "The source specifies safeguards implemented through alternate work site security procedures.",
     ),
     EvidenceSourceMapping(
+        "List of Security Functions Deployed in Hardware Software and Firmware and Security Relevant Information for Which Access Must Be Explicitly Authorized",
+        ("EV-0027",),
+        "Deployed security functions and their restricted settings are governed by the secure configuration and hardening standard.",
+    ),
+    EvidenceSourceMapping(
+        "List of Security Safeguards Controlling Access to Designated Publicly Accessible Areas Within Facility",
+        ("EV-0140",),
+        "Public-area access safeguards are requirements within the physical security policy.",
+    ),
+    EvidenceSourceMapping(
+        "List of Software Programs Authorized to Execute on the System",
+        ("EV-0022", "EV-0027"),
+        "The source combines the software inventory with secure configuration allowlisting requirements.",
+    ),
+    EvidenceSourceMapping(
+        "List of Software Programs Not Authorized to Execute on the System",
+        ("EV-0027",),
+        "Prohibited-software and denylisting requirements are part of the secure configuration standard.",
+    ),
+    EvidenceSourceMapping(
+        "List of System Administration Personnel",
+        ("EV-0012",),
+        "The source is a privileged administrative account inventory variant.",
+    ),
+    EvidenceSourceMapping(
+        "List of System Authenticator Types",
+        ("EV-0126",),
+        "Permitted authenticator types and their requirements are governed by the identity and access management policy.",
+    ),
+    EvidenceSourceMapping(
+        "List of System Generated Privileged Accounts",
+        ("EV-0012",),
+        "The source is a privileged account inventory variant.",
+    ),
+    EvidenceSourceMapping(
+        "List of System Generated Security Functions Assigned to System Accounts or Roles",
+        ("EV-0083",),
+        "The source lists service-account or role permissions represented by the access control list.",
+    ),
+    EvidenceSourceMapping(
+        "List of System Media Marking Security Attributes",
+        ("EV-0023", "EV-0092"),
+        "The source combines information classification attributes with media marking procedures.",
+    ),
+    EvidenceSourceMapping(
+        "List of Types of Applications Accessible from External Systems",
+        ("EV-0022", "EV-0019"),
+        "The source combines the software inventory with remote access configuration.",
+    ),
+    EvidenceSourceMapping(
+        "List of Unacceptable Mobile Code and Mobile Technologies",
+        ("EV-0027",),
+        "Prohibited mobile code and technologies are governed by the secure configuration standard.",
+    ),
+    EvidenceSourceMapping(
+        "List of Users Authorized to Post Publicly Accessible Content on Organizational Systems",
+        ("EV-0141",),
+        "Authorized public-content publishers are maintained through public communications procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Locations Within System Where Monitoring Devices Are Deployed",
+        ("EV-0021", "EV-0055"),
+        "The source combines monitoring-device inventory and location data with physical security monitoring records.",
+    ),
+    EvidenceSourceMapping(
+        "Maintenance Personnel Procedures",
+        ("EV-0097", "EV-0086"),
+        "The source combines maintenance procedures with the authorized personnel list.",
+    ),
+    EvidenceSourceMapping(
         "Access Control Records",
         ("EV-0013", "EV-0014"),
         "The broad source phrase includes authorization and periodic access-review records.",

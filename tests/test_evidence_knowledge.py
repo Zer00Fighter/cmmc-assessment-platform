@@ -143,14 +143,15 @@ EXPECTED_NAMES = (
     "Insider Threat Procedures",
     "Asset Management Policy",
     "Asset Management Procedures",
+    "Physical Security Policy",
+    "Public Communications Procedures",
+    "Malware Protection Procedures",
 )
 
 
-def test_knowledge_contains_the_approved_first_one_hundred_thirty_nine_objects() -> (
-    None
-):
+def test_knowledge_contains_the_approved_first_one_hundred_forty_two_objects() -> None:
     assert tuple(item.evidence_id for item in EVIDENCE_KNOWLEDGE) == tuple(
-        f"EV-{index:04d}" for index in range(1, 140)
+        f"EV-{index:04d}" for index in range(1, 143)
     )
     assert tuple(item.canonical_name for item in EVIDENCE_KNOWLEDGE) == EXPECTED_NAMES
 
@@ -351,6 +352,24 @@ def test_sprint_3_10_batch_5_preserves_approved_aliases() -> None:
     assert "Asset Inventory Policy" in aliases_by_name["Asset Management Policy"]
     assert (
         "Asset Inventory Procedures" in aliases_by_name["Asset Management Procedures"]
+    )
+
+
+def test_sprint_3_10_batch_7_preserves_approved_aliases() -> None:
+    aliases_by_name = {item.canonical_name: item.aliases for item in EVIDENCE_KNOWLEDGE}
+
+    assert "Service Account Permissions" in aliases_by_name["Access Control List"]
+    assert (
+        "Physical and Environmental Protection Policy"
+        in aliases_by_name["Physical Security Policy"]
+    )
+    assert (
+        "Public Relations Procedures"
+        in aliases_by_name["Public Communications Procedures"]
+    )
+    assert (
+        "Malicious Code Protection Procedures"
+        in aliases_by_name["Malware Protection Procedures"]
     )
 
 

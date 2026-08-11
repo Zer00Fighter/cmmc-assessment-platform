@@ -65,6 +65,14 @@ def test_batch_6_internal_boundaries_preserve_diagram_and_architecture() -> None
     assert tuple(item.evidence_id for item in resolved) == ("EV-0031", "EV-0033")
 
 
+def test_batch_7_public_publishers_map_to_public_communications_procedures() -> None:
+    resolved = default_evidence_source_mapping_catalog().resolve(
+        "List of Users Authorized to Post Publicly Accessible Content on Organizational Systems"
+    )
+
+    assert tuple(item.evidence_id for item in resolved) == ("EV-0141",)
+
+
 def test_unknown_source_title_returns_no_mapping() -> None:
     assert default_evidence_source_mapping_catalog().resolve("Unknown") == ()
 

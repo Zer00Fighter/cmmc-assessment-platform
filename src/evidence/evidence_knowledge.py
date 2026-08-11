@@ -962,7 +962,12 @@ EVIDENCE_KNOWLEDGE: Tuple[EvidenceObject, ...] = (
     _evidence(
         "EV-0083",
         "Access Control List",
-        aliases=("ACL", "Access Control Rules", "Access Permissions List"),
+        aliases=(
+            "ACL",
+            "Access Control Rules",
+            "Access Permissions List",
+            "Service Account Permissions",
+        ),
         category=EvidenceCategory.LIST,
         artifact_type=EvidenceArtifactType.CONFIGURATION,
         description="Lists permissions or rules that govern access to a resource.",
@@ -1534,6 +1539,41 @@ EVIDENCE_KNOWLEDGE: Tuple[EvidenceObject, ...] = (
         category=EvidenceCategory.PROCEDURE,
         artifact_type=EvidenceArtifactType.DOCUMENT,
         description="Documents repeatable activities for inventorying, assigning, reviewing, updating, and disposing of assets.",
+    ),
+    # Sprint 3.10 generated-evidence gap curation, Batch 7.
+    _evidence(
+        "EV-0140",
+        "Physical Security Policy",
+        aliases=(
+            "Physical and Environmental Protection Policy",
+            "Physical and Environmental Security Policy",
+        ),
+        category=EvidenceCategory.POLICY,
+        artifact_type=EvidenceArtifactType.DOCUMENT,
+        description="Defines requirements for protecting facilities, controlled areas, publicly accessible areas, personnel, and physical assets.",
+    ),
+    _evidence(
+        "EV-0141",
+        "Public Communications Procedures",
+        aliases=(
+            "Public Relations Procedures",
+            "Publicly Accessible Content Procedures",
+            "Public Content Publishing Procedures",
+        ),
+        category=EvidenceCategory.PROCEDURE,
+        artifact_type=EvidenceArtifactType.DOCUMENT,
+        description="Documents authorization, approval, review, publication, correction, and removal of publicly accessible organizational content.",
+    ),
+    _evidence(
+        "EV-0142",
+        "Malware Protection Procedures",
+        aliases=(
+            "Malicious Code Protection Procedures",
+            "Malicious Software Protection Procedures",
+        ),
+        category=EvidenceCategory.PROCEDURE,
+        artifact_type=EvidenceArtifactType.DOCUMENT,
+        description="Documents repeatable activities for preventing, detecting, analyzing, containing, and remediating malicious code.",
     ),
 )
 
