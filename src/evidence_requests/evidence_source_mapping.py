@@ -88,6 +88,16 @@ class EvidenceSourceMappingCatalog:
 
 DEFAULT_EVIDENCE_SOURCE_MAPPINGS: Tuple[EvidenceSourceMapping, ...] = (
     EvidenceSourceMapping(
+        "Access Control Policy and Procedures",
+        ("EV-0081", "EV-0082"),
+        "The source combines access control policy and procedure artifacts.",
+    ),
+    EvidenceSourceMapping(
+        "Configuration Management Policy and Procedures",
+        ("EV-0088", "EV-0089"),
+        "The source combines configuration management policy and procedures.",
+    ),
+    EvidenceSourceMapping(
         "Cryptographic Mechanisms and Associated Configuration Documentation",
         ("EV-0070", "EV-0073"),
         "The source phrase requests both the mechanism inventory and its configuration.",
@@ -108,6 +118,36 @@ DEFAULT_EVIDENCE_SOURCE_MAPPINGS: Tuple[EvidenceSourceMapping, ...] = (
         "Vulnerability remediation and patch deployment records can exist independently.",
     ),
     EvidenceSourceMapping(
+        "Media Access Restrictions Procedures",
+        ("EV-0092",),
+        "The source is a media-protection procedure variant.",
+    ),
+    EvidenceSourceMapping(
+        "Media Marking Procedures",
+        ("EV-0092",),
+        "The source is a media-protection procedure variant.",
+    ),
+    EvidenceSourceMapping(
+        "Media Sanitization and Disposal Procedures",
+        ("EV-0092",),
+        "The source is a media-protection procedure variant.",
+    ),
+    EvidenceSourceMapping(
+        "Media Storage Procedures",
+        ("EV-0092",),
+        "The source is a media-protection procedure variant.",
+    ),
+    EvidenceSourceMapping(
+        "Media Transport Procedures",
+        ("EV-0092",),
+        "The source is a media-protection procedure variant.",
+    ),
+    EvidenceSourceMapping(
+        "Media Usage Restrictions Procedures",
+        ("EV-0092",),
+        "The source is a media-protection procedure variant.",
+    ),
+    EvidenceSourceMapping(
         "Records of Personnel Transfer and Termination Actions",
         ("EV-0058", "EV-0059"),
         "The source combines personnel transfer and termination records.",
@@ -126,6 +166,26 @@ DEFAULT_EVIDENCE_SOURCE_MAPPINGS: Tuple[EvidenceSourceMapping, ...] = (
         "System Configuration Settings and Associated Documentation System Audit Logs and Records",
         ("EV-0028", "EV-0036"),
         "The source combines system configuration evidence with audit logs.",
+    ),
+    EvidenceSourceMapping(
+        "Controlled System Maintenance Procedures",
+        ("EV-0097",),
+        "The source is a system-maintenance procedure variant.",
+    ),
+    EvidenceSourceMapping(
+        "Nonlocal System Maintenance Procedures",
+        ("EV-0097",),
+        "The source is a system-maintenance procedure variant.",
+    ),
+    EvidenceSourceMapping(
+        "System Maintenance Tools and Associated Documentation",
+        ("EV-0099",),
+        "The source identifies approved system-maintenance tools.",
+    ),
+    EvidenceSourceMapping(
+        "System Maintenance Tools and Media Procedures",
+        ("EV-0097", "EV-0092"),
+        "The source combines maintenance and media-handling procedures.",
     ),
 )
 

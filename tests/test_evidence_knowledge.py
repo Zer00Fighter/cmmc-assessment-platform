@@ -84,12 +84,32 @@ EXPECTED_NAMES = (
     "Patch Management Records",
     "Malware Protection Configuration",
     "Security Operations Reports",
+    "Access Control Policy",
+    "Access Control Procedures",
+    "Access Control List",
+    "Account Management Procedures",
+    "Credential Inventory",
+    "Authorized Personnel List",
+    "Configuration Management Plan",
+    "Configuration Management Policy",
+    "Configuration Management Procedures",
+    "Security Impact Analysis",
+    "Media Protection Policy",
+    "Media Protection Procedures",
+    "Media Inventory",
+    "Media Sanitization Records",
+    "Media Transport Records",
+    "Maintenance Policy",
+    "Maintenance Procedures",
+    "Maintenance Records",
+    "Maintenance Tool Inventory",
+    "Maintenance Tool Inspection Records",
 )
 
 
-def test_knowledge_contains_the_approved_first_eighty_objects() -> None:
+def test_knowledge_contains_the_approved_first_one_hundred_objects() -> None:
     assert tuple(item.evidence_id for item in EVIDENCE_KNOWLEDGE) == tuple(
-        f"EV-{index:04d}" for index in range(1, 81)
+        f"EV-{index:04d}" for index in range(1, 101)
     )
     assert tuple(item.canonical_name for item in EVIDENCE_KNOWLEDGE) == EXPECTED_NAMES
 
@@ -185,6 +205,25 @@ def test_sprint_3_7_objects_preserve_framework_agnostic_aliases() -> None:
         "Endpoint Protection Configuration"
         in aliases_by_name["Malware Protection Configuration"]
     )
+
+
+def test_sprint_3_9_objects_preserve_framework_agnostic_aliases() -> None:
+    aliases_by_name = {item.canonical_name: item.aliases for item in EVIDENCE_KNOWLEDGE}
+
+    assert "Logical Access Control Policy" in aliases_by_name["Access Control Policy"]
+    assert "ACL" in aliases_by_name["Access Control List"]
+    assert "Access Credentials" in aliases_by_name["Credential Inventory"]
+    assert "CM Plan" in aliases_by_name["Configuration Management Plan"]
+    assert (
+        "System Media Protection Policy" in aliases_by_name["Media Protection Policy"]
+    )
+    assert "System Media" in aliases_by_name["Media Inventory"]
+    assert (
+        "Equipment Sanitization Records"
+        in aliases_by_name["Media Sanitization Records"]
+    )
+    assert "System Maintenance Policy" in aliases_by_name["Maintenance Policy"]
+    assert "Maintenance Logs" in aliases_by_name["Maintenance Records"]
 
 
 def test_remediation_plan_is_not_a_poam_category() -> None:

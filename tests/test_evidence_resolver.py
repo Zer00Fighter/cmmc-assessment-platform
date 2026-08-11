@@ -11,10 +11,10 @@ from src.evidence.evidence_resolver import (
 )
 
 
-def test_knowledge_contains_approved_first_eighty_objects() -> None:
-    assert len(EVIDENCE_KNOWLEDGE) == 80
+def test_knowledge_contains_approved_first_one_hundred_objects() -> None:
+    assert len(EVIDENCE_KNOWLEDGE) == 100
     assert EVIDENCE_KNOWLEDGE[0].evidence_id == "EV-0001"
-    assert EVIDENCE_KNOWLEDGE[-1].evidence_id == "EV-0080"
+    assert EVIDENCE_KNOWLEDGE[-1].evidence_id == "EV-0100"
 
 
 def test_resolves_canonical_name_exactly() -> None:
@@ -147,6 +147,24 @@ def test_sprint_3_6_aliases_resolve(alias: str, evidence_id: str) -> None:
     ),
 )
 def test_sprint_3_7_aliases_resolve(alias: str, evidence_id: str) -> None:
+    assert EvidenceResolver().resolve(alias).evidence_id == evidence_id
+
+
+@pytest.mark.parametrize(
+    ("alias", "evidence_id"),
+    (
+        ("Logical Access Control Policy", "EV-0081"),
+        ("ACL", "EV-0083"),
+        ("Access Credentials", "EV-0085"),
+        ("CM Plan", "EV-0087"),
+        ("System Media Protection Policy", "EV-0091"),
+        ("System Media", "EV-0093"),
+        ("Equipment Sanitization Records", "EV-0094"),
+        ("System Maintenance Policy", "EV-0096"),
+        ("Maintenance Logs", "EV-0098"),
+    ),
+)
+def test_sprint_3_9_aliases_resolve(alias: str, evidence_id: str) -> None:
     assert EvidenceResolver().resolve(alias).evidence_id == evidence_id
 
 
