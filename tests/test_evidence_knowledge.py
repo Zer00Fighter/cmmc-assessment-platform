@@ -117,12 +117,25 @@ EXPECTED_NAMES = (
     "Audit Logging Tool Inventory",
     "Audit Logging Procedures",
     "Boundary Protection Procedures",
+    "Contingency Plan",
+    "Contingency Plan Testing Procedures",
+    "Contingency Planning Policy",
+    "Continuous Monitoring Strategy",
+    "Cryptographic Module Validation Certificates",
+    "Cryptographic Protection Procedures",
+    "Controlled Area Register",
+    "Diagnostic Records",
+    "Separation of Duties Procedures",
+    "System Use Banner Policy",
+    "Facility Diagram",
 )
 
 
-def test_knowledge_contains_the_approved_first_one_hundred_thirteen_objects() -> None:
+def test_knowledge_contains_the_approved_first_one_hundred_twenty_four_objects() -> (
+    None
+):
     assert tuple(item.evidence_id for item in EVIDENCE_KNOWLEDGE) == tuple(
-        f"EV-{index:04d}" for index in range(1, 114)
+        f"EV-{index:04d}" for index in range(1, 125)
     )
     assert tuple(item.canonical_name for item in EVIDENCE_KNOWLEDGE) == EXPECTED_NAMES
 
@@ -270,6 +283,20 @@ def test_sprint_3_10_batch_2_preserves_approved_aliases() -> None:
         "Network Boundary Protection Procedures"
         in aliases_by_name["Boundary Protection Procedures"]
     )
+
+
+def test_sprint_3_10_batch_3_preserves_approved_aliases() -> None:
+    aliases_by_name = {item.canonical_name: item.aliases for item in EVIDENCE_KNOWLEDGE}
+
+    assert "ISCM Strategy" in aliases_by_name["Continuous Monitoring Strategy"]
+    assert (
+        "FIPS Module Certificates"
+        in aliases_by_name["Cryptographic Module Validation Certificates"]
+    )
+    assert "Designated Controlled Areas" in aliases_by_name["Controlled Area Register"]
+    assert "SoD Procedures" in aliases_by_name["Separation of Duties Procedures"]
+    assert "Login Banner Policy" in aliases_by_name["System Use Banner Policy"]
+    assert "Facility Diagram or Layout" in aliases_by_name["Facility Diagram"]
 
 
 def test_remediation_plan_is_not_a_poam_category() -> None:

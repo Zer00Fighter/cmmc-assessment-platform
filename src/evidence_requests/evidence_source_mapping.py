@@ -128,6 +128,21 @@ DEFAULT_EVIDENCE_SOURCE_MAPPINGS: Tuple[EvidenceSourceMapping, ...] = (
         "The source is a configuration-management procedure variant.",
     ),
     EvidenceSourceMapping(
+        "Cryptographic Mechanisms",
+        ("EV-0070",),
+        "The source identifies the organization's implemented cryptographic mechanisms.",
+    ),
+    EvidenceSourceMapping(
+        "Documented Reviews of Programs Functions Ports Protocols and or Services",
+        ("EV-0027",),
+        "The owner classified this source as evidence of the secure configuration standard.",
+    ),
+    EvidenceSourceMapping(
+        "Evidence Supporting Approved Deviations from Established Configuration Settings",
+        ("EV-0009",),
+        "Approved deviations are tracked as exceptions.",
+    ),
+    EvidenceSourceMapping(
         "Access Control Records",
         ("EV-0013", "EV-0014"),
         "The broad source phrase includes authorization and periodic access-review records.",
