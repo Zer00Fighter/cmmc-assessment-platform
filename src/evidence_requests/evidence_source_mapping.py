@@ -633,6 +633,76 @@ DEFAULT_EVIDENCE_SOURCE_MAPPINGS: Tuple[EvidenceSourceMapping, ...] = (
         "Security planning governance is consolidated in the security plan.",
     ),
     EvidenceSourceMapping(
+        "Security Planning Policy and Procedures",
+        ("EV-0001",),
+        "Security planning policy and procedural guidance are consolidated in the security plan.",
+    ),
+    EvidenceSourceMapping(
+        "Security Training Curriculum",
+        ("EV-0149",),
+        "Security training curriculum is maintained within the security awareness training procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Security Training Implementation Procedures",
+        ("EV-0149",),
+        "Security training implementation is governed by the security awareness training procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Security Training Materials",
+        ("EV-0149",),
+        "Security training materials are maintained within the security awareness training procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Service Level Agreements",
+        ("EV-0064",),
+        "Service level agreements are third-party agreements.",
+    ),
+    EvidenceSourceMapping(
+        "Session Authenticity Procedures",
+        ("EV-0127",),
+        "Session authenticity is governed by identity and access management procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Session Lock Procedures",
+        ("EV-0127",),
+        "Session locking is governed by identity and access management procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Session Termination Procedures",
+        ("EV-0127",),
+        "Session termination is governed by identity and access management procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Specifications for Preventing Software Program Execution",
+        ("EV-0027",),
+        "Software execution prevention specifications are part of the secure configuration standard.",
+    ),
+    EvidenceSourceMapping(
+        "Storage Locations for Physical Access Control Devices",
+        ("EV-0021", "EV-0140"),
+        "The source combines hardware inventory location data with physical security requirements.",
+    ),
+    EvidenceSourceMapping(
+        "System and Communications Protection Policy",
+        ("EV-0134",),
+        "System and communications protection requirements are governed by the security architecture policy.",
+    ),
+    EvidenceSourceMapping(
+        "System and Information Integrity Policy",
+        ("EV-0002",),
+        "This framework-family policy label is governed within the enterprise security policy.",
+    ),
+    EvidenceSourceMapping(
+        "System Auditable Events",
+        ("EV-0112",),
+        "Auditable event definitions are governed by audit logging procedures.",
+    ),
+    EvidenceSourceMapping(
+        "System Component Installation Records",
+        ("EV-0029", "EV-0025"),
+        "The source combines change management records with asset lifecycle installation records.",
+    ),
+    EvidenceSourceMapping(
         "Access Control Records",
         ("EV-0013", "EV-0014"),
         "The broad source phrase includes authorization and periodic access-review records.",

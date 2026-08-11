@@ -153,12 +153,13 @@ EXPECTED_NAMES = (
     "Security Assessment Procedures",
     "Security Awareness and Training Policy",
     "Security Awareness Training Procedures",
+    "Backup and Recovery Procedures",
 )
 
 
-def test_knowledge_contains_the_approved_first_one_hundred_forty_nine_objects() -> None:
+def test_knowledge_contains_the_approved_first_one_hundred_fifty_objects() -> None:
     assert tuple(item.evidence_id for item in EVIDENCE_KNOWLEDGE) == tuple(
-        f"EV-{index:04d}" for index in range(1, 150)
+        f"EV-{index:04d}" for index in range(1, 151)
     )
     assert tuple(item.canonical_name for item in EVIDENCE_KNOWLEDGE) == EXPECTED_NAMES
 
@@ -414,6 +415,14 @@ def test_sprint_3_10_batch_11_preserves_approved_aliases() -> None:
     assert (
         "Security Awareness Training Materials"
         in aliases_by_name["Security Awareness Training Procedures"]
+    )
+
+
+def test_sprint_3_10_batch_12_preserves_approved_aliases() -> None:
+    aliases_by_name = {item.canonical_name: item.aliases for item in EVIDENCE_KNOWLEDGE}
+
+    assert (
+        "System Backup Procedures" in aliases_by_name["Backup and Recovery Procedures"]
     )
 
 

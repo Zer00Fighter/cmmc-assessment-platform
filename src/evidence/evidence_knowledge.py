@@ -1641,6 +1641,15 @@ EVIDENCE_KNOWLEDGE: Tuple[EvidenceObject, ...] = (
         artifact_type=EvidenceArtifactType.DOCUMENT,
         description="Documents how security awareness training is designed, delivered, maintained, reviewed, and supported by curriculum and training materials.",
     ),
+    # Sprint 3.10 generated-evidence gap curation, Batch 12.
+    _evidence(
+        "EV-0150",
+        "Backup and Recovery Procedures",
+        aliases=("System Backup Procedures", "Data Backup and Recovery Procedures"),
+        category=EvidenceCategory.PROCEDURE,
+        artifact_type=EvidenceArtifactType.DOCUMENT,
+        description="Documents repeatable activities for scheduling, performing, protecting, monitoring, restoring, testing, and retaining backups.",
+    ),
 )
 
 

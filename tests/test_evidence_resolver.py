@@ -11,10 +11,10 @@ from src.evidence.evidence_resolver import (
 )
 
 
-def test_knowledge_contains_approved_first_one_hundred_forty_nine_objects() -> None:
-    assert len(EVIDENCE_KNOWLEDGE) == 149
+def test_knowledge_contains_approved_first_one_hundred_fifty_objects() -> None:
+    assert len(EVIDENCE_KNOWLEDGE) == 150
     assert EVIDENCE_KNOWLEDGE[0].evidence_id == "EV-0001"
-    assert EVIDENCE_KNOWLEDGE[-1].evidence_id == "EV-0149"
+    assert EVIDENCE_KNOWLEDGE[-1].evidence_id == "EV-0150"
 
 
 def test_resolves_canonical_name_exactly() -> None:
@@ -292,6 +292,12 @@ def test_sprint_3_10_batch_10_aliases_resolve(alias: str, evidence_id: str) -> N
 )
 def test_sprint_3_10_batch_11_aliases_resolve(alias: str, evidence_id: str) -> None:
     assert EvidenceResolver().resolve(alias).evidence_id == evidence_id
+
+
+def test_sprint_3_10_batch_12_alias_resolves() -> None:
+    assert (
+        EvidenceResolver().resolve("System Backup Procedures").evidence_id == "EV-0150"
+    )
 
 
 def test_ambiguous_names_are_rejected() -> None:
