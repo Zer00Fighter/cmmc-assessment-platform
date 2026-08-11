@@ -143,6 +143,31 @@ DEFAULT_EVIDENCE_SOURCE_MAPPINGS: Tuple[EvidenceSourceMapping, ...] = (
         "Approved deviations are tracked as exceptions.",
     ),
     EvidenceSourceMapping(
+        "Identifier Management Procedures",
+        ("EV-0127",),
+        "The source is an identity and access management procedure variant.",
+    ),
+    EvidenceSourceMapping(
+        "Incident Monitoring Procedures",
+        ("EV-0042",),
+        "The source is an incident-response procedure variant.",
+    ),
+    EvidenceSourceMapping(
+        "Incident Reporting Procedures",
+        ("EV-0042",),
+        "The source is an incident-response procedure variant.",
+    ),
+    EvidenceSourceMapping(
+        "Incident Response Assistance Procedures",
+        ("EV-0042",),
+        "The source is an incident-response procedure variant.",
+    ),
+    EvidenceSourceMapping(
+        "Incident Response Test Results",
+        ("EV-0044",),
+        "Incident response test results are incident response exercise records.",
+    ),
+    EvidenceSourceMapping(
         "Access Control Records",
         ("EV-0013", "EV-0014"),
         "The broad source phrase includes authorization and periodic access-review records.",

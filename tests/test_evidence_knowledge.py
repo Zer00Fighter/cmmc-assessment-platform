@@ -128,14 +128,23 @@ EXPECTED_NAMES = (
     "Separation of Duties Procedures",
     "System Use Banner Policy",
     "Facility Diagram",
+    "Vulnerability Remediation Procedures",
+    "Identity and Access Management Policy",
+    "Identity and Access Management Procedures",
+    "Incident Response Policy",
+    "Incident Response Exercise Plan",
+    "Incident Response Exercise Materials",
+    "Incident Response Exercise Procedures",
+    "Incident Response Training Materials",
+    "Incident Response Training Procedures",
 )
 
 
-def test_knowledge_contains_the_approved_first_one_hundred_twenty_four_objects() -> (
+def test_knowledge_contains_the_approved_first_one_hundred_thirty_three_objects() -> (
     None
 ):
     assert tuple(item.evidence_id for item in EVIDENCE_KNOWLEDGE) == tuple(
-        f"EV-{index:04d}" for index in range(1, 125)
+        f"EV-{index:04d}" for index in range(1, 134)
     )
     assert tuple(item.canonical_name for item in EVIDENCE_KNOWLEDGE) == EXPECTED_NAMES
 
@@ -297,6 +306,27 @@ def test_sprint_3_10_batch_3_preserves_approved_aliases() -> None:
     assert "SoD Procedures" in aliases_by_name["Separation of Duties Procedures"]
     assert "Login Banner Policy" in aliases_by_name["System Use Banner Policy"]
     assert "Facility Diagram or Layout" in aliases_by_name["Facility Diagram"]
+
+
+def test_sprint_3_10_batch_4_preserves_approved_aliases() -> None:
+    aliases_by_name = {item.canonical_name: item.aliases for item in EVIDENCE_KNOWLEDGE}
+
+    assert (
+        "Flaw Remediation Procedures"
+        in aliases_by_name["Vulnerability Remediation Procedures"]
+    )
+    assert "IAM Policy" in aliases_by_name["Identity and Access Management Policy"]
+    assert (
+        "IAM Procedures" in aliases_by_name["Identity and Access Management Procedures"]
+    )
+    assert (
+        "Incident Response Test Plan"
+        in aliases_by_name["Incident Response Exercise Plan"]
+    )
+    assert (
+        "Incident Response Training Curriculum"
+        in aliases_by_name["Incident Response Training Materials"]
+    )
 
 
 def test_remediation_plan_is_not_a_poam_category() -> None:

@@ -11,10 +11,10 @@ from src.evidence.evidence_resolver import (
 )
 
 
-def test_knowledge_contains_approved_first_one_hundred_twenty_four_objects() -> None:
-    assert len(EVIDENCE_KNOWLEDGE) == 124
+def test_knowledge_contains_approved_first_one_hundred_thirty_three_objects() -> None:
+    assert len(EVIDENCE_KNOWLEDGE) == 133
     assert EVIDENCE_KNOWLEDGE[0].evidence_id == "EV-0001"
-    assert EVIDENCE_KNOWLEDGE[-1].evidence_id == "EV-0124"
+    assert EVIDENCE_KNOWLEDGE[-1].evidence_id == "EV-0133"
 
 
 def test_resolves_canonical_name_exactly() -> None:
@@ -209,6 +209,23 @@ def test_sprint_3_10_batch_2_aliases_resolve(alias: str, evidence_id: str) -> No
     ),
 )
 def test_sprint_3_10_batch_3_aliases_resolve(alias: str, evidence_id: str) -> None:
+    assert EvidenceResolver().resolve(alias).evidence_id == evidence_id
+
+
+@pytest.mark.parametrize(
+    ("alias", "evidence_id"),
+    (
+        ("Flaw Remediation Procedures", "EV-0125"),
+        ("IAM Policy", "EV-0126"),
+        ("IAM Procedures", "EV-0127"),
+        ("Incident Response Test Plan", "EV-0129"),
+        ("Incident Response Testing Material", "EV-0130"),
+        ("Incident Response Testing Procedures", "EV-0131"),
+        ("Incident Response Training Curriculum", "EV-0132"),
+        ("IR Training Procedures", "EV-0133"),
+    ),
+)
+def test_sprint_3_10_batch_4_aliases_resolve(alias: str, evidence_id: str) -> None:
     assert EvidenceResolver().resolve(alias).evidence_id == evidence_id
 
 
