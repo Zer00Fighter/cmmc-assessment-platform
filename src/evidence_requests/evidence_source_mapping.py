@@ -703,6 +703,81 @@ DEFAULT_EVIDENCE_SOURCE_MAPPINGS: Tuple[EvidenceSourceMapping, ...] = (
         "The source combines change management records with asset lifecycle installation records.",
     ),
     EvidenceSourceMapping(
+        "System Component Removal Records",
+        ("EV-0029", "EV-0025"),
+        "The source combines change management records with asset lifecycle removal records.",
+    ),
+    EvidenceSourceMapping(
+        "System Configuration Change Control Procedures",
+        ("EV-0089",),
+        "System configuration change control is governed by configuration management procedures.",
+    ),
+    EvidenceSourceMapping(
+        "System Configuration Settings and Associated Documentation",
+        ("EV-0026", "EV-0028"),
+        "The source combines the approved configuration baseline with exported system configuration evidence.",
+    ),
+    EvidenceSourceMapping(
+        "System Connection or Processing Agreements",
+        ("EV-0064",),
+        "System connection and processing agreements are third-party agreements.",
+    ),
+    EvidenceSourceMapping(
+        "System Entry and Exit Points",
+        ("EV-0031", "EV-0033"),
+        "System entry and exit points are represented in network diagrams and system architecture documentation.",
+    ),
+    EvidenceSourceMapping(
+        "System Events",
+        ("EV-0036",),
+        "The source is an audit log event variant.",
+    ),
+    EvidenceSourceMapping(
+        "System Generated List of Privileged Users with Access to Management of Audit Logging Functionality",
+        ("EV-0012", "EV-0083"),
+        "The source combines privileged account inventory data with access permissions for audit logging administration.",
+    ),
+    EvidenceSourceMapping(
+        "System Hardware and Software",
+        ("EV-0021", "EV-0022"),
+        "The source combines hardware and software asset inventories.",
+    ),
+    EvidenceSourceMapping(
+        "System Inventory Procedures",
+        ("EV-0139",),
+        "System inventory activities are governed by asset management procedures.",
+    ),
+    EvidenceSourceMapping(
+        "System Inventory Records",
+        ("EV-0021", "EV-0022", "EV-0023"),
+        "System inventory records comprise hardware, software, and information asset inventories.",
+    ),
+    EvidenceSourceMapping(
+        "System Maintenance Tools Procedures",
+        ("EV-0097", "EV-0099"),
+        "The source combines maintenance procedures with the maintenance tool inventory.",
+    ),
+    EvidenceSourceMapping(
+        "System Monitoring Audit Records",
+        ("EV-0036", "EV-0080"),
+        "The source combines audit logs with security operations monitoring reports.",
+    ),
+    EvidenceSourceMapping(
+        "System Monitoring Records",
+        ("EV-0080",),
+        "System monitoring records are represented by security operations reports.",
+    ),
+    EvidenceSourceMapping(
+        "System Monitoring Tools and Techniques Documentation",
+        ("EV-0039", "EV-0105"),
+        "The source combines security monitoring configuration with the security analysis tool inventory.",
+    ),
+    EvidenceSourceMapping(
+        "System Monitoring Tools and Techniques Procedures",
+        ("EV-0075",),
+        "System monitoring tools and techniques are governed by security operations procedures.",
+    ),
+    EvidenceSourceMapping(
         "Access Control Records",
         ("EV-0013", "EV-0014"),
         "The broad source phrase includes authorization and periodic access-review records.",

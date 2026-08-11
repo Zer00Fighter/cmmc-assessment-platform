@@ -121,6 +121,26 @@ def test_batch_12_component_installation_preserves_change_and_lifecycle() -> Non
     assert tuple(item.evidence_id for item in resolved) == ("EV-0029", "EV-0025")
 
 
+def test_batch_13_system_inventory_preserves_all_asset_classes() -> None:
+    resolved = default_evidence_source_mapping_catalog().resolve(
+        "System Inventory Records"
+    )
+
+    assert tuple(item.evidence_id for item in resolved) == (
+        "EV-0021",
+        "EV-0022",
+        "EV-0023",
+    )
+
+
+def test_batch_13_monitoring_documentation_preserves_config_and_tools() -> None:
+    resolved = default_evidence_source_mapping_catalog().resolve(
+        "System Monitoring Tools and Techniques Documentation"
+    )
+
+    assert tuple(item.evidence_id for item in resolved) == ("EV-0039", "EV-0105")
+
+
 def test_unknown_source_title_returns_no_mapping() -> None:
     assert default_evidence_source_mapping_catalog().resolve("Unknown") == ()
 
