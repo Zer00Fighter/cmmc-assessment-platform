@@ -104,12 +104,23 @@ EXPECTED_NAMES = (
     "Maintenance Records",
     "Maintenance Tool Inventory",
     "Maintenance Tool Inspection Records",
+    "Mobile Device Access Procedures",
+    "Account Management Review Records",
+    "Configuration Change Control Meeting Records",
+    "Alternate Work Site Security Procedures",
+    "Security Analysis Tool Inventory",
+    "Security Analysis Results",
+    "Media Handling and Sanitization Policy",
+    "Application Segmentation and Isolation Procedures",
+    "Alternate Work Site Security Assessment",
+    "Audit and Accountability Policy",
+    "Audit Logging Tool Inventory",
 )
 
 
-def test_knowledge_contains_the_approved_first_one_hundred_objects() -> None:
+def test_knowledge_contains_the_approved_first_one_hundred_eleven_objects() -> None:
     assert tuple(item.evidence_id for item in EVIDENCE_KNOWLEDGE) == tuple(
-        f"EV-{index:04d}" for index in range(1, 101)
+        f"EV-{index:04d}" for index in range(1, 112)
     )
     assert tuple(item.canonical_name for item in EVIDENCE_KNOWLEDGE) == EXPECTED_NAMES
 
@@ -224,6 +235,29 @@ def test_sprint_3_9_objects_preserve_framework_agnostic_aliases() -> None:
     )
     assert "System Maintenance Policy" in aliases_by_name["Maintenance Policy"]
     assert "Maintenance Logs" in aliases_by_name["Maintenance Records"]
+
+
+def test_sprint_3_10_batch_1_preserves_approved_aliases() -> None:
+    aliases_by_name = {item.canonical_name: item.aliases for item in EVIDENCE_KNOWLEDGE}
+
+    assert (
+        "Mobile Device Security Procedures"
+        in aliases_by_name["Mobile Device Access Procedures"]
+    )
+    assert (
+        "Account Management Compliance Reviews"
+        in aliases_by_name["Account Management Review Records"]
+    )
+    assert "Security Analysis Outputs" in aliases_by_name["Security Analysis Results"]
+    assert (
+        "Media Sanitization Policy"
+        in aliases_by_name["Media Handling and Sanitization Policy"]
+    )
+    assert (
+        "Application Partitioning Procedures"
+        in aliases_by_name["Application Segmentation and Isolation Procedures"]
+    )
+    assert "Audit Logging Tools" in aliases_by_name["Audit Logging Tool Inventory"]
 
 
 def test_remediation_plan_is_not_a_poam_category() -> None:

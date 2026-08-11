@@ -28,6 +28,14 @@ def test_mapping_lookup_is_case_insensitive_and_trimmed() -> None:
     assert tuple(item.evidence_id for item in resolved) == ("EV-0077", "EV-0078")
 
 
+def test_batch_1_compound_mapping_preserves_independent_artifacts() -> None:
+    resolved = default_evidence_source_mapping_catalog().resolve(
+        "Analysis Tools and Associated Outputs"
+    )
+
+    assert tuple(item.evidence_id for item in resolved) == ("EV-0105", "EV-0106")
+
+
 def test_unknown_source_title_returns_no_mapping() -> None:
     assert default_evidence_source_mapping_catalog().resolve("Unknown") == ()
 

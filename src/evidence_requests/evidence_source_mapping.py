@@ -88,9 +88,34 @@ class EvidenceSourceMappingCatalog:
 
 DEFAULT_EVIDENCE_SOURCE_MAPPINGS: Tuple[EvidenceSourceMapping, ...] = (
     EvidenceSourceMapping(
+        "Access Control Records",
+        ("EV-0013", "EV-0014"),
+        "The broad source phrase includes authorization and periodic access-review records.",
+    ),
+    EvidenceSourceMapping(
+        "Access Enforcement Procedures",
+        ("EV-0082",),
+        "The source is an access-control procedure variant.",
+    ),
+    EvidenceSourceMapping(
         "Access Control Policy and Procedures",
         ("EV-0081", "EV-0082"),
         "The source combines access control policy and procedure artifacts.",
+    ),
+    EvidenceSourceMapping(
+        "Access Restrictions for Changes to the System Procedures",
+        ("EV-0082", "EV-0089"),
+        "The source combines access restrictions with configuration-change procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Account Management Documents",
+        ("EV-0084",),
+        "The source wording refers to account-management process documentation.",
+    ),
+    EvidenceSourceMapping(
+        "Analysis Tools and Associated Outputs",
+        ("EV-0105", "EV-0106"),
+        "The source combines the analysis-tool inventory with resulting analysis outputs.",
     ),
     EvidenceSourceMapping(
         "Configuration Management Policy and Procedures",
