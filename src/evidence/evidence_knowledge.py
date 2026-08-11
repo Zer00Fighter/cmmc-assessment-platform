@@ -1575,6 +1575,26 @@ EVIDENCE_KNOWLEDGE: Tuple[EvidenceObject, ...] = (
         artifact_type=EvidenceArtifactType.DOCUMENT,
         description="Documents repeatable activities for preventing, detecting, analyzing, containing, and remediating malicious code.",
     ),
+    # Sprint 3.10 generated-evidence gap curation, Batch 8.
+    _evidence(
+        "EV-0143",
+        "Risk Assessment Procedures",
+        aliases=(
+            "Risk Analysis Procedures",
+            "Organizational Risk Assessment Procedures",
+        ),
+        category=EvidenceCategory.PROCEDURE,
+        artifact_type=EvidenceArtifactType.DOCUMENT,
+        description="Documents repeatable activities for identifying, analyzing, evaluating, documenting, reviewing, and updating risk assessments.",
+    ),
+    _evidence(
+        "EV-0144",
+        "Human Resources Manual",
+        aliases=("HR Manual", "Personnel Manual", "Employee Handbook"),
+        category=EvidenceCategory.POLICY,
+        artifact_type=EvidenceArtifactType.DOCUMENT,
+        description="Defines personnel lifecycle requirements, including screening, conduct, security responsibilities, transfers, and termination or offboarding.",
+    ),
 )
 
 

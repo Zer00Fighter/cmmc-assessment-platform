@@ -146,12 +146,14 @@ EXPECTED_NAMES = (
     "Physical Security Policy",
     "Public Communications Procedures",
     "Malware Protection Procedures",
+    "Risk Assessment Procedures",
+    "Human Resources Manual",
 )
 
 
-def test_knowledge_contains_the_approved_first_one_hundred_forty_two_objects() -> None:
+def test_knowledge_contains_the_approved_first_one_hundred_forty_four_objects() -> None:
     assert tuple(item.evidence_id for item in EVIDENCE_KNOWLEDGE) == tuple(
-        f"EV-{index:04d}" for index in range(1, 143)
+        f"EV-{index:04d}" for index in range(1, 145)
     )
     assert tuple(item.canonical_name for item in EVIDENCE_KNOWLEDGE) == EXPECTED_NAMES
 
@@ -371,6 +373,14 @@ def test_sprint_3_10_batch_7_preserves_approved_aliases() -> None:
         "Malicious Code Protection Procedures"
         in aliases_by_name["Malware Protection Procedures"]
     )
+
+
+def test_sprint_3_10_batch_8_preserves_approved_aliases() -> None:
+    aliases_by_name = {item.canonical_name: item.aliases for item in EVIDENCE_KNOWLEDGE}
+
+    assert "Risk Analysis Procedures" in aliases_by_name["Risk Assessment Procedures"]
+    assert "HR Manual" in aliases_by_name["Human Resources Manual"]
+    assert "Employee Handbook" in aliases_by_name["Human Resources Manual"]
 
 
 def test_remediation_plan_is_not_a_poam_category() -> None:

@@ -29,6 +29,15 @@ def test_owner_exclusion_is_distinct_from_reference_material() -> None:
     assert disposition.kind == EvidenceSourceDispositionKind.COLLECTION_EXCLUDED
 
 
+def test_open_ended_collection_instruction_is_explicitly_excluded() -> None:
+    disposition = default_evidence_source_disposition_catalog().resolve(
+        "Other Relevant Documents or Records"
+    )
+
+    assert disposition is not None
+    assert disposition.kind == EvidenceSourceDispositionKind.COLLECTION_EXCLUDED
+
+
 def test_unknown_title_has_no_disposition() -> None:
     assert default_evidence_source_disposition_catalog().resolve("Unknown") is None
 

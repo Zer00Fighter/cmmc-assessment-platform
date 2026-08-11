@@ -378,6 +378,76 @@ DEFAULT_EVIDENCE_SOURCE_MAPPINGS: Tuple[EvidenceSourceMapping, ...] = (
         "The source combines maintenance procedures with the authorized personnel list.",
     ),
     EvidenceSourceMapping(
+        "Manufacturer or Vendor Maintenance Specifications",
+        ("EV-0097", "EV-0064"),
+        "Vendor maintenance requirements inform internal maintenance procedures and applicable third-party agreements.",
+    ),
+    EvidenceSourceMapping(
+        "Media Storage Facilities",
+        ("EV-0093", "EV-0140"),
+        "The media inventory identifies storage locations, while the physical security policy defines their required protection.",
+    ),
+    EvidenceSourceMapping(
+        "Mobile Code Procedures",
+        ("EV-0027",),
+        "Mobile code approval, restriction, and implementation requirements are governed by the secure configuration standard.",
+    ),
+    EvidenceSourceMapping(
+        "Mobile Code Usage Restrictions Mobile Code Implementation Policy and Procedures",
+        ("EV-0027",),
+        "Mobile code usage restrictions and implementation requirements are governed by the secure configuration standard.",
+    ),
+    EvidenceSourceMapping(
+        "Network Disconnect Procedures",
+        ("EV-0113",),
+        "Network disconnection activities are part of boundary protection procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Organizational Procedures Addressing Security Plan Development and Implementation",
+        ("EV-0001",),
+        "Security plan development and implementation instructions are contained in the security plan.",
+    ),
+    EvidenceSourceMapping(
+        "Organizational Risk Assessments Procedures",
+        ("EV-0143",),
+        "The source is a risk assessment procedure variant.",
+    ),
+    EvidenceSourceMapping(
+        "Personnel Screening Procedures",
+        ("EV-0144",),
+        "Personnel screening requirements are maintained as a section of the human resources manual.",
+    ),
+    EvidenceSourceMapping(
+        "Personnel Security Policy",
+        ("EV-0144",),
+        "Personnel security requirements are maintained as a section of the human resources manual.",
+    ),
+    EvidenceSourceMapping(
+        "Personnel Transfer and Termination Procedures",
+        ("EV-0144",),
+        "Transfer and termination requirements are maintained as sections of the human resources manual.",
+    ),
+    EvidenceSourceMapping(
+        "Physical Access Authorizations Procedures",
+        ("EV-0082",),
+        "Physical access authorization follows the unified access control procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Physical Access Control Devices",
+        ("EV-0021",),
+        "Physical access control devices are represented in the hardware asset inventory.",
+    ),
+    EvidenceSourceMapping(
+        "Physical Access Control Procedures",
+        ("EV-0082",),
+        "Physical and logical access controls follow the unified access control procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Physical Access List Reviews",
+        ("EV-0082",),
+        "Physical access list review is part of the unified access control lifecycle.",
+    ),
+    EvidenceSourceMapping(
         "Access Control Records",
         ("EV-0013", "EV-0014"),
         "The broad source phrase includes authorization and periodic access-review records.",

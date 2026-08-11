@@ -73,6 +73,14 @@ def test_batch_7_public_publishers_map_to_public_communications_procedures() -> 
     assert tuple(item.evidence_id for item in resolved) == ("EV-0141",)
 
 
+def test_batch_8_personnel_lifecycle_maps_to_human_resources_manual() -> None:
+    resolved = default_evidence_source_mapping_catalog().resolve(
+        "Personnel Transfer and Termination Procedures"
+    )
+
+    assert tuple(item.evidence_id for item in resolved) == ("EV-0144",)
+
+
 def test_unknown_source_title_returns_no_mapping() -> None:
     assert default_evidence_source_mapping_catalog().resolve("Unknown") == ()
 
