@@ -588,6 +588,51 @@ DEFAULT_EVIDENCE_SOURCE_MAPPINGS: Tuple[EvidenceSourceMapping, ...] = (
         "The source combines security operations reporting with the malware protection configuration that produced the results.",
     ),
     EvidenceSourceMapping(
+        "Security Alerts Advisories and Directives Procedures",
+        ("EV-0075", "EV-0040"),
+        "The source combines security operations procedures with the security alerts they govern.",
+    ),
+    EvidenceSourceMapping(
+        "Security Assessment and Authorization Policy",
+        ("EV-0002",),
+        "Security assessment and authorization requirements are maintained within the enterprise security policy.",
+    ),
+    EvidenceSourceMapping(
+        "Security Assessment Evidence",
+        ("EV-0008",),
+        "The source is a security assessment evidence variant.",
+    ),
+    EvidenceSourceMapping(
+        "Security Assessment Planning Procedures",
+        ("EV-0147",),
+        "Security assessment planning is governed by the security assessment procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Security Configuration Checklists",
+        ("EV-0027",),
+        "Security configuration checklists implement the secure configuration standard.",
+    ),
+    EvidenceSourceMapping(
+        "Security Impact Analysis for Changes to the System Procedures",
+        ("EV-0089", "EV-0090"),
+        "The source combines configuration management procedures with security impact analysis evidence.",
+    ),
+    EvidenceSourceMapping(
+        "Security Plan Development and Implementation Procedures",
+        ("EV-0001",),
+        "Security plan development and implementation instructions are contained in the security plan.",
+    ),
+    EvidenceSourceMapping(
+        "Security Plan Reviews and Updates Procedures",
+        ("EV-0001",),
+        "Security plan review and update instructions are contained in the security plan.",
+    ),
+    EvidenceSourceMapping(
+        "Security Planning Policy",
+        ("EV-0001",),
+        "Security planning governance is consolidated in the security plan.",
+    ),
+    EvidenceSourceMapping(
         "Access Control Records",
         ("EV-0013", "EV-0014"),
         "The broad source phrase includes authorization and periodic access-review records.",

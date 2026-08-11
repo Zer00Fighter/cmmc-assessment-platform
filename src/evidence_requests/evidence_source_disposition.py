@@ -88,6 +88,11 @@ DEFAULT_EVIDENCE_SOURCE_DISPOSITIONS: Tuple[EvidenceSourceDisposition, ...] = (
         EvidenceSourceDispositionKind.COLLECTION_EXCLUDED,
         "This open-ended collection instruction is not a stable, independently collectible evidence object.",
     ),
+    EvidenceSourceDisposition(
+        "Security Assessment Plan",
+        EvidenceSourceDispositionKind.COLLECTION_EXCLUDED,
+        "The owner explicitly excluded this generated source title from collection.",
+    ),
 )
 
 

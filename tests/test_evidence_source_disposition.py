@@ -47,6 +47,15 @@ def test_open_ended_collection_instruction_is_explicitly_excluded() -> None:
     assert disposition.kind == EvidenceSourceDispositionKind.COLLECTION_EXCLUDED
 
 
+def test_owner_disregarded_assessment_plan_is_explicitly_excluded() -> None:
+    disposition = default_evidence_source_disposition_catalog().resolve(
+        "Security Assessment Plan"
+    )
+
+    assert disposition is not None
+    assert disposition.kind == EvidenceSourceDispositionKind.COLLECTION_EXCLUDED
+
+
 def test_unknown_title_has_no_disposition() -> None:
     assert default_evidence_source_disposition_catalog().resolve("Unknown") is None
 

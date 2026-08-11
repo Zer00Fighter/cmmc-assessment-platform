@@ -150,12 +150,15 @@ EXPECTED_NAMES = (
     "Human Resources Manual",
     "Risk Management Policy",
     "Acceptable Use Policy",
+    "Security Assessment Procedures",
+    "Security Awareness and Training Policy",
+    "Security Awareness Training Procedures",
 )
 
 
-def test_knowledge_contains_the_approved_first_one_hundred_forty_six_objects() -> None:
+def test_knowledge_contains_the_approved_first_one_hundred_forty_nine_objects() -> None:
     assert tuple(item.evidence_id for item in EVIDENCE_KNOWLEDGE) == tuple(
-        f"EV-{index:04d}" for index in range(1, 147)
+        f"EV-{index:04d}" for index in range(1, 150)
     )
     assert tuple(item.canonical_name for item in EVIDENCE_KNOWLEDGE) == EXPECTED_NAMES
 
@@ -391,6 +394,27 @@ def test_sprint_3_10_batch_10_preserves_approved_aliases() -> None:
     assert "ERM Policy" in aliases_by_name["Risk Management Policy"]
     assert "Rules of Behavior" in aliases_by_name["Acceptable Use Policy"]
     assert "AUP" in aliases_by_name["Acceptable Use Policy"]
+
+
+def test_sprint_3_10_batch_11_preserves_approved_aliases() -> None:
+    aliases_by_name = {item.canonical_name: item.aliases for item in EVIDENCE_KNOWLEDGE}
+
+    assert (
+        "Security Assessments Procedures"
+        in aliases_by_name["Security Assessment Procedures"]
+    )
+    assert (
+        "Security Training Policy"
+        in aliases_by_name["Security Awareness and Training Policy"]
+    )
+    assert (
+        "Security Awareness Training Curriculum"
+        in aliases_by_name["Security Awareness Training Procedures"]
+    )
+    assert (
+        "Security Awareness Training Materials"
+        in aliases_by_name["Security Awareness Training Procedures"]
+    )
 
 
 def test_remediation_plan_is_not_a_poam_category() -> None:

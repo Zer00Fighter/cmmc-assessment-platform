@@ -1612,6 +1612,35 @@ EVIDENCE_KNOWLEDGE: Tuple[EvidenceObject, ...] = (
         artifact_type=EvidenceArtifactType.DOCUMENT,
         description="Defines acceptable and prohibited use of organizational systems, information, devices, services, and other technology resources.",
     ),
+    # Sprint 3.10 generated-evidence gap curation, Batch 11.
+    _evidence(
+        "EV-0147",
+        "Security Assessment Procedures",
+        aliases=("Security Assessments Procedures", "Assessment Procedures"),
+        category=EvidenceCategory.PROCEDURE,
+        artifact_type=EvidenceArtifactType.DOCUMENT,
+        description="Documents repeatable activities for planning, conducting, documenting, reviewing, and following up on security assessments.",
+    ),
+    _evidence(
+        "EV-0148",
+        "Security Awareness and Training Policy",
+        aliases=("Security Training Policy", "Awareness and Training Policy"),
+        category=EvidenceCategory.POLICY,
+        artifact_type=EvidenceArtifactType.DOCUMENT,
+        description="Defines requirements, responsibilities, scope, frequency, and oversight for security awareness and training.",
+    ),
+    _evidence(
+        "EV-0149",
+        "Security Awareness Training Procedures",
+        aliases=(
+            "Security Awareness Training Curriculum",
+            "Security Awareness Training Implementation Procedures",
+            "Security Awareness Training Materials",
+        ),
+        category=EvidenceCategory.PROCEDURE,
+        artifact_type=EvidenceArtifactType.DOCUMENT,
+        description="Documents how security awareness training is designed, delivered, maintained, reviewed, and supported by curriculum and training materials.",
+    ),
 )
 
 
