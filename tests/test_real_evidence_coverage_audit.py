@@ -71,6 +71,7 @@ def test_real_audit_totals_are_consistent(coverage_report) -> None:
     assert (
         coverage_report.canonical_matches
         + coverage_report.alias_matches
+        + coverage_report.curated_mappings
         + coverage_report.unresolved
         == coverage_report.total_requests
     )
@@ -83,6 +84,7 @@ def test_print_real_evidence_coverage(coverage_report) -> None:
     print(f"Generated requests: {coverage_report.total_requests}")
     print(f"Canonical matches:  {coverage_report.canonical_matches}")
     print(f"Alias matches:      {coverage_report.alias_matches}")
+    print(f"Curated mappings:   {coverage_report.curated_mappings}")
     print(f"Unresolved:         {coverage_report.unresolved}")
     print(f"Coverage:           {coverage_report.coverage_percent:.2f}%")
     print(

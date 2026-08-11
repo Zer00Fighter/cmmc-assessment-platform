@@ -10,6 +10,10 @@ from src.evidence_requests.drl_model import (
     DocumentationRequest,
     DocumentationRequestCollection,
 )
+from src.evidence_requests.evidence_source_mapping import (
+    EvidenceSourceMappingCatalog,
+    default_evidence_source_mapping_catalog,
+)
 
 
 class EvidenceCoverageAuditError(ValueError):
@@ -21,6 +25,7 @@ class EvidenceCoverageMatchKind(str, Enum):
 
     CANONICAL = "Canonical"
     ALIAS = "Alias"
+    CURATED_MAPPING = "Curated Mapping"
     UNRESOLVED = "Unresolved"
 
 
@@ -31,8 +36,8 @@ class EvidenceCoverageEntry:
     request_id: str
     requested_item: str
     match_kind: EvidenceCoverageMatchKind
-    evidence_id: str | None
-    canonical_name: str
+    evidence_ids: Tuple[str, ...]
+    canonical_names: Tuple[str, ...]
     matched_name: str
     framework_ids: Tuple[str, ...]
     control_ids: Tuple[str, ...]
@@ -42,7 +47,15 @@ class EvidenceCoverageEntry:
 
     @property
     def resolved(self) -> bool:
-        return self.evidence_id is not None
+        return bool(self.evidence_ids)
+
+    @property
+    def evidence_id(self) -> str | None:
+        return self.evidence_ids[0] if len(self.evidence_ids) == 1 else None
+
+    @property
+    def canonical_name(self) -> str:
+        return self.canonical_names[0] if len(self.canonical_names) == 1 else ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +98,13 @@ class EvidenceCoverageReport:
     def alias_matches(self) -> int:
         return sum(
             entry.match_kind == EvidenceCoverageMatchKind.ALIAS
+            for entry in self.entries
+        )
+
+    @property
+    def curated_mappings(self) -> int:
+        return sum(
+            entry.match_kind == EvidenceCoverageMatchKind.CURATED_MAPPING
             for entry in self.entries
         )
 
@@ -141,8 +161,15 @@ class EvidenceCoverageReport:
 class EvidenceCoverageAuditor:
     """Audit generated DRL titles against canonical Evidence Knowledge."""
 
-    def __init__(self, resolver: EvidenceResolver | None = None) -> None:
+    def __init__(
+        self,
+        resolver: EvidenceResolver | None = None,
+        mapping_catalog: EvidenceSourceMappingCatalog | None = None,
+    ) -> None:
         self.resolver = resolver or EvidenceResolver()
+        self.mapping_catalog = (
+            mapping_catalog or default_evidence_source_mapping_catalog()
+        )
 
     def audit(
         self,
@@ -182,9 +209,15 @@ class EvidenceCoverageAuditor:
         evidence = resolution.evidence
 
         if evidence is None:
-            match_kind = EvidenceCoverageMatchKind.UNRESOLVED
-            evidence_id = None
-            canonical_name = ""
+            mapped_evidence = self.mapping_catalog.resolve(request.requested_item)
+            if mapped_evidence:
+                match_kind = EvidenceCoverageMatchKind.CURATED_MAPPING
+                evidence_ids = tuple(item.evidence_id for item in mapped_evidence)
+                canonical_names = tuple(item.canonical_name for item in mapped_evidence)
+            else:
+                match_kind = EvidenceCoverageMatchKind.UNRESOLVED
+                evidence_ids = ()
+                canonical_names = ()
         else:
             match_kind = (
                 EvidenceCoverageMatchKind.CANONICAL
@@ -192,15 +225,15 @@ class EvidenceCoverageAuditor:
                 == evidence.canonical_name.casefold()
                 else EvidenceCoverageMatchKind.ALIAS
             )
-            evidence_id = evidence.evidence_id
-            canonical_name = evidence.canonical_name
+            evidence_ids = (evidence.evidence_id,)
+            canonical_names = (evidence.canonical_name,)
 
         return EvidenceCoverageEntry(
             request_id=request.request_id,
             requested_item=request.requested_item,
             match_kind=match_kind,
-            evidence_id=evidence_id,
-            canonical_name=canonical_name,
+            evidence_ids=evidence_ids,
+            canonical_names=canonical_names,
             matched_name=resolution.matched_name,
             framework_ids=request.framework_ids,
             control_ids=request.control_ids,

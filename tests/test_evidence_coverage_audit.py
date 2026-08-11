@@ -150,3 +150,28 @@ def test_audit_reports_missing_objective_traceability() -> None:
     assert report.objective_traced_requests == 0
     assert report.missing_objective_trace == 1
     assert report.missing_objective_titles == ("Security Plan",)
+
+
+def test_audit_supports_curated_one_to_many_source_mapping() -> None:
+    collection = DocumentationRequestCollection(
+        framework_id="TEST",
+        requests=[
+            request(
+                "DRL-001",
+                "Security Plan System Design Documentation",
+                family="CA",
+            )
+        ],
+    )
+
+    report = EvidenceCoverageAuditor().audit(collection)
+    entry = report.entries[0]
+
+    assert entry.match_kind == EvidenceCoverageMatchKind.CURATED_MAPPING
+    assert entry.evidence_ids == ("EV-0001", "EV-0033")
+    assert entry.canonical_names == (
+        "Security Plan",
+        "System Architecture Documentation",
+    )
+    assert entry.evidence_id is None
+    assert report.curated_mappings == 1
