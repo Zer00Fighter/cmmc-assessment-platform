@@ -97,6 +97,14 @@ def test_batch_9_public_information_response_preserves_incident_and_comms() -> N
     assert tuple(item.evidence_id for item in resolved) == ("EV-0043", "EV-0141")
 
 
+def test_batch_10_risk_review_preserves_assessment_and_procedures() -> None:
+    resolved = default_evidence_source_mapping_catalog().resolve(
+        "Risk Assessment Reviews"
+    )
+
+    assert tuple(item.evidence_id for item in resolved) == ("EV-0005", "EV-0143")
+
+
 def test_unknown_source_title_returns_no_mapping() -> None:
     assert default_evidence_source_mapping_catalog().resolve("Unknown") == ()
 

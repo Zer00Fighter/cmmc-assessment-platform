@@ -20,6 +20,15 @@ def test_reference_material_is_classified_exactly() -> None:
     assert disposition.kind == EvidenceSourceDispositionKind.AUTHORITATIVE_REFERENCE
 
 
+def test_relevant_regulatory_reference_is_classified_exactly() -> None:
+    disposition = default_evidence_source_disposition_catalog().resolve(
+        "Relevant Codes of Federal Regulations"
+    )
+
+    assert disposition is not None
+    assert disposition.kind == EvidenceSourceDispositionKind.AUTHORITATIVE_REFERENCE
+
+
 def test_owner_exclusion_is_distinct_from_reference_material() -> None:
     disposition = default_evidence_source_disposition_catalog().resolve(
         "Collaborative Computing Procedures"

@@ -523,6 +523,71 @@ DEFAULT_EVIDENCE_SOURCE_MAPPINGS: Tuple[EvidenceSourceMapping, ...] = (
         "The source combines incident response evidence with public communications correction and removal procedures.",
     ),
     EvidenceSourceMapping(
+        "Records of Security Plan Reviews and Updates",
+        ("EV-0001",),
+        "Review history and revision evidence are retained with the security plan.",
+    ),
+    EvidenceSourceMapping(
+        "Records of Terminated or Revoked Authenticators and Credentials",
+        ("EV-0085", "EV-0017"),
+        "The source combines credential inventory status with authenticator management procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Remote Access Authorizations",
+        ("EV-0013",),
+        "The source is an access authorization record scoped to remote access.",
+    ),
+    EvidenceSourceMapping(
+        "Remote Access Implementation and Usage Including Restrictions Procedures",
+        ("EV-0127", "EV-0019"),
+        "The source combines identity and access management procedures with remote access configuration restrictions.",
+    ),
+    EvidenceSourceMapping(
+        "Remote Access to the System Procedures",
+        ("EV-0127",),
+        "Remote access activities are governed by identity and access management procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Response to Audit Logging Processing Failures Procedures",
+        ("EV-0112", "EV-0042"),
+        "The source combines audit logging failure handling with incident response procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Review and Update Records Associated with List of Authorized or Unauthorized Software Programs",
+        ("EV-0022", "EV-0027"),
+        "The source combines software inventory maintenance with secure configuration allowlisting and denylisting requirements.",
+    ),
+    EvidenceSourceMapping(
+        "Reviewed and Updated Records of Logged Event Types",
+        ("EV-0112",),
+        "Logged event type review and update activities are governed by audit logging procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Risk Assessment Policy",
+        ("EV-0145",),
+        "Risk assessment requirements are governed by the broader risk management policy.",
+    ),
+    EvidenceSourceMapping(
+        "Risk Assessment Results",
+        ("EV-0005",),
+        "The source is a risk assessment results variant.",
+    ),
+    EvidenceSourceMapping(
+        "Risk Assessment Reviews",
+        ("EV-0005", "EV-0143"),
+        "The source combines the risk assessment artifact with its governing review procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Risk Assessment Updates",
+        ("EV-0005", "EV-0143"),
+        "The source combines the risk assessment artifact with its governing update procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Scan Results from Malicious Code Protection Mechanisms",
+        ("EV-0080", "EV-0079"),
+        "The source combines security operations reporting with the malware protection configuration that produced the results.",
+    ),
+    EvidenceSourceMapping(
         "Access Control Records",
         ("EV-0013", "EV-0014"),
         "The broad source phrase includes authorization and periodic access-review records.",

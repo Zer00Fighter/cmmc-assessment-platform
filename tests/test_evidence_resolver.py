@@ -11,10 +11,10 @@ from src.evidence.evidence_resolver import (
 )
 
 
-def test_knowledge_contains_approved_first_one_hundred_forty_four_objects() -> None:
-    assert len(EVIDENCE_KNOWLEDGE) == 144
+def test_knowledge_contains_approved_first_one_hundred_forty_six_objects() -> None:
+    assert len(EVIDENCE_KNOWLEDGE) == 146
     assert EVIDENCE_KNOWLEDGE[0].evidence_id == "EV-0001"
-    assert EVIDENCE_KNOWLEDGE[-1].evidence_id == "EV-0144"
+    assert EVIDENCE_KNOWLEDGE[-1].evidence_id == "EV-0146"
 
 
 def test_resolves_canonical_name_exactly() -> None:
@@ -266,6 +266,18 @@ def test_sprint_3_10_batch_7_aliases_resolve(alias: str, evidence_id: str) -> No
     ),
 )
 def test_sprint_3_10_batch_8_aliases_resolve(alias: str, evidence_id: str) -> None:
+    assert EvidenceResolver().resolve(alias).evidence_id == evidence_id
+
+
+@pytest.mark.parametrize(
+    ("alias", "evidence_id"),
+    (
+        ("ERM Policy", "EV-0145"),
+        ("Rules of Behavior", "EV-0146"),
+        ("AUP", "EV-0146"),
+    ),
+)
+def test_sprint_3_10_batch_10_aliases_resolve(alias: str, evidence_id: str) -> None:
     assert EvidenceResolver().resolve(alias).evidence_id == evidence_id
 
 

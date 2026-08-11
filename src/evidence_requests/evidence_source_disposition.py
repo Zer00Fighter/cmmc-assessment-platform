@@ -74,6 +74,11 @@ DEFAULT_EVIDENCE_SOURCE_DISPOSITIONS: Tuple[EvidenceSourceDisposition, ...] = (
         "External authoritative reference material is not collectible organizational evidence.",
     ),
     EvidenceSourceDisposition(
+        "Relevant Codes of Federal Regulations",
+        EvidenceSourceDispositionKind.AUTHORITATIVE_REFERENCE,
+        "External authoritative reference material is not collectible organizational evidence.",
+    ),
+    EvidenceSourceDisposition(
         "Collaborative Computing Procedures",
         EvidenceSourceDispositionKind.COLLECTION_EXCLUDED,
         "The owner intentionally excluded this organizational artifact from client collection.",

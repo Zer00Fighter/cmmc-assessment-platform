@@ -1595,6 +1595,23 @@ EVIDENCE_KNOWLEDGE: Tuple[EvidenceObject, ...] = (
         artifact_type=EvidenceArtifactType.DOCUMENT,
         description="Defines personnel lifecycle requirements, including screening, conduct, security responsibilities, transfers, and termination or offboarding.",
     ),
+    # Sprint 3.10 generated-evidence gap curation, Batch 10.
+    _evidence(
+        "EV-0145",
+        "Risk Management Policy",
+        aliases=("Enterprise Risk Management Policy", "ERM Policy"),
+        category=EvidenceCategory.POLICY,
+        artifact_type=EvidenceArtifactType.DOCUMENT,
+        description="Defines organizational requirements, responsibilities, criteria, and governance for identifying, assessing, treating, monitoring, and reporting risk.",
+    ),
+    _evidence(
+        "EV-0146",
+        "Acceptable Use Policy",
+        aliases=("Rules of Behavior", "AUP", "Acceptable Use Rules"),
+        category=EvidenceCategory.POLICY,
+        artifact_type=EvidenceArtifactType.DOCUMENT,
+        description="Defines acceptable and prohibited use of organizational systems, information, devices, services, and other technology resources.",
+    ),
 )
 
 
