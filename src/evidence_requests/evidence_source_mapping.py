@@ -778,6 +778,81 @@ DEFAULT_EVIDENCE_SOURCE_MAPPINGS: Tuple[EvidenceSourceMapping, ...] = (
         "System monitoring tools and techniques are governed by security operations procedures.",
     ),
     EvidenceSourceMapping(
+        "System Protocols",
+        ("EV-0034", "EV-0027"),
+        "The source combines network device configuration with secure configuration protocol requirements.",
+    ),
+    EvidenceSourceMapping(
+        "System Use Notification Messages",
+        ("EV-0123",),
+        "System use notification messages are governed by the system use banner policy.",
+    ),
+    EvidenceSourceMapping(
+        "System Use Policy",
+        ("EV-0146",),
+        "The source is an acceptable use policy variant.",
+    ),
+    EvidenceSourceMapping(
+        "Terms and Conditions for External Systems",
+        ("EV-0064", "EV-0146"),
+        "The source combines third-party agreement terms with acceptable-use requirements.",
+    ),
+    EvidenceSourceMapping(
+        "Test Results from the Installation of Software and Firmware Updates to Correct System Flaws",
+        ("EV-0078", "EV-0090"),
+        "The source combines patch management test records with security impact analysis evidence.",
+    ),
+    EvidenceSourceMapping(
+        "The Baseline Configuration of the System Procedures",
+        ("EV-0089", "EV-0026"),
+        "The source combines configuration management procedures with the approved configuration baseline.",
+    ),
+    EvidenceSourceMapping(
+        "The Use of External Systems Procedures",
+        ("EV-0127", "EV-0146"),
+        "External system use is governed by identity and access management procedures and the acceptable use policy.",
+    ),
+    EvidenceSourceMapping(
+        "Time Stamp Generation Procedures",
+        ("EV-0112",),
+        "Time stamp generation requirements are governed by audit logging procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Training Materials and or Records",
+        ("EV-0149", "EV-0060"),
+        "The source combines security awareness training procedures and materials with training completion records.",
+    ),
+    EvidenceSourceMapping(
+        "Transmission Confidentiality and Integrity Procedures",
+        ("EV-0119", "EV-0135"),
+        "The source combines cryptographic protection with security architecture procedures for data in transit.",
+    ),
+    EvidenceSourceMapping(
+        "Unsuccessful Logon Attempts Procedures",
+        ("EV-0127",),
+        "Unsuccessful logon attempt handling is governed by identity and access management procedures.",
+    ),
+    EvidenceSourceMapping(
+        "User Acknowledgements of Notification Message or Banner",
+        ("EV-0057", "EV-0123"),
+        "The source combines personnel security acknowledgements with the governing system use banner policy.",
+    ),
+    EvidenceSourceMapping(
+        "User Identification and Authentication Procedures",
+        ("EV-0127",),
+        "User identification and authentication are governed by identity and access management procedures.",
+    ),
+    EvidenceSourceMapping(
+        "User Installed Software Procedures",
+        ("EV-0027",),
+        "User-installed software restrictions are governed by the secure configuration standard.",
+    ),
+    EvidenceSourceMapping(
+        "Voip Implementation Guidance",
+        ("EV-0027", "EV-0135"),
+        "The source combines secure configuration requirements with security architecture procedures for VoIP implementation.",
+    ),
+    EvidenceSourceMapping(
         "Access Control Records",
         ("EV-0013", "EV-0014"),
         "The broad source phrase includes authorization and periodic access-review records.",

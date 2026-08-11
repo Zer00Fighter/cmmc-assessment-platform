@@ -141,6 +141,22 @@ def test_batch_13_monitoring_documentation_preserves_config_and_tools() -> None:
     assert tuple(item.evidence_id for item in resolved) == ("EV-0039", "EV-0105")
 
 
+def test_batch_14_external_system_terms_preserve_agreement_and_acceptable_use() -> None:
+    resolved = default_evidence_source_mapping_catalog().resolve(
+        "Terms and Conditions for External Systems"
+    )
+
+    assert tuple(item.evidence_id for item in resolved) == ("EV-0064", "EV-0146")
+
+
+def test_batch_14_training_source_preserves_procedures_and_records() -> None:
+    resolved = default_evidence_source_mapping_catalog().resolve(
+        "Training Materials and or Records"
+    )
+
+    assert tuple(item.evidence_id for item in resolved) == ("EV-0149", "EV-0060")
+
+
 def test_unknown_source_title_returns_no_mapping() -> None:
     assert default_evidence_source_mapping_catalog().resolve("Unknown") == ()
 
