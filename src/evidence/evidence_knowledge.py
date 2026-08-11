@@ -1260,6 +1260,31 @@ EVIDENCE_KNOWLEDGE: Tuple[EvidenceObject, ...] = (
         artifact_type=EvidenceArtifactType.DATASET,
         description="Inventory of tools used to generate, collect, protect, analyze, or report audit records.",
     ),
+    # Sprint 3.10 generated-evidence gap curation, Batch 2.
+    _evidence(
+        "EV-0112",
+        "Audit Logging Procedures",
+        aliases=(
+            "Audit Record Reduction and Report Generation Procedures",
+            "Audit Record Review Analysis and Reporting Procedures",
+            "Audit Records and Event Types Procedures",
+            "Auditable Events Procedures",
+        ),
+        category=EvidenceCategory.PROCEDURE,
+        artifact_type=EvidenceArtifactType.DOCUMENT,
+        description="Documents event selection, log retention, review, analysis, reduction, escalation, and reporting activities.",
+    ),
+    _evidence(
+        "EV-0113",
+        "Boundary Protection Procedures",
+        aliases=(
+            "Network Boundary Protection Procedures",
+            "Perimeter Security Procedures",
+        ),
+        category=EvidenceCategory.PROCEDURE,
+        artifact_type=EvidenceArtifactType.DOCUMENT,
+        description="Documents repeatable activities for monitoring, controlling, and protecting system boundaries.",
+    ),
 )
 
 

@@ -175,3 +175,27 @@ def test_audit_supports_curated_one_to_many_source_mapping() -> None:
     )
     assert entry.evidence_id is None
     assert report.curated_mappings == 1
+
+
+def test_audit_classifies_reference_and_excluded_titles_without_resolving_them() -> (
+    None
+):
+    collection = DocumentationRequestCollection(
+        framework_id="TEST",
+        requests=[
+            request("DRL-001", "Codes of Federal Regulations", family="CA"),
+            request("DRL-002", "Collaborative Computing Procedures", family="SC"),
+        ],
+    )
+
+    report = EvidenceCoverageAuditor().audit(collection)
+
+    assert [entry.match_kind for entry in report.entries] == [
+        EvidenceCoverageMatchKind.AUTHORITATIVE_REFERENCE,
+        EvidenceCoverageMatchKind.COLLECTION_EXCLUDED,
+    ]
+    assert report.resolved == 0
+    assert report.classified_non_evidence == 2
+    assert report.unresolved == 0
+    assert report.classification_percent == 100.0
+    assert report.coverage_percent == 0.0

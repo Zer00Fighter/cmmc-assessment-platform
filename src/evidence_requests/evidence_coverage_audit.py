@@ -14,6 +14,11 @@ from src.evidence_requests.evidence_source_mapping import (
     EvidenceSourceMappingCatalog,
     default_evidence_source_mapping_catalog,
 )
+from src.evidence_requests.evidence_source_disposition import (
+    EvidenceSourceDispositionCatalog,
+    EvidenceSourceDispositionKind,
+    default_evidence_source_disposition_catalog,
+)
 
 
 class EvidenceCoverageAuditError(ValueError):
@@ -26,6 +31,8 @@ class EvidenceCoverageMatchKind(str, Enum):
     CANONICAL = "Canonical"
     ALIAS = "Alias"
     CURATED_MAPPING = "Curated Mapping"
+    AUTHORITATIVE_REFERENCE = "Authoritative Reference"
+    COLLECTION_EXCLUDED = "Collection Excluded"
     UNRESOLVED = "Unresolved"
 
 
@@ -44,6 +51,8 @@ class EvidenceCoverageEntry:
     control_families: Tuple[str, ...]
     objective_ids: Tuple[str, ...]
     evidence_type: str
+    disposition_kind: EvidenceSourceDispositionKind | None = None
+    disposition_rationale: str = ""
 
     @property
     def resolved(self) -> bool:
@@ -110,11 +119,35 @@ class EvidenceCoverageReport:
 
     @property
     def unresolved(self) -> int:
-        return sum(not entry.resolved for entry in self.entries)
+        return sum(
+            entry.match_kind == EvidenceCoverageMatchKind.UNRESOLVED
+            for entry in self.entries
+        )
 
     @property
     def resolved(self) -> int:
+        return sum(entry.resolved for entry in self.entries)
+
+    @property
+    def classified_non_evidence(self) -> int:
+        return sum(
+            entry.match_kind
+            in {
+                EvidenceCoverageMatchKind.AUTHORITATIVE_REFERENCE,
+                EvidenceCoverageMatchKind.COLLECTION_EXCLUDED,
+            }
+            for entry in self.entries
+        )
+
+    @property
+    def classified(self) -> int:
         return self.total_requests - self.unresolved
+
+    @property
+    def classification_percent(self) -> float:
+        if self.total_requests == 0:
+            return 0.0
+        return round(self.classified / self.total_requests * 100, 2)
 
     @property
     def coverage_percent(self) -> float:
@@ -153,7 +186,7 @@ class EvidenceCoverageReport:
         titles = {
             entry.requested_item.casefold(): entry.requested_item
             for entry in self.entries
-            if not entry.resolved
+            if entry.match_kind == EvidenceCoverageMatchKind.UNRESOLVED
         }
         return tuple(sorted(titles.values(), key=str.casefold))
 
@@ -165,10 +198,14 @@ class EvidenceCoverageAuditor:
         self,
         resolver: EvidenceResolver | None = None,
         mapping_catalog: EvidenceSourceMappingCatalog | None = None,
+        disposition_catalog: EvidenceSourceDispositionCatalog | None = None,
     ) -> None:
         self.resolver = resolver or EvidenceResolver()
         self.mapping_catalog = (
             mapping_catalog or default_evidence_source_mapping_catalog()
+        )
+        self.disposition_catalog = (
+            disposition_catalog or default_evidence_source_disposition_catalog()
         )
 
     def audit(
@@ -207,6 +244,8 @@ class EvidenceCoverageAuditor:
     ) -> EvidenceCoverageEntry:
         resolution = self.resolver.resolve(request.requested_item)
         evidence = resolution.evidence
+        disposition_kind = None
+        disposition_rationale = ""
 
         if evidence is None:
             mapped_evidence = self.mapping_catalog.resolve(request.requested_item)
@@ -215,7 +254,20 @@ class EvidenceCoverageAuditor:
                 evidence_ids = tuple(item.evidence_id for item in mapped_evidence)
                 canonical_names = tuple(item.canonical_name for item in mapped_evidence)
             else:
-                match_kind = EvidenceCoverageMatchKind.UNRESOLVED
+                disposition = self.disposition_catalog.resolve(request.requested_item)
+                if disposition is None:
+                    match_kind = EvidenceCoverageMatchKind.UNRESOLVED
+                elif (
+                    disposition.kind
+                    == EvidenceSourceDispositionKind.AUTHORITATIVE_REFERENCE
+                ):
+                    match_kind = EvidenceCoverageMatchKind.AUTHORITATIVE_REFERENCE
+                    disposition_kind = disposition.kind
+                    disposition_rationale = disposition.rationale
+                else:
+                    match_kind = EvidenceCoverageMatchKind.COLLECTION_EXCLUDED
+                    disposition_kind = disposition.kind
+                    disposition_rationale = disposition.rationale
                 evidence_ids = ()
                 canonical_names = ()
         else:
@@ -243,6 +295,8 @@ class EvidenceCoverageAuditor:
                 (),
             ),
             evidence_type=request.evidence_type.value,
+            disposition_kind=disposition_kind,
+            disposition_rationale=disposition_rationale,
         )
 
     @staticmethod

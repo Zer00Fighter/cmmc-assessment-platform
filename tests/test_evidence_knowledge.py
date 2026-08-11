@@ -115,12 +115,14 @@ EXPECTED_NAMES = (
     "Alternate Work Site Security Assessment",
     "Audit and Accountability Policy",
     "Audit Logging Tool Inventory",
+    "Audit Logging Procedures",
+    "Boundary Protection Procedures",
 )
 
 
-def test_knowledge_contains_the_approved_first_one_hundred_eleven_objects() -> None:
+def test_knowledge_contains_the_approved_first_one_hundred_thirteen_objects() -> None:
     assert tuple(item.evidence_id for item in EVIDENCE_KNOWLEDGE) == tuple(
-        f"EV-{index:04d}" for index in range(1, 112)
+        f"EV-{index:04d}" for index in range(1, 114)
     )
     assert tuple(item.canonical_name for item in EVIDENCE_KNOWLEDGE) == EXPECTED_NAMES
 
@@ -258,6 +260,16 @@ def test_sprint_3_10_batch_1_preserves_approved_aliases() -> None:
         in aliases_by_name["Application Segmentation and Isolation Procedures"]
     )
     assert "Audit Logging Tools" in aliases_by_name["Audit Logging Tool Inventory"]
+
+
+def test_sprint_3_10_batch_2_preserves_approved_aliases() -> None:
+    aliases_by_name = {item.canonical_name: item.aliases for item in EVIDENCE_KNOWLEDGE}
+
+    assert "Auditable Events Procedures" in aliases_by_name["Audit Logging Procedures"]
+    assert (
+        "Network Boundary Protection Procedures"
+        in aliases_by_name["Boundary Protection Procedures"]
+    )
 
 
 def test_remediation_plan_is_not_a_poam_category() -> None:

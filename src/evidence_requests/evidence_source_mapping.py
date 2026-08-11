@@ -88,6 +88,46 @@ class EvidenceSourceMappingCatalog:
 
 DEFAULT_EVIDENCE_SOURCE_MAPPINGS: Tuple[EvidenceSourceMapping, ...] = (
     EvidenceSourceMapping(
+        "Audit Record Reduction Review Analysis and Reporting Tools",
+        ("EV-0111", "EV-0105"),
+        "The source combines audit-logging tools with broader security-analysis tools.",
+    ),
+    EvidenceSourceMapping(
+        "Authenticator Feedback Procedures",
+        ("EV-0017",),
+        "The source is an authenticator-management procedure variant.",
+    ),
+    EvidenceSourceMapping(
+        "Authorizations for Mobile Device Connections to Organizational Systems",
+        ("EV-0013",),
+        "The source requests records authorizing specific connections.",
+    ),
+    EvidenceSourceMapping(
+        "Backup Storage Location S",
+        ("EV-0048",),
+        "Backup storage location is part of backup configuration; the trailing S is source noise.",
+    ),
+    EvidenceSourceMapping(
+        "Boundary Protection Hardware and Software",
+        ("EV-0021", "EV-0022", "EV-0035"),
+        "The source combines boundary hardware, software, and firewall configuration evidence.",
+    ),
+    EvidenceSourceMapping(
+        "Change Control Audit and Review Reports",
+        ("EV-0030",),
+        "The source is a configuration-review record variant.",
+    ),
+    EvidenceSourceMapping(
+        "Change Control Records Associated with Managing System Authenticators",
+        ("EV-0029",),
+        "The source requests change-management records scoped to authenticators.",
+    ),
+    EvidenceSourceMapping(
+        "Configuration Settings for the System Procedures",
+        ("EV-0089",),
+        "The source is a configuration-management procedure variant.",
+    ),
+    EvidenceSourceMapping(
         "Access Control Records",
         ("EV-0013", "EV-0014"),
         "The broad source phrase includes authorization and periodic access-review records.",

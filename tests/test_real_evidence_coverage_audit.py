@@ -72,10 +72,16 @@ def test_real_audit_totals_are_consistent(coverage_report) -> None:
         coverage_report.canonical_matches
         + coverage_report.alias_matches
         + coverage_report.curated_mappings
+        + coverage_report.classified_non_evidence
         + coverage_report.unresolved
         == coverage_report.total_requests
     )
-    assert coverage_report.resolved + coverage_report.unresolved == 297
+    assert (
+        coverage_report.resolved
+        + coverage_report.classified_non_evidence
+        + coverage_report.unresolved
+        == 297
+    )
 
 
 def test_print_real_evidence_coverage(coverage_report) -> None:
@@ -85,8 +91,10 @@ def test_print_real_evidence_coverage(coverage_report) -> None:
     print(f"Canonical matches:  {coverage_report.canonical_matches}")
     print(f"Alias matches:      {coverage_report.alias_matches}")
     print(f"Curated mappings:   {coverage_report.curated_mappings}")
+    print(f"Classified non-EV:  {coverage_report.classified_non_evidence}")
     print(f"Unresolved:         {coverage_report.unresolved}")
     print(f"Coverage:           {coverage_report.coverage_percent:.2f}%")
+    print(f"Classified:         {coverage_report.classification_percent:.2f}%")
     print(
         "Objective trace:    "
         f"{coverage_report.objective_traced_requests}/"
