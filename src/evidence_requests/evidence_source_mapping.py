@@ -168,6 +168,71 @@ DEFAULT_EVIDENCE_SOURCE_MAPPINGS: Tuple[EvidenceSourceMapping, ...] = (
         "Incident response test results are incident response exercise records.",
     ),
     EvidenceSourceMapping(
+        "Incident Response Training Records",
+        ("EV-0060",),
+        "The source is a security-training record scoped to incident response.",
+    ),
+    EvidenceSourceMapping(
+        "Insider Threat Policy and Procedures",
+        ("EV-0136", "EV-0137"),
+        "The source combines insider threat policy and procedure artifacts.",
+    ),
+    EvidenceSourceMapping(
+        "Installation Change Control Records for Security Relevant Software and Firmware Updates",
+        ("EV-0029", "EV-0078"),
+        "The source combines change-control and patch-deployment records.",
+    ),
+    EvidenceSourceMapping(
+        "Inventory Records of Physical Access Control Devices",
+        ("EV-0021",),
+        "Physical access control devices are represented in the hardware asset inventory.",
+    ),
+    EvidenceSourceMapping(
+        "Inventory Review and Update Records",
+        ("EV-0139", "EV-0021", "EV-0022", "EV-0023"),
+        "The source combines asset inventory procedures with the inventories they maintain.",
+    ),
+    EvidenceSourceMapping(
+        "Least Functionality in the System Procedures",
+        ("EV-0089",),
+        "Least-functionality activities are part of configuration management procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Least Privilege Procedures",
+        ("EV-0127",),
+        "Least-privilege activities are part of identity and access management procedures.",
+    ),
+    EvidenceSourceMapping(
+        "List of Acceptable Mobile Code and Mobile Code Technologies",
+        ("EV-0027",),
+        "Approved mobile code and technologies are governed by the secure configuration standard.",
+    ),
+    EvidenceSourceMapping(
+        "List of Active System Accounts and the Name of the Individual Associated with Each Account",
+        ("EV-0011",),
+        "The source is an account inventory variant.",
+    ),
+    EvidenceSourceMapping(
+        "List of All Managed Network Access Control Points",
+        ("EV-0021",),
+        "Managed network access points are represented in the hardware asset inventory.",
+    ),
+    EvidenceSourceMapping(
+        "List of Approved Authorizations User Privileges Including Remote Access Authorizations",
+        ("EV-0013",),
+        "The source is an access-authorization record variant.",
+    ),
+    EvidenceSourceMapping(
+        "List of Conditions for Group and Role Membership",
+        ("EV-0127",),
+        "Group membership and RBAC criteria are part of identity and access management procedures.",
+    ),
+    EvidenceSourceMapping(
+        "List of Conditions or Trigger Events Requiring Session Disconnect",
+        ("EV-0127",),
+        "Session timeout, lock, and disconnect criteria are part of identity and access management procedures.",
+    ),
+    EvidenceSourceMapping(
         "Access Control Records",
         ("EV-0013", "EV-0014"),
         "The broad source phrase includes authorization and periodic access-review records.",

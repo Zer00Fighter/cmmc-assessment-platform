@@ -1477,6 +1477,64 @@ EVIDENCE_KNOWLEDGE: Tuple[EvidenceObject, ...] = (
         artifact_type=EvidenceArtifactType.DOCUMENT,
         description="Documents how incident response training is assigned, delivered, tracked, reviewed, and updated.",
     ),
+    # Sprint 3.10 generated-evidence gap curation, Batch 5.
+    _evidence(
+        "EV-0134",
+        "Security Architecture Policy",
+        aliases=(
+            "Information Flow Control Policies",
+            "Information Flow Security Policy",
+        ),
+        category=EvidenceCategory.POLICY,
+        artifact_type=EvidenceArtifactType.DOCUMENT,
+        description="Defines requirements for security architecture, trust boundaries, segmentation, isolation, and information flow.",
+    ),
+    _evidence(
+        "EV-0135",
+        "Security Architecture Procedures",
+        aliases=(
+            "Information Flow Enforcement Procedures",
+            "Architecture Enforcement Procedures",
+        ),
+        category=EvidenceCategory.PROCEDURE,
+        artifact_type=EvidenceArtifactType.DOCUMENT,
+        description="Documents repeatable activities for implementing and maintaining architectural security and information-flow controls.",
+    ),
+    _evidence(
+        "EV-0136",
+        "Insider Threat Policy",
+        aliases=("Insider Risk Policy",),
+        category=EvidenceCategory.POLICY,
+        artifact_type=EvidenceArtifactType.DOCUMENT,
+        description="Defines organizational requirements and responsibilities for managing insider threats and insider risk.",
+    ),
+    _evidence(
+        "EV-0137",
+        "Insider Threat Procedures",
+        aliases=("Insider Risk Procedures", "Insider Threat Management Procedures"),
+        category=EvidenceCategory.PROCEDURE,
+        artifact_type=EvidenceArtifactType.DOCUMENT,
+        description="Documents repeatable activities for identifying, reporting, assessing, and responding to insider threats.",
+    ),
+    _evidence(
+        "EV-0138",
+        "Asset Management Policy",
+        aliases=("Asset Inventory Policy", "Information Asset Management Policy"),
+        category=EvidenceCategory.POLICY,
+        artifact_type=EvidenceArtifactType.DOCUMENT,
+        description="Defines requirements for identifying, owning, protecting, reviewing, and maintaining organizational assets.",
+    ),
+    _evidence(
+        "EV-0139",
+        "Asset Management Procedures",
+        aliases=(
+            "Asset Inventory Procedures",
+            "Information Asset Management Procedures",
+        ),
+        category=EvidenceCategory.PROCEDURE,
+        artifact_type=EvidenceArtifactType.DOCUMENT,
+        description="Documents repeatable activities for inventorying, assigning, reviewing, updating, and disposing of assets.",
+    ),
 )
 
 

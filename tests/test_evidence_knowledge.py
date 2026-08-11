@@ -137,14 +137,20 @@ EXPECTED_NAMES = (
     "Incident Response Exercise Procedures",
     "Incident Response Training Materials",
     "Incident Response Training Procedures",
+    "Security Architecture Policy",
+    "Security Architecture Procedures",
+    "Insider Threat Policy",
+    "Insider Threat Procedures",
+    "Asset Management Policy",
+    "Asset Management Procedures",
 )
 
 
-def test_knowledge_contains_the_approved_first_one_hundred_thirty_three_objects() -> (
+def test_knowledge_contains_the_approved_first_one_hundred_thirty_nine_objects() -> (
     None
 ):
     assert tuple(item.evidence_id for item in EVIDENCE_KNOWLEDGE) == tuple(
-        f"EV-{index:04d}" for index in range(1, 134)
+        f"EV-{index:04d}" for index in range(1, 140)
     )
     assert tuple(item.canonical_name for item in EVIDENCE_KNOWLEDGE) == EXPECTED_NAMES
 
@@ -326,6 +332,25 @@ def test_sprint_3_10_batch_4_preserves_approved_aliases() -> None:
     assert (
         "Incident Response Training Curriculum"
         in aliases_by_name["Incident Response Training Materials"]
+    )
+
+
+def test_sprint_3_10_batch_5_preserves_approved_aliases() -> None:
+    aliases_by_name = {item.canonical_name: item.aliases for item in EVIDENCE_KNOWLEDGE}
+
+    assert (
+        "Information Flow Control Policies"
+        in aliases_by_name["Security Architecture Policy"]
+    )
+    assert (
+        "Information Flow Enforcement Procedures"
+        in aliases_by_name["Security Architecture Procedures"]
+    )
+    assert "Insider Risk Policy" in aliases_by_name["Insider Threat Policy"]
+    assert "Insider Risk Procedures" in aliases_by_name["Insider Threat Procedures"]
+    assert "Asset Inventory Policy" in aliases_by_name["Asset Management Policy"]
+    assert (
+        "Asset Inventory Procedures" in aliases_by_name["Asset Management Procedures"]
     )
 
 

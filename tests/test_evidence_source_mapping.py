@@ -36,6 +36,19 @@ def test_batch_1_compound_mapping_preserves_independent_artifacts() -> None:
     assert tuple(item.evidence_id for item in resolved) == ("EV-0105", "EV-0106")
 
 
+def test_batch_5_inventory_review_mapping_preserves_procedure_and_inventories() -> None:
+    resolved = default_evidence_source_mapping_catalog().resolve(
+        "Inventory Review and Update Records"
+    )
+
+    assert tuple(item.evidence_id for item in resolved) == (
+        "EV-0139",
+        "EV-0021",
+        "EV-0022",
+        "EV-0023",
+    )
+
+
 def test_unknown_source_title_returns_no_mapping() -> None:
     assert default_evidence_source_mapping_catalog().resolve("Unknown") == ()
 
