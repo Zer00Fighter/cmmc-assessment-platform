@@ -49,6 +49,22 @@ def test_batch_5_inventory_review_mapping_preserves_procedure_and_inventories() 
     )
 
 
+def test_batch_6_information_at_rest_maps_to_information_asset_inventory() -> None:
+    resolved = default_evidence_source_mapping_catalog().resolve(
+        "List of Information at Rest Requiring Confidentiality Protections"
+    )
+
+    assert tuple(item.evidence_id for item in resolved) == ("EV-0023",)
+
+
+def test_batch_6_internal_boundaries_preserve_diagram_and_architecture() -> None:
+    resolved = default_evidence_source_mapping_catalog().resolve(
+        "List of Key Internal Boundaries of the System"
+    )
+
+    assert tuple(item.evidence_id for item in resolved) == ("EV-0031", "EV-0033")
+
+
 def test_unknown_source_title_returns_no_mapping() -> None:
     assert default_evidence_source_mapping_catalog().resolve("Unknown") == ()
 
