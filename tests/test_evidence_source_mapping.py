@@ -81,6 +81,22 @@ def test_batch_8_personnel_lifecycle_maps_to_human_resources_manual() -> None:
     assert tuple(item.evidence_id for item in resolved) == ("EV-0144",)
 
 
+def test_batch_9_information_at_rest_preserves_crypto_and_media_procedures() -> None:
+    resolved = default_evidence_source_mapping_catalog().resolve(
+        "Protection of Information at Rest Procedures"
+    )
+
+    assert tuple(item.evidence_id for item in resolved) == ("EV-0119", "EV-0092")
+
+
+def test_batch_9_public_information_response_preserves_incident_and_comms() -> None:
+    resolved = default_evidence_source_mapping_catalog().resolve(
+        "Records of Response to Nonpublic Information on Public Websites"
+    )
+
+    assert tuple(item.evidence_id for item in resolved) == ("EV-0043", "EV-0141")
+
+
 def test_unknown_source_title_returns_no_mapping() -> None:
     assert default_evidence_source_mapping_catalog().resolve("Unknown") == ()
 

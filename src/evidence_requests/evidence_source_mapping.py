@@ -448,6 +448,81 @@ DEFAULT_EVIDENCE_SOURCE_MAPPINGS: Tuple[EvidenceSourceMapping, ...] = (
         "Physical access list review is part of the unified access control lifecycle.",
     ),
     EvidenceSourceMapping(
+        "Physical Access Log Reviews",
+        ("EV-0082", "EV-0053"),
+        "Physical access log review follows the unified access control procedures and uses the physical access logs.",
+    ),
+    EvidenceSourceMapping(
+        "Physical Access Monitoring Procedures",
+        ("EV-0140",),
+        "Physical access monitoring requirements are maintained within the physical security policy.",
+    ),
+    EvidenceSourceMapping(
+        "Physical Access Termination Records and Associated Documentation",
+        ("EV-0059", "EV-0052"),
+        "The source combines personnel termination records with physical access authorization revocation evidence.",
+    ),
+    EvidenceSourceMapping(
+        "Physical and Environmental Protection Policy and Procedures",
+        ("EV-0140", "EV-0082"),
+        "The source combines physical security policy requirements with unified access control procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Plan of Action",
+        ("EV-0007",),
+        "The source is a remediation action plan variant.",
+    ),
+    EvidenceSourceMapping(
+        "Plan of Action Procedures",
+        ("EV-0007",),
+        "The remediation plan methodology and procedural instructions are contained in the remediation action plan.",
+    ),
+    EvidenceSourceMapping(
+        "Privacy and Security Policies Procedures Addressing System Use Notification",
+        ("EV-0123",),
+        "System use notification requirements are governed by the system use banner policy.",
+    ),
+    EvidenceSourceMapping(
+        "Protection of Audit Information Procedures",
+        ("EV-0112",),
+        "Protection of audit information is governed by audit logging procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Protection of Information at Rest Procedures",
+        ("EV-0119", "EV-0092"),
+        "The source combines cryptographic and media protection procedures for information at rest.",
+    ),
+    EvidenceSourceMapping(
+        "Record of Actions Initiated by Malicious Code Protection Mechanisms in Response to Malicious Code Detection",
+        ("EV-0043", "EV-0142"),
+        "The source combines incident records with the malware protection procedures governing automated responses.",
+    ),
+    EvidenceSourceMapping(
+        "Records of Exit Interviews",
+        ("EV-0059", "EV-0144"),
+        "Exit interview evidence is maintained with personnel termination records under the human resources manual.",
+    ),
+    EvidenceSourceMapping(
+        "Records of Key and Lock Combination Changes",
+        ("EV-0052",),
+        "Physical key and lock combination changes are physical access authorization records.",
+    ),
+    EvidenceSourceMapping(
+        "Records of Malicious Code Protection Updates",
+        ("EV-0079", "EV-0078"),
+        "The source combines malware protection configuration state with patch management update records.",
+    ),
+    EvidenceSourceMapping(
+        "Records of Publicly Accessible Information Reviews",
+        ("EV-0141",),
+        "Public content review records are maintained through public communications procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Records of Response to Nonpublic Information on Public Websites",
+        ("EV-0043", "EV-0141"),
+        "The source combines incident response evidence with public communications correction and removal procedures.",
+    ),
+    EvidenceSourceMapping(
         "Access Control Records",
         ("EV-0013", "EV-0014"),
         "The broad source phrase includes authorization and periodic access-review records.",
