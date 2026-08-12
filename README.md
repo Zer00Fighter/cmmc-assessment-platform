@@ -25,6 +25,25 @@ known boundaries.
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
+## Export a Security Plan to Word
+
+Omni can copy an approved Word SSP template and append the workbook's Security
+Plan crosswalk without modifying the source template:
+
+```powershell
+.\.venv\Scripts\python.exe export_ssp.py `
+  --template "C:\path\to\SSP-template.docx" `
+  --workbook "output\Omni_CMMC_Assessment_v1.0.xlsx" `
+  --output "output\Omni_System_Security_Plan.docx" `
+  --organization "Organization Name" `
+  --system "System Name"
+```
+
+Organization-specific values that are not yet available are exported as
+`[REQUIRES ORGANIZATION INPUT]`; the exporter does not invent SSP content.
+See [the Word export guide](docs/SSP_WORD_EXPORT.md) for the field mapping and
+template-preservation contract.
+
 ## Terminology
 
 Omni stores reusable GRC concepts under canonical names while displaying
