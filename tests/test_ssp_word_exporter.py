@@ -15,6 +15,13 @@ def _create_template(path: Path) -> None:
     document.add_heading("ACME System Security Plan", level=0)
     document.add_paragraph("Prepared for ACME")
     document.sections[0].header.paragraphs[0].text = "ACME SSP"
+    system_information = document.add_table(rows=3, cols=2)
+    system_information.cell(0, 0).text = "System Name/Title:"
+    system_information.cell(0, 1).text = "ACME System"
+    system_information.cell(1, 0).text = "System Categorization:"
+    system_information.cell(1, 1).text = "High Impact for Confidentiality"
+    system_information.cell(2, 0).text = "System Unique Identifier:"
+    system_information.cell(2, 1).text = "ACME"
     practice = document.add_table(rows=2, cols=2)
     practice.cell(0, 0).text = "Practice ID:"
     practice.cell(0, 1).text = "AC.L2-3.1.1"
@@ -103,6 +110,14 @@ def test_export_preserves_template_and_adds_omni_crosswalk(tmp_path: Path) -> No
     assert "Access review records" in text
     assert "Test Procedure" not in text
     assert INPUT_REQUIRED in text
+    sprs_rows = [
+        row
+        for table in document.tables
+        for row in table.rows
+        if row.cells[0].text == "SPRS Score:"
+    ]
+    assert len(sprs_rows) == 1
+    assert sprs_rows[0].cells[1].text == ""
 
 
 def test_export_rejects_overwriting_source_template(tmp_path: Path) -> None:

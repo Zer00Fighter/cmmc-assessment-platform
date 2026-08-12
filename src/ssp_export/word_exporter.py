@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 import tempfile
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -145,6 +146,28 @@ def _replace_literal(document: DocumentType, old: str, new: str) -> int:
     return replacements
 
 
+def _add_blank_sprs_score_field(document: DocumentType) -> bool:
+    """Add a blank SPRS Score row to the template's System Information table."""
+
+    for table in document.tables:
+        table_text = "\n".join(cell.text for row in table.rows for cell in row.cells)
+        if "SPRS Score:" in table_text:
+            return True
+        if (
+            "System Name/Title:" not in table_text
+            or "System Unique Identifier:" not in table_text
+        ):
+            continue
+
+        new_row_xml = deepcopy(table.rows[-1]._tr)
+        table._tbl.append(new_row_xml)
+        new_row = table.rows[-1]
+        _write_artifact_value(new_row.cells[0], "SPRS Score:")
+        _write_artifact_value(new_row.cells[1], "")
+        return True
+    return False
+
+
 def _write_artifact_value(cell, value: str) -> None:
     """Replace template guidance in an artifact cell while preserving its style."""
 
@@ -241,6 +264,10 @@ def export_ssp(
 
     document = Document(template)
     _replace_literal(document, "ACME", resolved.organization_name)
+    if not _add_blank_sprs_score_field(document):
+        raise ValueError(
+            "The SSP template has no recognizable System Information table."
+        )
     document.core_properties.title = (
         f"{resolved.organization_name} System Security Plan"
     )
