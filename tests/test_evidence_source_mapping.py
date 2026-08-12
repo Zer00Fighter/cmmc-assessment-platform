@@ -157,6 +157,29 @@ def test_batch_14_training_source_preserves_procedures_and_records() -> None:
     assert tuple(item.evidence_id for item in resolved) == ("EV-0149", "EV-0060")
 
 
+def test_batch_15_vulnerability_scanning_is_governed_by_security_operations() -> None:
+    catalog = default_evidence_source_mapping_catalog()
+
+    assert tuple(
+        item.evidence_id
+        for item in catalog.resolve("Vulnerability Scanning Procedures")
+    ) == ("EV-0075",)
+    assert tuple(
+        item.evidence_id
+        for item in catalog.resolve(
+            "Vulnerability Scanning Tools and Associated Configuration Documentation"
+        )
+    ) == ("EV-0075",)
+
+
+def test_batch_15_wireless_procedures_preserve_access_and_boundary_controls() -> None:
+    resolved = default_evidence_source_mapping_catalog().resolve(
+        "Wireless Access Implementation and Usage Including Restrictions Procedures"
+    )
+
+    assert tuple(item.evidence_id for item in resolved) == ("EV-0127", "EV-0113")
+
+
 def test_unknown_source_title_returns_no_mapping() -> None:
     assert default_evidence_source_mapping_catalog().resolve("Unknown") == ()
 

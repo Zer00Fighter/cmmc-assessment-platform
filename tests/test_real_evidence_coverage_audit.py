@@ -84,6 +84,11 @@ def test_real_audit_totals_are_consistent(coverage_report) -> None:
     )
 
 
+def test_real_audit_has_no_unresolved_generated_titles(coverage_report) -> None:
+    assert coverage_report.unresolved == 0
+    assert coverage_report.unresolved_titles == ()
+
+
 def test_print_real_evidence_coverage(coverage_report) -> None:
     print()
     print("REAL SP 800-171A GENERATED EVIDENCE COVERAGE")

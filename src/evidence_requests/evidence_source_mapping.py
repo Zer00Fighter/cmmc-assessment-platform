@@ -853,6 +853,41 @@ DEFAULT_EVIDENCE_SOURCE_MAPPINGS: Tuple[EvidenceSourceMapping, ...] = (
         "The source combines secure configuration requirements with security architecture procedures for VoIP implementation.",
     ),
     EvidenceSourceMapping(
+        "Voip Procedures",
+        ("EV-0135",),
+        "VoIP implementation and operation are governed by security architecture procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Voip Usage Restrictions",
+        ("EV-0027",),
+        "VoIP usage restrictions are governed by the secure configuration standard.",
+    ),
+    EvidenceSourceMapping(
+        "Vulnerability Scanning Procedures",
+        ("EV-0075",),
+        "Vulnerability scanning is governed by security operations procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Vulnerability Scanning Tools and Associated Configuration Documentation",
+        ("EV-0075",),
+        "Vulnerability scanning tools and their configuration are governed by security operations procedures.",
+    ),
+    EvidenceSourceMapping(
+        "Wireless Access Authorizations",
+        ("EV-0013",),
+        "The source is an access authorization record scoped to wireless access.",
+    ),
+    EvidenceSourceMapping(
+        "Wireless Access Implementation and Usage Including Restrictions Procedures",
+        ("EV-0127", "EV-0113"),
+        "The source combines identity and access management with boundary protection procedures for wireless access.",
+    ),
+    EvidenceSourceMapping(
+        "Wireless Implementation and Usage Including Restrictions Procedures",
+        ("EV-0127", "EV-0113"),
+        "The source combines identity and access management with boundary protection procedures for wireless implementation.",
+    ),
+    EvidenceSourceMapping(
         "Access Control Records",
         ("EV-0013", "EV-0014"),
         "The broad source phrase includes authorization and periodic access-review records.",
