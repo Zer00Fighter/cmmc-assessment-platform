@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parent
 
 
 def main() -> None:
-    print("Building CMMC Level 2 assessment workbook...")
+    print("Building Omni CMMC Level 2 assessment workbook v1.0...")
 
     builder = WorkbookBuilder(
         project_root=ROOT,

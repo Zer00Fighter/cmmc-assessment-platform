@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from enum import Enum
 from typing import Dict, List, Optional, Sequence
 
@@ -76,9 +76,7 @@ class ObjectiveAssessment:
 class RequirementAssessmentRecord:
     requirement_id: str
     finding: AssessmentFinding = AssessmentFinding.NOT_ASSESSED
-    implementation_state: Optional[
-        PartialImplementationState
-    ] = None
+    implementation_state: Optional[PartialImplementationState] = None
     applicable: bool = True
     evidence_status: EvidenceStatus = EvidenceStatus.NOT_STARTED
     control_owner: str = ""
@@ -90,9 +88,7 @@ class RequirementAssessmentRecord:
     assessor_notes: str = ""
     management_response: str = ""
     evidence_ids: List[str] = field(default_factory=list)
-    objective_assessments: List[
-        ObjectiveAssessment
-    ] = field(default_factory=list)
+    objective_assessments: List[ObjectiveAssessment] = field(default_factory=list)
     poam_status: POAMStatus = POAMStatus.NOT_REQUIRED
     poam_id: str = ""
 
@@ -106,37 +102,25 @@ class RequirementAssessmentRecord:
 
     @property
     def assessed_objective_count(self) -> int:
-        return sum(
-            objective.assessed
-            for objective in self.objective_assessments
-        )
+        return sum(objective.assessed for objective in self.objective_assessments)
 
     @property
     def satisfied_objective_count(self) -> int:
-        return sum(
-            objective.satisfied
-            for objective in self.objective_assessments
-        )
+        return sum(objective.satisfied for objective in self.objective_assessments)
 
     @property
     def objective_completion_percentage(self) -> float:
         if not self.objective_assessments:
             return 0.0
 
-        return (
-            self.assessed_objective_count
-            / len(self.objective_assessments)
-        )
+        return self.assessed_objective_count / len(self.objective_assessments)
 
     @property
     def all_objectives_satisfied(self) -> bool:
         if not self.objective_assessments:
             return False
 
-        return all(
-            objective.satisfied
-            for objective in self.objective_assessments
-        )
+        return all(objective.satisfied for objective in self.objective_assessments)
 
 
 @dataclass(frozen=True)
@@ -151,12 +135,8 @@ class AssessmentMetadata:
     assessment_start_date: Optional[date] = None
     assessment_end_date: Optional[date] = None
     status: AssessmentStatus = AssessmentStatus.DRAFT
-    created_at: datetime = field(
-        default_factory=datetime.utcnow
-    )
-    updated_at: datetime = field(
-        default_factory=datetime.utcnow
-    )
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -181,8 +161,7 @@ class Assessment:
             return self.requirements[normalized_id]
         except KeyError as error:
             raise KeyError(
-                f"Requirement not found in assessment: "
-                f"{normalized_id}"
+                f"Requirement not found in assessment: " f"{normalized_id}"
             ) from error
 
     def add_evidence(
@@ -192,14 +171,10 @@ class Assessment:
         evidence_id = evidence.evidence_id.strip()
 
         if not evidence_id:
-            raise ValueError(
-                "Evidence ID cannot be empty."
-            )
+            raise ValueError("Evidence ID cannot be empty.")
 
         if evidence_id in self.evidence_register:
-            raise ValueError(
-                f"Duplicate evidence ID: {evidence_id}"
-            )
+            raise ValueError(f"Duplicate evidence ID: {evidence_id}")
 
         self.evidence_register[evidence_id] = evidence
 
@@ -209,20 +184,14 @@ class Assessment:
 
     @property
     def assessed_requirement_count(self) -> int:
-        return sum(
-            record.assessed
-            for record in self.requirements.values()
-        )
+        return sum(record.assessed for record in self.requirements.values())
 
     @property
     def completion_percentage(self) -> float:
         if not self.requirements:
             return 0.0
 
-        return (
-            self.assessed_requirement_count
-            / len(self.requirements)
-        )
+        return self.assessed_requirement_count / len(self.requirements)
 
     @property
     def open_poam_count(self) -> int:

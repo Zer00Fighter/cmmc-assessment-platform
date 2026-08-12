@@ -9,14 +9,14 @@ from src.workbook.worksheet_factory import WorksheetFactory
 
 
 class POAMSheetBuilder:
-    """Build the Plan of Action & Milestones worksheet."""
+    """Build the Remediation Action Plan (POA&M) worksheet."""
 
     HEADER_ROW = 5
     FIRST_DATA_ROW = 6
     MAX_POAM_ROWS = 300
 
     HEADERS = [
-        "POA&M ID",
+        "Remediation ID (POA&M ID)",
         "Requirement ID",
         "Requirement Title",
         "Domain",
@@ -38,7 +38,7 @@ class POAMSheetBuilder:
         "Residual Risk",
         "Validation Status",
         "Evidence IDs",
-        "SSP Reference",
+        "Security Plan Reference (SSP)",
         "Assessor Notes",
     ]
 
@@ -52,11 +52,7 @@ class POAMSheetBuilder:
 
     @property
     def last_data_row(self) -> int:
-        return (
-            self.FIRST_DATA_ROW
-            + self.MAX_POAM_ROWS
-            - 1
-        )
+        return self.FIRST_DATA_ROW + self.MAX_POAM_ROWS - 1
 
     def build(
         self,
@@ -71,7 +67,7 @@ class POAMSheetBuilder:
 
         self.factory.create_title_band(
             worksheet,
-            title="Plan of Action & Milestones",
+            title="Remediation Action Plan (POA&M)",
             subtitle=(
                 "Track remediation actions, ownership, milestones, "
                 "risk, aging, validation, and closure for CMMC findings."
@@ -201,7 +197,7 @@ class POAMSheetBuilder:
                     f'IF(L{row}="Critical",4,'
                     f'IF(L{row}="High",3,'
                     f'IF(L{row}="Medium",2,1)))'
-                    f'*'
+                    f"*"
                     f'IF(M{row}="Almost Certain",5,'
                     f'IF(M{row}="Likely",4,'
                     f'IF(M{row}="Possible",3,'
@@ -231,8 +227,7 @@ class POAMSheetBuilder:
                 row=row,
                 column=18,
                 value=(
-                    f'=IF(O{row}="","",'
-                    f'IF(Q{row}<>"",Q{row}-O{row},TODAY()-O{row}))'
+                    f'=IF(O{row}="","",' f'IF(Q{row}<>"",Q{row}-O{row},TODAY()-O{row}))'
                 ),
             )
 
@@ -299,14 +294,10 @@ class POAMSheetBuilder:
                     19,
                 }:
                     cell.fill = self.styles.formula_fill()
-                    cell.protection = (
-                        self.styles.locked_protection()
-                    )
+                    cell.protection = self.styles.locked_protection()
                 else:
                     cell.fill = self.styles.input_fill()
-                    cell.protection = (
-                        self.styles.unlocked_protection()
-                    )
+                    cell.protection = self.styles.unlocked_protection()
 
             for column in {
                 15,
@@ -335,106 +326,67 @@ class POAMSheetBuilder:
         status_validation = DataValidation(
             type="list",
             formula1=(
-                '"Open,In Progress,On Hold,Deferred,'
-                'Completed,Closed,Risk Accepted"'
+                '"Open,In Progress,On Hold,Deferred,' 'Completed,Closed,Risk Accepted"'
             ),
             allow_blank=False,
         )
 
-        worksheet.add_data_validation(
-            status_validation
-        )
+        worksheet.add_data_validation(status_validation)
 
-        status_validation.add(
-            f"J{self.FIRST_DATA_ROW}:"
-            f"J{self.last_data_row}"
-        )
+        status_validation.add(f"J{self.FIRST_DATA_ROW}:" f"J{self.last_data_row}")
 
         priority_validation = DataValidation(
             type="list",
-            formula1=(
-                '"Critical,High,Medium,Low"'
-            ),
+            formula1=('"Critical,High,Medium,Low"'),
             allow_blank=False,
         )
 
-        worksheet.add_data_validation(
-            priority_validation
-        )
+        worksheet.add_data_validation(priority_validation)
 
-        priority_validation.add(
-            f"K{self.FIRST_DATA_ROW}:"
-            f"K{self.last_data_row}"
-        )
+        priority_validation.add(f"K{self.FIRST_DATA_ROW}:" f"K{self.last_data_row}")
 
         severity_validation = DataValidation(
             type="list",
-            formula1=(
-                '"Critical,High,Medium,Low"'
-            ),
+            formula1=('"Critical,High,Medium,Low"'),
             allow_blank=False,
         )
 
-        worksheet.add_data_validation(
-            severity_validation
-        )
+        worksheet.add_data_validation(severity_validation)
 
-        severity_validation.add(
-            f"L{self.FIRST_DATA_ROW}:"
-            f"L{self.last_data_row}"
-        )
+        severity_validation.add(f"L{self.FIRST_DATA_ROW}:" f"L{self.last_data_row}")
 
         likelihood_validation = DataValidation(
             type="list",
-            formula1=(
-                '"Almost Certain,Likely,Possible,'
-                'Unlikely,Rare"'
-            ),
+            formula1=('"Almost Certain,Likely,Possible,' 'Unlikely,Rare"'),
             allow_blank=False,
         )
 
-        worksheet.add_data_validation(
-            likelihood_validation
-        )
+        worksheet.add_data_validation(likelihood_validation)
 
-        likelihood_validation.add(
-            f"M{self.FIRST_DATA_ROW}:"
-            f"M{self.last_data_row}"
-        )
+        likelihood_validation.add(f"M{self.FIRST_DATA_ROW}:" f"M{self.last_data_row}")
 
         residual_risk_validation = DataValidation(
             type="list",
-            formula1=(
-                '"Critical,High,Medium,Low,Accepted"'
-            ),
+            formula1=('"Critical,High,Medium,Low,Accepted"'),
             allow_blank=False,
         )
 
-        worksheet.add_data_validation(
-            residual_risk_validation
-        )
+        worksheet.add_data_validation(residual_risk_validation)
 
         residual_risk_validation.add(
-            f"T{self.FIRST_DATA_ROW}:"
-            f"T{self.last_data_row}"
+            f"T{self.FIRST_DATA_ROW}:" f"T{self.last_data_row}"
         )
 
         validation_status_validation = DataValidation(
             type="list",
-            formula1=(
-                '"Pending,In Review,Verified,Rejected,'
-                'Accepted,Not Required"'
-            ),
+            formula1=('"Pending,In Review,Verified,Rejected,' 'Accepted,Not Required"'),
             allow_blank=False,
         )
 
-        worksheet.add_data_validation(
-            validation_status_validation
-        )
+        worksheet.add_data_validation(validation_status_validation)
 
         validation_status_validation.add(
-            f"U{self.FIRST_DATA_ROW}:"
-            f"U{self.last_data_row}"
+            f"U{self.FIRST_DATA_ROW}:" f"U{self.last_data_row}"
         )
 
         date_validation = DataValidation(
@@ -445,30 +397,20 @@ class POAMSheetBuilder:
             allow_blank=True,
         )
 
-        worksheet.add_data_validation(
-            date_validation
-        )
+        worksheet.add_data_validation(date_validation)
 
-        date_validation.add(
-            f"O{self.FIRST_DATA_ROW}:"
-            f"Q{self.last_data_row}"
-        )
+        date_validation.add(f"O{self.FIRST_DATA_ROW}:" f"Q{self.last_data_row}")
 
     def _add_conditional_formatting(
         self,
         worksheet: Worksheet,
     ) -> None:
-        status_range = (
-            f"J{self.FIRST_DATA_ROW}:"
-            f"J{self.last_data_row}"
-        )
+        status_range = f"J{self.FIRST_DATA_ROW}:" f"J{self.last_data_row}"
 
         worksheet.conditional_formatting.add(
             status_range,
             FormulaRule(
-                formula=[
-                    f'J{self.FIRST_DATA_ROW}="Closed"'
-                ],
+                formula=[f'J{self.FIRST_DATA_ROW}="Closed"'],
                 fill=self.styles.good_fill(),
             ),
         )
@@ -476,9 +418,7 @@ class POAMSheetBuilder:
         worksheet.conditional_formatting.add(
             status_range,
             FormulaRule(
-                formula=[
-                    f'J{self.FIRST_DATA_ROW}="Completed"'
-                ],
+                formula=[f'J{self.FIRST_DATA_ROW}="Completed"'],
                 fill=self.styles.good_fill(),
             ),
         )
@@ -486,9 +426,7 @@ class POAMSheetBuilder:
         worksheet.conditional_formatting.add(
             status_range,
             FormulaRule(
-                formula=[
-                    f'J{self.FIRST_DATA_ROW}="In Progress"'
-                ],
+                formula=[f'J{self.FIRST_DATA_ROW}="In Progress"'],
                 fill=self.styles.warning_fill(),
             ),
         )
@@ -496,24 +434,17 @@ class POAMSheetBuilder:
         worksheet.conditional_formatting.add(
             status_range,
             FormulaRule(
-                formula=[
-                    f'J{self.FIRST_DATA_ROW}="Open"'
-                ],
+                formula=[f'J{self.FIRST_DATA_ROW}="Open"'],
                 fill=self.styles.bad_fill(),
             ),
         )
 
-        risk_range = (
-            f"N{self.FIRST_DATA_ROW}:"
-            f"N{self.last_data_row}"
-        )
+        risk_range = f"N{self.FIRST_DATA_ROW}:" f"N{self.last_data_row}"
 
         worksheet.conditional_formatting.add(
             risk_range,
             FormulaRule(
-                formula=[
-                    f'N{self.FIRST_DATA_ROW}>=15'
-                ],
+                formula=[f"N{self.FIRST_DATA_ROW}>=15"],
                 fill=self.styles.bad_fill(),
             ),
         )
@@ -522,26 +453,20 @@ class POAMSheetBuilder:
             risk_range,
             FormulaRule(
                 formula=[
-                    (
-                        f'AND(N{self.FIRST_DATA_ROW}>=8,'
-                        f'N{self.FIRST_DATA_ROW}<15)'
-                    )
+                    f"AND(N{self.FIRST_DATA_ROW}>=8," f"N{self.FIRST_DATA_ROW}<15)"
                 ],
                 fill=self.styles.warning_fill(),
             ),
         )
 
-        overdue_range = (
-            f"P{self.FIRST_DATA_ROW}:"
-            f"P{self.last_data_row}"
-        )
+        overdue_range = f"P{self.FIRST_DATA_ROW}:" f"P{self.last_data_row}"
 
         worksheet.conditional_formatting.add(
             overdue_range,
             FormulaRule(
                 formula=[
                     (
-                        f'AND(P{self.FIRST_DATA_ROW}<TODAY(),'
+                        f"AND(P{self.FIRST_DATA_ROW}<TODAY(),"
                         f'P{self.FIRST_DATA_ROW}<>"",'
                         f'J{self.FIRST_DATA_ROW}<>"Closed",'
                         f'J{self.FIRST_DATA_ROW}<>"Completed")'
@@ -551,17 +476,12 @@ class POAMSheetBuilder:
             ),
         )
 
-        aging_range = (
-            f"S{self.FIRST_DATA_ROW}:"
-            f"S{self.last_data_row}"
-        )
+        aging_range = f"S{self.FIRST_DATA_ROW}:" f"S{self.last_data_row}"
 
         worksheet.conditional_formatting.add(
             aging_range,
             FormulaRule(
-                formula=[
-                    f'S{self.FIRST_DATA_ROW}="181+ Days"'
-                ],
+                formula=[f'S{self.FIRST_DATA_ROW}="181+ Days"'],
                 fill=self.styles.bad_fill(),
             ),
         )
@@ -611,30 +531,19 @@ class POAMSheetBuilder:
         }
 
         for column, width in widths.items():
-            worksheet.column_dimensions[
-                column
-            ].width = width
+            worksheet.column_dimensions[column].width = width
 
-        worksheet.auto_filter.ref = (
-            f"A{self.HEADER_ROW}:"
-            f"X{self.last_data_row}"
-        )
+        worksheet.auto_filter.ref = f"A{self.HEADER_ROW}:" f"X{self.last_data_row}"
 
     def _configure_printing(
         self,
         worksheet: Worksheet,
     ) -> None:
-        worksheet.print_title_rows = (
-            f"1:{self.HEADER_ROW}"
-        )
+        worksheet.print_title_rows = f"1:{self.HEADER_ROW}"
 
-        worksheet.print_area = (
-            f"A1:X{self.last_data_row}"
-        )
+        worksheet.print_area = f"A1:X{self.last_data_row}"
 
-        worksheet.page_setup.orientation = (
-            "landscape"
-        )
+        worksheet.page_setup.orientation = "landscape"
 
         worksheet.page_setup.fitToWidth = 1
         worksheet.page_setup.fitToHeight = 0

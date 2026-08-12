@@ -17,29 +17,25 @@ from src.scoring import (
     PartialImplementationState,
 )
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
-CONTROLS_PATH = (
-    ROOT
-    / "data"
-    / "controls"
-    / "cmmc_level2_controls.csv"
-)
+CONTROLS_PATH = ROOT / "data" / "controls" / "cmmc_level2_controls.csv"
 
-OBJECTIVES_PATH = (
-    ROOT
-    / "data"
-    / "controls"
-    / "cmmc_level2_objectives.csv"
-)
+OBJECTIVES_PATH = ROOT / "data" / "controls" / "cmmc_level2_objectives.csv"
 
-SCORING_WEIGHTS_PATH = (
-    ROOT
-    / "data"
-    / "scoring"
-    / "scoring_weights.csv"
-)
+
+def test_assessment_metadata_uses_timezone_aware_utc_timestamps() -> None:
+    metadata = AssessmentMetadata(
+        assessment_id="A-001",
+        organization_name="Example",
+        assessment_name="Readiness",
+    )
+
+    assert metadata.created_at.tzinfo is not None
+    assert metadata.updated_at.tzinfo is not None
+
+
+SCORING_WEIGHTS_PATH = ROOT / "data" / "scoring" / "scoring_weights.csv"
 
 
 @pytest.fixture
@@ -82,9 +78,7 @@ def test_new_assessment_is_zero_percent_complete(
 def test_first_requirement_exists(
     assessment,
 ) -> None:
-    record = assessment.get_requirement(
-        "AC.L2-3.1.1"
-    )
+    record = assessment.get_requirement("AC.L2-3.1.1")
 
     assert record.requirement_id == "AC.L2-3.1.1"
     assert record.finding == AssessmentFinding.NOT_ASSESSED
@@ -94,16 +88,11 @@ def test_first_requirement_exists(
 def test_first_requirement_has_six_objectives(
     assessment,
 ) -> None:
-    record = assessment.get_requirement(
-        "AC.L2-3.1.1"
-    )
+    record = assessment.get_requirement("AC.L2-3.1.1")
 
     assert record.objective_count == 6
 
-    assert [
-        objective.objective_id
-        for objective in record.objective_assessments
-    ] == [
+    assert [objective.objective_id for objective in record.objective_assessments] == [
         "a",
         "b",
         "c",
@@ -116,21 +105,15 @@ def test_first_requirement_has_six_objectives(
 def test_partial_credit_requirement_has_default_state(
     assessment,
 ) -> None:
-    record = assessment.get_requirement(
-        "IA.L2-3.5.3"
-    )
+    record = assessment.get_requirement("IA.L2-3.5.3")
 
-    assert record.implementation_state == (
-        PartialImplementationState.NOT_ASSESSED
-    )
+    assert record.implementation_state == (PartialImplementationState.NOT_ASSESSED)
 
 
 def test_fixed_requirement_has_no_partial_state(
     assessment,
 ) -> None:
-    record = assessment.get_requirement(
-        "AC.L2-3.1.1"
-    )
+    record = assessment.get_requirement("AC.L2-3.1.1")
 
     assert record.implementation_state is None
 
@@ -329,18 +312,14 @@ def test_link_evidence_to_requirement(
         ],
     )
 
-    record = assessment.get_requirement(
-        "AC.L2-3.1.1"
-    )
+    record = assessment.get_requirement("AC.L2-3.1.1")
 
     assert record.evidence_ids == [
         "EV-001",
         "EV-002",
     ]
 
-    assert record.evidence_status == (
-        EvidenceStatus.IN_PROGRESS
-    )
+    assert record.evidence_status == (EvidenceStatus.IN_PROGRESS)
 
 
 def test_unknown_evidence_cannot_be_linked(
@@ -419,9 +398,7 @@ def test_all_satisfied_objectives_make_requirement_met(
     engine: AssessmentEngine,
     assessment,
 ) -> None:
-    record = assessment.get_requirement(
-        "AC.L2-3.1.1"
-    )
+    record = assessment.get_requirement("AC.L2-3.1.1")
 
     for objective in record.objective_assessments:
         engine.update_objective(
@@ -431,11 +408,9 @@ def test_all_satisfied_objectives_make_requirement_met(
             finding="SATISFIED",
         )
 
-    result = (
-        engine.synchronize_requirement_from_objectives(
-            assessment,
-            record.requirement_id,
-        )
+    result = engine.synchronize_requirement_from_objectives(
+        assessment,
+        record.requirement_id,
     )
 
     assert result.finding == AssessmentFinding.MET
@@ -447,16 +422,10 @@ def test_one_failed_objective_makes_requirement_not_met(
     engine: AssessmentEngine,
     assessment,
 ) -> None:
-    record = assessment.get_requirement(
-        "AC.L2-3.1.1"
-    )
+    record = assessment.get_requirement("AC.L2-3.1.1")
 
     for objective in record.objective_assessments:
-        finding = (
-            "NOT SATISFIED"
-            if objective.objective_id == "c"
-            else "SATISFIED"
-        )
+        finding = "NOT SATISFIED" if objective.objective_id == "c" else "SATISFIED"
 
         engine.update_objective(
             assessment,
@@ -465,11 +434,9 @@ def test_one_failed_objective_makes_requirement_not_met(
             finding=finding,
         )
 
-    result = (
-        engine.synchronize_requirement_from_objectives(
-            assessment,
-            record.requirement_id,
-        )
+    result = engine.synchronize_requirement_from_objectives(
+        assessment,
+        record.requirement_id,
     )
 
     assert result.finding == AssessmentFinding.NOT_MET
@@ -480,9 +447,7 @@ def test_unassessed_objective_keeps_requirement_unassessed(
     engine: AssessmentEngine,
     assessment,
 ) -> None:
-    record = assessment.get_requirement(
-        "AC.L2-3.1.1"
-    )
+    record = assessment.get_requirement("AC.L2-3.1.1")
 
     engine.update_objective(
         assessment,
@@ -491,25 +456,19 @@ def test_unassessed_objective_keeps_requirement_unassessed(
         finding="SATISFIED",
     )
 
-    result = (
-        engine.synchronize_requirement_from_objectives(
-            assessment,
-            record.requirement_id,
-        )
+    result = engine.synchronize_requirement_from_objectives(
+        assessment,
+        record.requirement_id,
     )
 
-    assert result.finding == (
-        AssessmentFinding.NOT_ASSESSED
-    )
+    assert result.finding == (AssessmentFinding.NOT_ASSESSED)
 
 
 def test_calculate_new_assessment_score(
     engine: AssessmentEngine,
     assessment,
 ) -> None:
-    score = engine.calculate_score(
-        assessment
-    )
+    score = engine.calculate_score(assessment)
 
     assert score.requirement_count == 110
     assert score.current_score == 110
@@ -522,20 +481,14 @@ def test_calculate_score_with_five_point_failure(
     assessment,
 ) -> None:
     for requirement_id in assessment.requirements:
-        scoring_rule = (
-            engine.scoring_engine.get_rule(
-                requirement_id
-            )
-        )
+        scoring_rule = engine.scoring_engine.get_rule(requirement_id)
 
         engine.update_requirement(
             assessment,
             requirement_id,
             finding="MET",
             implementation_state=(
-                "FULLY IMPLEMENTED"
-                if scoring_rule.partial_credit_allowed
-                else None
+                "FULLY IMPLEMENTED" if scoring_rule.partial_credit_allowed else None
             ),
         )
 
@@ -545,9 +498,7 @@ def test_calculate_score_with_five_point_failure(
         finding="NOT MET",
     )
 
-    score = engine.calculate_score(
-        assessment
-    )
+    score = engine.calculate_score(assessment)
 
     assert score.current_score == 105
     assert score.total_deduction_points == 5
@@ -560,20 +511,14 @@ def test_calculate_score_with_partial_credit(
     assessment,
 ) -> None:
     for requirement_id in assessment.requirements:
-        scoring_rule = (
-            engine.scoring_engine.get_rule(
-                requirement_id
-            )
-        )
+        scoring_rule = engine.scoring_engine.get_rule(requirement_id)
 
         engine.update_requirement(
             assessment,
             requirement_id,
             finding="MET",
             implementation_state=(
-                "FULLY IMPLEMENTED"
-                if scoring_rule.partial_credit_allowed
-                else None
+                "FULLY IMPLEMENTED" if scoring_rule.partial_credit_allowed else None
             ),
         )
 
@@ -584,9 +529,7 @@ def test_calculate_score_with_partial_credit(
         implementation_state="PARTIALLY IMPLEMENTED",
     )
 
-    score = engine.calculate_score(
-        assessment
-    )
+    score = engine.calculate_score(assessment)
 
     assert score.current_score == 107
     assert score.total_deduction_points == 3
@@ -600,6 +543,4 @@ def test_unknown_requirement_is_rejected(
         KeyError,
         match="Requirement not found",
     ):
-        assessment.get_requirement(
-            "XX.L2-3.99.99"
-        )
+        assessment.get_requirement("XX.L2-3.99.99")

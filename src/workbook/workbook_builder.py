@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import csv
+import tempfile
 from pathlib import Path
 from typing import Dict, List
 
-from openpyxl import Workbook, workbook
+from openpyxl import Workbook
 from openpyxl.formatting.rule import FormulaRule
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
@@ -17,8 +18,6 @@ from src.workbook.scoring_data import (
 from src.workbook.workbook_styles import WorkbookStyles
 from src.workbook.worksheet_factory import WorksheetFactory
 
-from src.workbook.evidence_sheet import EvidenceSheetBuilder
-
 from src.workbook.evidence_sheet import (
     EvidenceSheetBuilder,
 )
@@ -26,6 +25,7 @@ from src.workbook.evidence_sheet import (
 from src.workbook.workbook_pipeline import WorkbookPipeline
 
 from src.workbook.poam_sheet import POAMSheetBuilder
+
 
 class WorkbookBuilder:
     """Build the scoring-integrated CMMC Level 2 assessment workbook."""
@@ -47,6 +47,7 @@ class WorkbookBuilder:
     EXPECTED_CONTROL_COUNT = 110
     FIRST_ASSESSMENT_ROW = 6
     MAXIMUM_SCORE = 110
+    WORKBOOK_VERSION = "1.0.0"
 
     def __init__(
         self,
@@ -56,54 +57,28 @@ class WorkbookBuilder:
         self.project_root = project_root.resolve()
 
         self.controls_path = (
-            self.project_root
-            / "data"
-            / "controls"
-            / "cmmc_level2_controls.csv"
+            self.project_root / "data" / "controls" / "cmmc_level2_controls.csv"
         )
 
         self.scoring_weights_path = (
-            self.project_root
-            / "data"
-            / "scoring"
-            / "scoring_weights.csv"
+            self.project_root / "data" / "scoring" / "scoring_weights.csv"
         )
 
         self.output_path = output_path or (
-            self.project_root
-            / "output"
-            / "Omni_CMMC_Assessment_v0.2.xlsx"
+            self.project_root / "output" / "Omni_CMMC_Assessment_v1.0.xlsx"
         )
 
         self.styles = WorkbookStyles()
-        self.factory = WorksheetFactory(
-            self.styles
-        )
+        self.factory = WorksheetFactory(self.styles)
 
         self.evidence_builder = EvidenceSheetBuilder(
-        styles=self.styles,
-        factory=self.factory,
+            styles=self.styles,
+            factory=self.factory,
         )
 
         self.poam_builder = POAMSheetBuilder(
-        styles=self.styles,
-        factory=self.factory,
-        )
-
-        self.styles = WorkbookStyles()
-
-        self.factory = WorksheetFactory(
-        self.styles
-        )
-
-        self.evidence_builder = EvidenceSheetBuilder(
-        styles=self.styles,
-        factory=self.factory,
-        )
-
-        self.poam_builder = POAMSheetBuilder(
-        styles=self.styles,
-        factory=self.factory,
+            styles=self.styles,
+            factory=self.factory,
         )
 
         self.pipeline = WorkbookPipeline()
@@ -111,9 +86,7 @@ class WorkbookBuilder:
     def build(self) -> Path:
         controls = self._load_controls()
 
-        scoring_rules = WorkbookScoringData(
-            self.scoring_weights_path
-        ).load_map()
+        scoring_rules = WorkbookScoringData(self.scoring_weights_path).load_map()
 
         self._validate_control_scoring_alignment(
             controls,
@@ -127,19 +100,13 @@ class WorkbookBuilder:
         workbook.remove(default_sheet)
 
         worksheets = {
-            sheet_name: workbook.create_sheet(
-                title=sheet_name
-            )
+            sheet_name: workbook.create_sheet(title=sheet_name)
             for sheet_name in self.SHEET_ORDER
         }
 
-        self._build_cover(
-            worksheets["Cover"]
-        )
+        self._build_cover(worksheets["Cover"])
 
-        self._build_dashboard(
-            worksheets["Dashboard"]
-        )
+        self._build_dashboard(worksheets["Dashboard"])
 
         self._build_assessment(
             worksheets["Assessment"],
@@ -152,39 +119,22 @@ class WorkbookBuilder:
             controls,
         )
 
-        self.evidence_builder.build(
-            worksheets["Evidence"]
-        )
+        self.evidence_builder.build(worksheets["Evidence"])
 
-        self.poam_builder.build(
-            worksheets["POA&M"]
-        )
-        
-        self._build_placeholder_sheet(
+        self.poam_builder.build(worksheets["POA&M"])
+
+        self._build_security_plan_crosswalk(
             worksheets["SSP Crosswalk"],
-            title="SSP Crosswalk",
-            subtitle=(
-                "Map CMMC requirements to System Security "
-                "Plan sections, policies, procedures, and owners."
-            ),
+            controls,
         )
 
-        self._build_placeholder_sheet(
+        self._build_assessment_history(
             worksheets["Assessment History"],
-            title="Assessment History",
-            subtitle=(
-                "Store historical assessment snapshots and "
-                "track score and readiness trends."
-            ),
         )
 
-        self._build_placeholder_sheet(
+        self._build_executive_report(
             worksheets["Executive Report"],
-            title="Executive Report",
-            subtitle=(
-                "Printable management summary of assessment "
-                "results, risks, and remediation priorities."
-            ),
+            controls,
         )
 
         self._build_settings(
@@ -192,28 +142,39 @@ class WorkbookBuilder:
             scoring_rules,
         )
 
-        self._build_lists(
-            worksheets["_Lists"]
-        )
+        self._build_lists(worksheets["_Lists"])
 
-        worksheets["_Lists"].sheet_state = (
-            "veryHidden"
-        )
+        worksheets["_Lists"].sheet_state = "veryHidden"
 
-        workbook.active = (
-        workbook.sheetnames.index("Cover")
-        )
+        workbook.active = workbook.sheetnames.index("Cover")
 
         self.output_path.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    
+            parents=True,
+            exist_ok=True,
         )
 
         self.pipeline.run(workbook)
-        workbook.save(self.output_path)
+        self._save_atomically(workbook)
 
         return self.output_path
+
+    def _save_atomically(self, workbook: Workbook) -> None:
+        """Save without exposing a partially written release workbook."""
+
+        temporary_file = tempfile.NamedTemporaryFile(
+            prefix=f".{self.output_path.stem}-",
+            suffix=self.output_path.suffix,
+            dir=self.output_path.parent,
+            delete=False,
+        )
+        temporary_path = Path(temporary_file.name)
+        temporary_file.close()
+
+        try:
+            workbook.save(temporary_path)
+            temporary_path.replace(self.output_path)
+        finally:
+            temporary_path.unlink(missing_ok=True)
 
     def _load_controls(
         self,
@@ -233,9 +194,7 @@ class WorkbookBuilder:
             reader = csv.DictReader(file)
 
             if reader.fieldnames is None:
-                raise ValueError(
-                    "Compiled controls CSV has no header."
-                )
+                raise ValueError("Compiled controls CSV has no header.")
 
             required_columns = {
                 "domain_code",
@@ -246,17 +205,12 @@ class WorkbookBuilder:
                 "source_page_end",
             }
 
-            missing_columns = (
-                required_columns
-                - set(reader.fieldnames)
-            )
+            missing_columns = required_columns - set(reader.fieldnames)
 
             if missing_columns:
                 raise ValueError(
                     "Compiled controls CSV is missing columns: "
-                    + ", ".join(
-                        sorted(missing_columns)
-                    )
+                    + ", ".join(sorted(missing_columns))
                 )
 
             controls = list(reader)
@@ -279,26 +233,18 @@ class WorkbookBuilder:
         ],
     ) -> None:
         control_ids = {
-            control["requirement_id"]
-            .strip()
-            .upper()
-            for control in controls
+            control["requirement_id"].strip().upper() for control in controls
         }
 
         scoring_ids = set(scoring_rules)
 
-        missing_scoring = sorted(
-            control_ids - scoring_ids
-        )
+        missing_scoring = sorted(control_ids - scoring_ids)
 
-        unexpected_scoring = sorted(
-            scoring_ids - control_ids
-        )
+        unexpected_scoring = sorted(scoring_ids - control_ids)
 
         if missing_scoring:
             raise ValueError(
-                "Controls are missing scoring rules: "
-                + ", ".join(missing_scoring)
+                "Controls are missing scoring rules: " + ", ".join(missing_scoring)
             )
 
         if unexpected_scoring:
@@ -321,7 +267,8 @@ class WorkbookBuilder:
             title="Omni by R!SC",
             subtitle=(
                 "CMMC Level 2 assessment readiness, evidence, "
-                "POA&M, SSP mapping, and weighted scoring"
+                "remediation planning (POA&M), Security Plan "
+                "mapping (SSP), and weighted scoring"
             ),
             end_column=10,
         )
@@ -338,7 +285,7 @@ class WorkbookBuilder:
             ("Assessment Start Date", ""),
             ("Assessment End Date", ""),
             ("Lead Assessor", ""),
-            ("Workbook Version", "0.2"),
+            ("Workbook Version", self.WORKBOOK_VERSION),
             (
                 "Assessment Guide",
                 "Level 2 Version 2.13",
@@ -351,9 +298,7 @@ class WorkbookBuilder:
 
         start_row = 6
 
-        for offset, (label, value) in enumerate(
-            fields
-        ):
+        for offset, (label, value) in enumerate(fields):
             row = start_row + offset
 
             label_cell = worksheet.cell(
@@ -368,42 +313,20 @@ class WorkbookBuilder:
                 value=value,
             )
 
-            label_cell.font = (
-                self.styles.header_font()
-            )
-            label_cell.fill = (
-                self.styles.section_fill()
-            )
-            label_cell.border = (
-                self.styles.thin_border()
-            )
-            label_cell.alignment = (
-                self.styles.left_alignment()
-            )
+            label_cell.font = self.styles.header_font()
+            label_cell.fill = self.styles.section_fill()
+            label_cell.border = self.styles.thin_border()
+            label_cell.alignment = self.styles.left_alignment()
 
-            value_cell.fill = (
-                self.styles.input_fill()
-            )
-            value_cell.font = (
-                self.styles.input_font()
-            )
-            value_cell.protection = (
-                self.styles.unlocked_protection()
-            )
-            value_cell.border = (
-                self.styles.thin_border()
-            )
-            value_cell.alignment = (
-                self.styles.left_alignment()
-            )
+            value_cell.fill = self.styles.input_fill()
+            value_cell.font = self.styles.input_font()
+            value_cell.protection = self.styles.unlocked_protection()
+            value_cell.border = self.styles.thin_border()
+            value_cell.alignment = self.styles.left_alignment()
 
         worksheet["B19"] = "Instructions"
-        worksheet["B19"].font = (
-            self.styles.section_font()
-        )
-        worksheet["B19"].fill = (
-            self.styles.section_fill()
-        )
+        worksheet["B19"].font = self.styles.section_font()
+        worksheet["B19"].fill = self.styles.section_fill()
 
         worksheet.merge_cells(
             start_row=20,
@@ -422,18 +345,10 @@ class WorkbookBuilder:
             "SC.L2-3.13.11 include limited partial-credit "
             "implementation-state options."
         )
-        instruction_cell.font = (
-            self.styles.body_font()
-        )
-        instruction_cell.fill = (
-            self.styles.subheader_fill()
-        )
-        instruction_cell.border = (
-            self.styles.thin_border()
-        )
-        instruction_cell.alignment = (
-            self.styles.left_alignment()
-        )
+        instruction_cell.font = self.styles.body_font()
+        instruction_cell.fill = self.styles.subheader_fill()
+        instruction_cell.border = self.styles.thin_border()
+        instruction_cell.alignment = self.styles.left_alignment()
 
         widths = {
             "A": 3,
@@ -449,9 +364,7 @@ class WorkbookBuilder:
         }
 
         for column, width in widths.items():
-            worksheet.column_dimensions[
-                column
-            ].width = width
+            worksheet.column_dimensions[column].width = width
 
     def _build_dashboard(
         self,
@@ -465,19 +378,12 @@ class WorkbookBuilder:
         self.factory.create_title_band(
             worksheet,
             title="Executive Dashboard",
-            subtitle=(
-                "Weighted CMMC Level 2 assessment and "
-                "readiness summary"
-            ),
+            subtitle=("Weighted CMMC Level 2 assessment and " "readiness summary"),
             end_column=13,
         )
 
         first_row = self.FIRST_ASSESSMENT_ROW
-        last_row = (
-            first_row
-            + self.EXPECTED_CONTROL_COUNT
-            - 1
-        )
+        last_row = first_row + self.EXPECTED_CONTROL_COUNT - 1
 
         cards = [
             (
@@ -490,25 +396,17 @@ class WorkbookBuilder:
             ),
             (
                 "Requirements Met",
-                (
-                    '=COUNTIF('
-                    f'Assessment!I{first_row}:'
-                    f'I{last_row},"MET")'
-                ),
+                ("=COUNTIF(" f"Assessment!I{first_row}:" f'I{last_row},"MET")'),
             ),
             (
                 "Requirements Not Met",
-                (
-                    '=COUNTIF('
-                    f'Assessment!I{first_row}:'
-                    f'I{last_row},"NOT MET")'
-                ),
+                ("=COUNTIF(" f"Assessment!I{first_row}:" f'I{last_row},"NOT MET")'),
             ),
             (
                 "Not Assessed",
                 (
-                    '=COUNTIF('
-                    f'Assessment!I{first_row}:'
+                    "=COUNTIF("
+                    f"Assessment!I{first_row}:"
                     f'I{last_row},"NOT ASSESSED")'
                 ),
             ),
@@ -554,72 +452,44 @@ class WorkbookBuilder:
                 value=formula,
             )
 
-            label_cell.font = (
-                self.styles.header_font()
-            )
-            label_cell.fill = (
-                self.styles.header_fill()
-            )
-            label_cell.alignment = (
-                self.styles.center_alignment()
-            )
-            label_cell.border = (
-                self.styles.thin_border()
-            )
+            label_cell.font = self.styles.header_font()
+            label_cell.fill = self.styles.header_fill()
+            label_cell.alignment = self.styles.center_alignment()
+            label_cell.border = self.styles.thin_border()
 
-            value_cell.font = (
-                self.styles.title_font()
-            )
-            value_cell.fill = (
-                self.styles.section_fill()
-            )
-            value_cell.alignment = (
-                self.styles.center_alignment()
-            )
-            value_cell.border = (
-                self.styles.thin_border()
-            )
+            value_cell.font = self.styles.title_font()
+            value_cell.fill = self.styles.section_fill()
+            value_cell.alignment = self.styles.center_alignment()
+            value_cell.border = self.styles.thin_border()
 
         dashboard_metrics = [
             (
                 "Assessment Completion",
                 (
-                    '=IFERROR(('
-                    f'COUNTIF(Assessment!I{first_row}:'
+                    "=IFERROR(("
+                    f"COUNTIF(Assessment!I{first_row}:"
                     f'I{last_row},"MET")+'
-                    f'COUNTIF(Assessment!I{first_row}:'
+                    f"COUNTIF(Assessment!I{first_row}:"
                     f'I{last_row},"NOT MET")+'
-                    f'COUNTIF(Assessment!I{first_row}:'
+                    f"COUNTIF(Assessment!I{first_row}:"
                     f'I{last_row},"NOT APPLICABLE"))/'
-                    f'{self.EXPECTED_CONTROL_COUNT},0)'
+                    f"{self.EXPECTED_CONTROL_COUNT},0)"
                 ),
                 "0%",
             ),
             (
                 "Evidence Complete",
-                (
-                    '=COUNTIF('
-                    f'Assessment!O{first_row}:'
-                    f'O{last_row},"Complete")'
-                ),
+                ("=COUNTIF(" f"Assessment!O{first_row}:" f'O{last_row},"Complete")'),
                 "0",
             ),
             (
                 "Partial Credit Applied",
-                (
-                    '=COUNTIF('
-                    f'Assessment!M{first_row}:'
-                    f'M{last_row},"Yes")'
-                ),
+                ("=COUNTIF(" f"Assessment!M{first_row}:" f'M{last_row},"Yes")'),
                 "0",
             ),
             (
                 "POA&M Items",
-                (
-                    '=COUNTIF('
-                    f'Assessment!S{first_row}:'
-                    f'S{last_row},"Yes")'
-                ),
+                ("=COUNTIF(" f"Assessment!S{first_row}:" f'S{last_row},"Yes")'),
                 "0",
             ),
         ]
@@ -651,119 +521,54 @@ class WorkbookBuilder:
                 value=formula,
             )
 
-            label_cell.font = (
-                self.styles.header_font()
-            )
-            label_cell.fill = (
-                self.styles.header_fill()
-            )
-            label_cell.border = (
-                self.styles.thin_border()
-            )
-            label_cell.alignment = (
-                self.styles.center_alignment()
-            )
+            label_cell.font = self.styles.header_font()
+            label_cell.fill = self.styles.header_fill()
+            label_cell.border = self.styles.thin_border()
+            label_cell.alignment = self.styles.center_alignment()
 
-            value_cell.fill = (
-                self.styles.formula_fill()
-            )
-            value_cell.border = (
-                self.styles.thin_border()
-            )
-            value_cell.alignment = (
-                self.styles.center_alignment()
-            )
-            value_cell.number_format = (
-                number_format
-            )
+            value_cell.fill = self.styles.formula_fill()
+            value_cell.border = self.styles.thin_border()
+            value_cell.alignment = self.styles.center_alignment()
+            value_cell.number_format = number_format
 
         worksheet["B15"] = "Scoring Status"
-        worksheet["B15"].font = (
-            self.styles.header_font()
-        )
-        worksheet["B15"].fill = (
-            self.styles.header_fill()
-        )
-        worksheet["B15"].border = (
-            self.styles.thin_border()
-        )
+        worksheet["B15"].font = self.styles.header_font()
+        worksheet["B15"].fill = self.styles.header_fill()
+        worksheet["B15"].border = self.styles.thin_border()
 
         worksheet["C15"] = (
-            '=IF(COUNTIF('
-            f'Assessment!I{first_row}:'
+            "=IF(COUNTIF("
+            f"Assessment!I{first_row}:"
             f'I{last_row},"NOT ASSESSED")=0,'
             '"COMPLETE","PROVISIONAL")'
         )
-        worksheet["C15"].fill = (
-            self.styles.formula_fill()
-        )
-        worksheet["C15"].border = (
-            self.styles.thin_border()
-        )
-        worksheet["C15"].alignment = (
-            self.styles.center_alignment()
-        )
+        worksheet["C15"].fill = self.styles.formula_fill()
+        worksheet["C15"].border = self.styles.thin_border()
+        worksheet["C15"].alignment = self.styles.center_alignment()
 
-        worksheet["E15"] = (
-            "Maximum Deduction"
-        )
-        worksheet["E15"].font = (
-            self.styles.header_font()
-        )
-        worksheet["E15"].fill = (
-            self.styles.header_fill()
-        )
-        worksheet["E15"].border = (
-            self.styles.thin_border()
-        )
+        worksheet["E15"] = "Maximum Deduction"
+        worksheet["E15"].font = self.styles.header_font()
+        worksheet["E15"].fill = self.styles.header_fill()
+        worksheet["E15"].border = self.styles.thin_border()
 
-        worksheet["F15"] = (
-            f"=SUM(Assessment!L{first_row}:"
-            f"L{last_row})"
-        )
-        worksheet["F15"].fill = (
-            self.styles.formula_fill()
-        )
-        worksheet["F15"].border = (
-            self.styles.thin_border()
-        )
-        worksheet["F15"].alignment = (
-            self.styles.center_alignment()
-        )
+        worksheet["F15"] = f"=SUM(Assessment!L{first_row}:" f"L{last_row})"
+        worksheet["F15"].fill = self.styles.formula_fill()
+        worksheet["F15"].border = self.styles.thin_border()
+        worksheet["F15"].alignment = self.styles.center_alignment()
 
-        worksheet["H15"] = (
-            "Mathematical Minimum"
-        )
-        worksheet["H15"].font = (
-            self.styles.header_font()
-        )
-        worksheet["H15"].fill = (
-            self.styles.header_fill()
-        )
-        worksheet["H15"].border = (
-            self.styles.thin_border()
-        )
+        worksheet["H15"] = "Mathematical Minimum"
+        worksheet["H15"].font = self.styles.header_font()
+        worksheet["H15"].fill = self.styles.header_fill()
+        worksheet["H15"].border = self.styles.thin_border()
 
-        worksheet["I15"] = (
-            f"={self.MAXIMUM_SCORE}-F15"
-        )
-        worksheet["I15"].fill = (
-            self.styles.formula_fill()
-        )
-        worksheet["I15"].border = (
-            self.styles.thin_border()
-        )
-        worksheet["I15"].alignment = (
-            self.styles.center_alignment()
-        )
+        worksheet["I15"] = f"={self.MAXIMUM_SCORE}-F15"
+        worksheet["I15"].fill = self.styles.formula_fill()
+        worksheet["I15"].border = self.styles.thin_border()
+        worksheet["I15"].alignment = self.styles.center_alignment()
 
         for column in range(1, 14):
-            column_letter = get_column_letter(
-                column
-            )
-            worksheet.column_dimensions[
-                column_letter
-            ].width = 13
+            column_letter = get_column_letter(column)
+            worksheet.column_dimensions[column_letter].width = 13
 
     def _build_assessment(
         self,
@@ -783,9 +588,7 @@ class WorkbookBuilder:
 
         self.factory.create_title_band(
             worksheet,
-            title=(
-                "CMMC Level 2 Requirement Assessment"
-            ),
+            title=("CMMC Level 2 Requirement Assessment"),
             subtitle=(
                 "Evaluate implementation, evidence, ownership, "
                 "SSP mapping, weighted deductions, and POA&M "
@@ -795,28 +598,28 @@ class WorkbookBuilder:
         )
 
         headers = [
-            "Domain",                    # A
-            "Requirement ID",            # B
-            "Title",                     # C
-            "Requirement Statement",     # D
-            "Source Start",              # E
-            "Source End",                # F
-            "Applicable",                # G
-            "Scoring Category",          # H
-            "Status",                    # I
-            "Implementation State",      # J
-            "Partial Credit Allowed",    # K
-            "Full Deduction",            # L
-            "Partial Credit Applied",    # M
-            "Calculated Deduction",      # N
-            "Evidence Status",           # O
-            "Control Owner",             # P
-            "SSP Reference",             # Q
-            "Assessor Notes",            # R
-            "POA&M Required",            # S
+            "Domain",  # A
+            "Requirement ID",  # B
+            "Title",  # C
+            "Requirement Statement",  # D
+            "Source Start",  # E
+            "Source End",  # F
+            "Applicable",  # G
+            "Scoring Category",  # H
+            "Status",  # I
+            "Implementation State",  # J
+            "Partial Credit Allowed",  # K
+            "Full Deduction",  # L
+            "Partial Credit Applied",  # M
+            "Calculated Deduction",  # N
+            "Evidence Status",  # O
+            "Control Owner",  # P
+            "Security Plan Reference (SSP)",  # Q
+            "Assessor Notes",  # R
+            "Remediation Required (POA&M)",  # S
             "Partial Credit Condition",  # T
-            "Scoring Source",            # U
-            "Score Explanation",         # V
+            "Scoring Source",  # U
+            "Score Explanation",  # V
         ]
 
         header_row = 5
@@ -838,24 +641,14 @@ class WorkbookBuilder:
             end_column=len(headers),
         )
 
-        first_data_row = (
-            self.FIRST_ASSESSMENT_ROW
-        )
+        first_data_row = self.FIRST_ASSESSMENT_ROW
 
-        for row_offset, control in enumerate(
-            controls
-        ):
+        for row_offset, control in enumerate(controls):
             row = first_data_row + row_offset
 
-            requirement_id = (
-                control["requirement_id"]
-                .strip()
-                .upper()
-            )
+            requirement_id = control["requirement_id"].strip().upper()
 
-            rule = scoring_rules[
-                requirement_id
-            ]
+            rule = scoring_rules[requirement_id]
 
             worksheet.cell(
                 row=row,
@@ -884,21 +677,13 @@ class WorkbookBuilder:
             worksheet.cell(
                 row=row,
                 column=5,
-                value=int(
-                    control[
-                        "source_page_start"
-                    ]
-                ),
+                value=int(control["source_page_start"]),
             )
 
             worksheet.cell(
                 row=row,
                 column=6,
-                value=int(
-                    control[
-                        "source_page_end"
-                    ]
-                ),
+                value=int(control["source_page_end"]),
             )
 
             worksheet.cell(
@@ -922,21 +707,13 @@ class WorkbookBuilder:
             worksheet.cell(
                 row=row,
                 column=10,
-                value=(
-                    "NOT ASSESSED"
-                    if rule.partial_credit_allowed
-                    else ""
-                ),
+                value=("NOT ASSESSED" if rule.partial_credit_allowed else ""),
             )
 
             worksheet.cell(
                 row=row,
                 column=11,
-                value=(
-                    "Yes"
-                    if rule.partial_credit_allowed
-                    else "No"
-                ),
+                value=("Yes" if rule.partial_credit_allowed else "No"),
             )
 
             worksheet.cell(
@@ -949,7 +726,7 @@ class WorkbookBuilder:
                 row=row,
                 column=13,
                 value=(
-                    f'=IF(AND('
+                    f"=IF(AND("
                     f'K{row}="Yes",'
                     f'I{row}="NOT MET",'
                     f'J{row}="PARTIALLY IMPLEMENTED"),'
@@ -990,10 +767,7 @@ class WorkbookBuilder:
             worksheet.cell(
                 row=row,
                 column=19,
-                value=(
-                    f'=IF(I{row}="NOT MET",'
-                    f'"Yes","No")'
-                ),
+                value=(f'=IF(I{row}="NOT MET",' f'"Yes","No")'),
             )
 
             worksheet.cell(
@@ -1005,10 +779,7 @@ class WorkbookBuilder:
             worksheet.cell(
                 row=row,
                 column=21,
-                value=(
-                    f"{rule.scoring_source} | "
-                    f"{rule.scoring_source_version}"
-                ),
+                value=(f"{rule.scoring_source} | " f"{rule.scoring_source_version}"),
             )
 
             worksheet.cell(
@@ -1026,15 +797,9 @@ class WorkbookBuilder:
                     column=column,
                 )
 
-                cell.border = (
-                    self.styles.thin_border()
-                )
-                cell.alignment = (
-                    self.styles.left_alignment()
-                )
-                cell.font = (
-                    self.styles.body_font()
-                )
+                cell.border = self.styles.thin_border()
+                cell.alignment = self.styles.left_alignment()
+                cell.font = self.styles.body_font()
 
             input_columns = [
                 7,
@@ -1052,23 +817,12 @@ class WorkbookBuilder:
                     column=input_column,
                 )
 
-                if (
-                    input_column == 10
-                    and not rule.partial_credit_allowed
-                ):
-                    cell.fill = (
-                        self.styles.formula_fill()
-                    )
-                    cell.protection = (
-                        self.styles.locked_protection()
-                    )
+                if input_column == 10 and not rule.partial_credit_allowed:
+                    cell.fill = self.styles.formula_fill()
+                    cell.protection = self.styles.locked_protection()
                 else:
-                    cell.fill = (
-                        self.styles.input_fill()
-                    )
-                    cell.protection = (
-                        self.styles.unlocked_protection()
-                    )
+                    cell.fill = self.styles.input_fill()
+                    cell.protection = self.styles.unlocked_protection()
 
             formula_columns = [
                 8,
@@ -1086,15 +840,9 @@ class WorkbookBuilder:
                 worksheet.cell(
                     row=row,
                     column=formula_column,
-                ).fill = (
-                    self.styles.formula_fill()
-                )
+                ).fill = self.styles.formula_fill()
 
-        last_data_row = (
-            first_data_row
-            + len(controls)
-            - 1
-        )
+        last_data_row = first_data_row + len(controls) - 1
 
         self._add_assessment_validations(
             worksheet,
@@ -1134,37 +882,29 @@ class WorkbookBuilder:
         }
 
         for column, width in widths.items():
-            worksheet.column_dimensions[
-                column
-            ].width = width
+            worksheet.column_dimensions[column].width = width
 
-        worksheet.auto_filter.ref = (
-            f"A{header_row}:V{last_data_row}"
-        )
+        worksheet.auto_filter.ref = f"A{header_row}:V{last_data_row}"
 
-        worksheet.print_title_rows = (
-            f"1:{header_row}"
-        )
+        worksheet.print_title_rows = f"1:{header_row}"
 
-        worksheet.print_area = (
-            f"A1:V{last_data_row}"
-        )
+        worksheet.print_area = f"A1:V{last_data_row}"
 
     @staticmethod
     def _deduction_formula(
         row: int,
     ) -> str:
         return (
-            f'=IF(OR('
+            f"=IF(OR("
             f'I{row}="MET",'
             f'I{row}="NOT APPLICABLE",'
             f'I{row}="NOT ASSESSED"),'
-            f'0,'
-            f'IF(AND('
+            f"0,"
+            f"IF(AND("
             f'K{row}="Yes",'
             f'J{row}="PARTIALLY IMPLEMENTED"),'
-            f'3,'
-            f'L{row}))'
+            f"3,"
+            f"L{row}))"
         )
 
     @staticmethod
@@ -1199,70 +939,45 @@ class WorkbookBuilder:
             allow_blank=False,
         )
 
-        worksheet.add_data_validation(
-            applicable_validation
-        )
+        worksheet.add_data_validation(applicable_validation)
 
-        applicable_validation.add(
-            f"G{first_row}:G{last_row}"
-        )
+        applicable_validation.add(f"G{first_row}:G{last_row}")
 
         status_validation = DataValidation(
             type="list",
-            formula1=(
-                '"MET,NOT MET,'
-                'NOT APPLICABLE,'
-                'NOT ASSESSED"'
-            ),
+            formula1=('"MET,NOT MET,' "NOT APPLICABLE," 'NOT ASSESSED"'),
             allow_blank=False,
         )
 
-        worksheet.add_data_validation(
-            status_validation
+        worksheet.add_data_validation(status_validation)
+
+        status_validation.add(f"I{first_row}:I{last_row}")
+
+        implementation_validation = DataValidation(
+            type="list",
+            formula1=(
+                '"FULLY IMPLEMENTED,'
+                "PARTIALLY IMPLEMENTED,"
+                "NOT IMPLEMENTED,"
+                "NOT APPLICABLE,"
+                'NOT ASSESSED"'
+            ),
+            allow_blank=True,
         )
 
-        status_validation.add(
-            f"I{first_row}:I{last_row}"
-        )
+        worksheet.add_data_validation(implementation_validation)
 
-        implementation_validation = (
-            DataValidation(
-                type="list",
-                formula1=(
-                    '"FULLY IMPLEMENTED,'
-                    'PARTIALLY IMPLEMENTED,'
-                    'NOT IMPLEMENTED,'
-                    'NOT APPLICABLE,'
-                    'NOT ASSESSED"'
-                ),
-                allow_blank=True,
-            )
-        )
-
-        worksheet.add_data_validation(
-            implementation_validation
-        )
-
-        implementation_validation.add(
-            f"J{first_row}:J{last_row}"
-        )
+        implementation_validation.add(f"J{first_row}:J{last_row}")
 
         evidence_validation = DataValidation(
             type="list",
-            formula1=(
-                '"Not Started,In Progress,'
-                'Complete,Not Applicable"'
-            ),
+            formula1=('"Not Started,In Progress,' 'Complete,Not Applicable"'),
             allow_blank=False,
         )
 
-        worksheet.add_data_validation(
-            evidence_validation
-        )
+        worksheet.add_data_validation(evidence_validation)
 
-        evidence_validation.add(
-            f"O{first_row}:O{last_row}"
-        )
+        evidence_validation.add(f"O{first_row}:O{last_row}")
 
     def _add_assessment_conditional_formatting(
         self,
@@ -1270,16 +985,12 @@ class WorkbookBuilder:
         first_row: int,
         last_row: int,
     ) -> None:
-        status_range = (
-            f"I{first_row}:I{last_row}"
-        )
+        status_range = f"I{first_row}:I{last_row}"
 
         worksheet.conditional_formatting.add(
             status_range,
             FormulaRule(
-                formula=[
-                    f'I{first_row}="MET"'
-                ],
+                formula=[f'I{first_row}="MET"'],
                 fill=self.styles.good_fill(),
             ),
         )
@@ -1287,9 +998,7 @@ class WorkbookBuilder:
         worksheet.conditional_formatting.add(
             status_range,
             FormulaRule(
-                formula=[
-                    f'I{first_row}="NOT MET"'
-                ],
+                formula=[f'I{first_row}="NOT MET"'],
                 fill=self.styles.bad_fill(),
             ),
         )
@@ -1297,40 +1006,27 @@ class WorkbookBuilder:
         worksheet.conditional_formatting.add(
             status_range,
             FormulaRule(
-                formula=[
-                    (
-                        f'I{first_row}'
-                        '="NOT ASSESSED"'
-                    )
-                ],
+                formula=[f"I{first_row}" '="NOT ASSESSED"'],
                 fill=self.styles.warning_fill(),
             ),
         )
 
-        partial_range = (
-            f"M{first_row}:M{last_row}"
-        )
+        partial_range = f"M{first_row}:M{last_row}"
 
         worksheet.conditional_formatting.add(
             partial_range,
             FormulaRule(
-                formula=[
-                    f'M{first_row}="Yes"'
-                ],
+                formula=[f'M{first_row}="Yes"'],
                 fill=self.styles.warning_fill(),
             ),
         )
 
-        poam_range = (
-            f"S{first_row}:S{last_row}"
-        )
+        poam_range = f"S{first_row}:S{last_row}"
 
         worksheet.conditional_formatting.add(
             poam_range,
             FormulaRule(
-                formula=[
-                    f'S{first_row}="Yes"'
-                ],
+                formula=[f'S{first_row}="Yes"'],
                 fill=self.styles.bad_fill(),
             ),
         )
@@ -1348,10 +1044,7 @@ class WorkbookBuilder:
         self.factory.create_title_band(
             worksheet,
             title="Domain Summary",
-            subtitle=(
-                "Weighted scoring, completion, and findings "
-                "by CMMC domain"
-            ),
+            subtitle=("Weighted scoring, completion, and findings " "by CMMC domain"),
             end_column=10,
         )
 
@@ -1388,27 +1081,15 @@ class WorkbookBuilder:
         domain_codes: List[str] = []
 
         for control in controls:
-            domain_code = (
-                control["domain_code"]
-                .strip()
-                .upper()
-            )
+            domain_code = control["domain_code"].strip().upper()
 
             if domain_code not in domain_codes:
-                domain_codes.append(
-                    domain_code
-                )
+                domain_codes.append(domain_code)
 
         first_row = self.FIRST_ASSESSMENT_ROW
-        last_row = (
-            first_row
-            + self.EXPECTED_CONTROL_COUNT
-            - 1
-        )
+        last_row = first_row + self.EXPECTED_CONTROL_COUNT - 1
 
-        for offset, domain_code in enumerate(
-            domain_codes
-        ):
+        for offset, domain_code in enumerate(domain_codes):
             row = 6 + offset
 
             worksheet.cell(
@@ -1421,9 +1102,7 @@ class WorkbookBuilder:
                 row=row,
                 column=2,
                 value=(
-                    '=COUNTIF('
-                    f'Assessment!$A${first_row}:'
-                    f'$A${last_row},A{row})'
+                    "=COUNTIF(" f"Assessment!$A${first_row}:" f"$A${last_row},A{row})"
                 ),
             )
 
@@ -1431,10 +1110,10 @@ class WorkbookBuilder:
                 row=row,
                 column=3,
                 value=(
-                    '=COUNTIFS('
-                    f'Assessment!$A${first_row}:'
-                    f'$A${last_row},A{row},'
-                    f'Assessment!$I${first_row}:'
+                    "=COUNTIFS("
+                    f"Assessment!$A${first_row}:"
+                    f"$A${last_row},A{row},"
+                    f"Assessment!$I${first_row}:"
                     f'$I${last_row},"MET")'
                 ),
             )
@@ -1443,10 +1122,10 @@ class WorkbookBuilder:
                 row=row,
                 column=4,
                 value=(
-                    '=COUNTIFS('
-                    f'Assessment!$A${first_row}:'
-                    f'$A${last_row},A{row},'
-                    f'Assessment!$I${first_row}:'
+                    "=COUNTIFS("
+                    f"Assessment!$A${first_row}:"
+                    f"$A${last_row},A{row},"
+                    f"Assessment!$I${first_row}:"
                     f'$I${last_row},"NOT MET")'
                 ),
             )
@@ -1455,10 +1134,10 @@ class WorkbookBuilder:
                 row=row,
                 column=5,
                 value=(
-                    '=COUNTIFS('
-                    f'Assessment!$A${first_row}:'
-                    f'$A${last_row},A{row},'
-                    f'Assessment!$I${first_row}:'
+                    "=COUNTIFS("
+                    f"Assessment!$A${first_row}:"
+                    f"$A${last_row},A{row},"
+                    f"Assessment!$I${first_row}:"
                     f'$I${last_row},"NOT ASSESSED")'
                 ),
             )
@@ -1467,11 +1146,11 @@ class WorkbookBuilder:
                 row=row,
                 column=6,
                 value=(
-                    '=SUMIF('
-                    f'Assessment!$A${first_row}:'
-                    f'$A${last_row},A{row},'
-                    f'Assessment!$L${first_row}:'
-                    f'$L${last_row})'
+                    "=SUMIF("
+                    f"Assessment!$A${first_row}:"
+                    f"$A${last_row},A{row},"
+                    f"Assessment!$L${first_row}:"
+                    f"$L${last_row})"
                 ),
             )
 
@@ -1479,38 +1158,33 @@ class WorkbookBuilder:
                 row=row,
                 column=7,
                 value=(
-                    '=SUMIF('
-                    f'Assessment!$A${first_row}:'
-                    f'$A${last_row},A{row},'
-                    f'Assessment!$N${first_row}:'
-                    f'$N${last_row})'
+                    "=SUMIF("
+                    f"Assessment!$A${first_row}:"
+                    f"$A${last_row},A{row},"
+                    f"Assessment!$N${first_row}:"
+                    f"$N${last_row})"
                 ),
             )
 
             worksheet.cell(
                 row=row,
                 column=8,
-                value=(
-                    f'=IF(B{row}=0,0,'
-                    f'(B{row}-E{row})/B{row})'
-                ),
+                value=(f"=IF(B{row}=0,0," f"(B{row}-E{row})/B{row})"),
             )
 
             worksheet.cell(
                 row=row,
                 column=9,
-                value=(
-                    f'=F{row}-G{row}'
-                ),
+                value=(f"=F{row}-G{row}"),
             )
 
             worksheet.cell(
                 row=row,
                 column=10,
                 value=(
-                    f'=IF(E{row}>0,'
+                    f"=IF(E{row}>0,"
                     f'"INCOMPLETE",'
-                    f'IF(D{row}=0,'
+                    f"IF(D{row}=0,"
                     f'"READY","NEEDS WORK"))'
                 ),
             )
@@ -1521,15 +1195,9 @@ class WorkbookBuilder:
                     column=column,
                 )
 
-                cell.border = (
-                    self.styles.thin_border()
-                )
-                cell.alignment = (
-                    self.styles.center_alignment()
-                )
-                cell.font = (
-                    self.styles.body_font()
-                )
+                cell.border = self.styles.thin_border()
+                cell.alignment = self.styles.center_alignment()
+                cell.font = self.styles.body_font()
 
             worksheet.cell(
                 row=row,
@@ -1537,20 +1205,12 @@ class WorkbookBuilder:
             ).number_format = "0%"
 
         for column in range(1, 11):
-            column_letter = (
-                get_column_letter(column)
-            )
-            worksheet.column_dimensions[
-                column_letter
-            ].width = 18
+            column_letter = get_column_letter(column)
+            worksheet.column_dimensions[column_letter].width = 18
 
-        last_domain_row = (
-            5 + len(domain_codes)
-        )
+        last_domain_row = 5 + len(domain_codes)
 
-        worksheet.auto_filter.ref = (
-            f"A5:J{last_domain_row}"
-        )
+        worksheet.auto_filter.ref = f"A5:J{last_domain_row}"
 
     def _build_settings(
         self,
@@ -1560,37 +1220,27 @@ class WorkbookBuilder:
             WorkbookScoringRule,
         ],
     ) -> None:
-        self.factory.configure_standard_sheet(
-            worksheet
-        )
+        self.factory.configure_standard_sheet(worksheet)
 
         self.factory.create_title_band(
             worksheet,
             title="Workbook Settings",
-            subtitle=(
-                "Workbook configuration and official "
-                "scoring metadata"
-            ),
+            subtitle=("Workbook configuration and official " "scoring metadata"),
             end_column=8,
         )
 
         maximum_deduction = sum(
-            rule.full_deduction_points
-            for rule in scoring_rules.values()
+            rule.full_deduction_points for rule in scoring_rules.values()
         )
 
-        minimum_score = (
-            self.MAXIMUM_SCORE
-            - maximum_deduction
-        )
+        minimum_score = self.MAXIMUM_SCORE - maximum_deduction
 
         partial_rule_count = sum(
-            rule.partial_credit_allowed
-            for rule in scoring_rules.values()
+            rule.partial_credit_allowed for rule in scoring_rules.values()
         )
 
         settings = [
-            ("Workbook Version", "0.2"),
+            ("Workbook Version", self.WORKBOOK_VERSION),
             (
                 "Assessment Guide Version",
                 "2.13",
@@ -1629,9 +1279,7 @@ class WorkbookBuilder:
             ),
         ]
 
-        for offset, (name, value) in enumerate(
-            settings
-        ):
+        for offset, (name, value) in enumerate(settings):
             row = 6 + offset
 
             name_cell = worksheet.cell(
@@ -1646,33 +1294,40 @@ class WorkbookBuilder:
                 value=value,
             )
 
-            name_cell.fill = (
-                self.styles.section_fill()
-            )
-            name_cell.font = (
-                self.styles.header_font()
-            )
-            name_cell.border = (
-                self.styles.thin_border()
-            )
+            name_cell.fill = self.styles.section_fill()
+            name_cell.font = self.styles.header_font()
+            name_cell.border = self.styles.thin_border()
 
-            value_cell.fill = (
-                self.styles.formula_fill()
-            )
-            value_cell.font = (
-                self.styles.body_font()
-            )
-            value_cell.border = (
-                self.styles.thin_border()
-            )
+            value_cell.fill = self.styles.formula_fill()
+            value_cell.font = self.styles.body_font()
+            value_cell.border = self.styles.thin_border()
 
-        worksheet.column_dimensions[
-            "B"
-        ].width = 34
+        worksheet.column_dimensions["B"].width = 34
 
-        worksheet.column_dimensions[
-            "C"
-        ].width = 42
+        worksheet.column_dimensions["C"].width = 42
+
+        worksheet["B18"] = "Canonical Platform Term"
+        worksheet["C18"] = "CMMC Display Alias"
+        self.factory.style_table_header(
+            worksheet,
+            row_number=18,
+            start_column=2,
+            end_column=3,
+        )
+        terminology = (
+            ("Security Plan", "System Security Plan (SSP)"),
+            ("Remediation Action Plan", "POA&M"),
+            ("Requirement", "CMMC Practice / Requirement"),
+            ("Assessment Objective", "CMMC Assessment Objective"),
+        )
+        for offset, (canonical, alias) in enumerate(terminology, start=19):
+            worksheet.cell(row=offset, column=2, value=canonical)
+            worksheet.cell(row=offset, column=3, value=alias)
+            for column in (2, 3):
+                cell = worksheet.cell(row=offset, column=column)
+                cell.fill = self.styles.formula_fill()
+                cell.font = self.styles.body_font()
+                cell.border = self.styles.thin_border()
 
     def _build_lists(
         self,
@@ -1726,59 +1381,240 @@ class WorkbookBuilder:
                 values,
                 start=2,
             ):
-                worksheet[
-                    f"{column}{row}"
-                ] = value
+                worksheet[f"{column}{row}"] = value
 
-    def _build_placeholder_sheet(
+    def _build_security_plan_crosswalk(
         self,
         worksheet: Worksheet,
-        title: str,
-        subtitle: str,
+        controls: List[Dict[str, str]],
     ) -> None:
-        self.factory.configure_standard_sheet(
-            worksheet
-        )
+        """Build the CMMC-facing SSP view of the canonical Security Plan map."""
 
+        self.factory.configure_standard_sheet(
+            worksheet,
+            freeze_cell="A6",
+            zoom_scale=80,
+        )
         self.factory.create_title_band(
             worksheet,
-            title=title,
-            subtitle=subtitle,
-            end_column=10,
-        )
-
-        worksheet.merge_cells(
-            start_row=6,
-            start_column=2,
-            end_row=8,
+            title="Security Plan Crosswalk (SSP)",
+            subtitle=(
+                "Map each CMMC requirement to Security Plan sections, "
+                "governance documents, evidence, and accountable owners."
+            ),
             end_column=8,
         )
 
-        placeholder_cell = worksheet["B6"]
+        headers = [
+            "Domain",
+            "Requirement ID",
+            "Security Plan Reference (SSP)",
+            "Policy / Standard / Procedure References",
+            "Evidence References",
+            "Control Owner",
+            "Mapping Status",
+            "Notes",
+        ]
+        for column, header in enumerate(headers, start=1):
+            worksheet.cell(row=5, column=column, value=header)
+        self.factory.style_table_header(worksheet, 5, 1, len(headers))
 
-        placeholder_cell.value = (
-            "This module will be implemented in "
-            "the next workbook sprint."
-        )
-
-        placeholder_cell.font = (
-            self.styles.body_font()
-        )
-        placeholder_cell.fill = (
-            self.styles.subheader_fill()
-        )
-        placeholder_cell.border = (
-            self.styles.thin_border()
-        )
-        placeholder_cell.alignment = (
-            self.styles.center_alignment()
-        )
-
-        for column in range(1, 11):
-            column_letter = (
-                get_column_letter(column)
+        for offset, control in enumerate(controls):
+            row = self.FIRST_ASSESSMENT_ROW + offset
+            assessment_row = self.FIRST_ASSESSMENT_ROW + offset
+            values = (
+                control["domain_code"].strip().upper(),
+                control["requirement_id"].strip().upper(),
+                f"=Assessment!Q{assessment_row}",
+                "",
+                "",
+                f"=Assessment!P{assessment_row}",
+                "Not Mapped",
+                "",
             )
+            for column, value in enumerate(values, start=1):
+                cell = worksheet.cell(row=row, column=column, value=value)
+                cell.border = self.styles.thin_border()
+                cell.alignment = self.styles.left_alignment()
+                cell.font = self.styles.body_font()
+                if column in {4, 5, 7, 8}:
+                    cell.fill = self.styles.input_fill()
+                    cell.protection = self.styles.unlocked_protection()
+                elif column in {3, 6}:
+                    cell.fill = self.styles.formula_fill()
 
-            worksheet.column_dimensions[
-                column_letter
-            ].width = 14
+        status_validation = DataValidation(
+            type="list",
+            formula1='"Mapped,Partially Mapped,Not Mapped"',
+            allow_blank=False,
+        )
+        worksheet.add_data_validation(status_validation)
+        status_validation.add("G6:G115")
+        worksheet.auto_filter.ref = "A5:H115"
+
+        widths = (12, 20, 28, 38, 34, 24, 20, 36)
+        for column, width in enumerate(widths, start=1):
+            worksheet.column_dimensions[get_column_letter(column)].width = width
+
+    def _build_assessment_history(self, worksheet: Worksheet) -> None:
+        """Build a snapshot register for longitudinal assessment tracking."""
+
+        self.factory.configure_standard_sheet(
+            worksheet,
+            freeze_cell="A7",
+            zoom_scale=85,
+        )
+        self.factory.create_title_band(
+            worksheet,
+            title="Assessment History",
+            subtitle=(
+                "The first row is the live current assessment. Copy and paste "
+                "it as values into a blank row to preserve a dated snapshot."
+            ),
+            end_column=11,
+        )
+
+        headers = [
+            "Snapshot Date",
+            "Assessment Name",
+            "Assessment Type",
+            "Score",
+            "Completion %",
+            "Met",
+            "Not Met",
+            "Not Assessed",
+            "Open Remediation Plans (POA&M)",
+            "Evidence Coverage %",
+            "Notes",
+        ]
+        for column, header in enumerate(headers, start=1):
+            worksheet.cell(row=5, column=column, value=header)
+        self.factory.style_table_header(worksheet, 5, 1, len(headers))
+
+        live_values = (
+            "=TODAY()",
+            "=Cover!C7",
+            "=Cover!C10",
+            "=Dashboard!B7",
+            "=Dashboard!C12",
+            "=Dashboard!E7",
+            "=Dashboard!H7",
+            "=Dashboard!K7",
+            "=Dashboard!L12",
+            "=Dashboard!F20",
+            "Live current assessment — copy as values to preserve a snapshot.",
+        )
+        for column, value in enumerate(live_values, start=1):
+            cell = worksheet.cell(row=6, column=column, value=value)
+            cell.fill = self.styles.formula_fill()
+            cell.border = self.styles.thin_border()
+            cell.alignment = self.styles.left_alignment()
+
+        for row in range(7, 107):
+            for column in range(1, len(headers) + 1):
+                cell = worksheet.cell(row=row, column=column, value="")
+                cell.fill = self.styles.input_fill()
+                cell.border = self.styles.thin_border()
+                cell.alignment = self.styles.left_alignment()
+                cell.protection = self.styles.unlocked_protection()
+
+        for row in range(6, 107):
+            worksheet.cell(row=row, column=1).number_format = "mm/dd/yyyy"
+            worksheet.cell(row=row, column=5).number_format = "0.00%"
+            worksheet.cell(row=row, column=10).number_format = "0.00%"
+
+        worksheet.auto_filter.ref = "A5:K106"
+        widths = (15, 28, 24, 12, 16, 10, 10, 14, 26, 20, 42)
+        for column, width in enumerate(widths, start=1):
+            worksheet.column_dimensions[get_column_letter(column)].width = width
+
+    def _build_executive_report(
+        self,
+        worksheet: Worksheet,
+        controls: List[Dict[str, str]],
+    ) -> None:
+        """Build a printable live management report from assessment formulas."""
+
+        self.factory.configure_standard_sheet(worksheet, zoom_scale=90)
+        self.factory.create_title_band(
+            worksheet,
+            title="Executive Report",
+            subtitle=(
+                "Live management summary of CMMC readiness, risk, evidence, "
+                "and remediation status."
+            ),
+            end_column=10,
+        )
+
+        metrics = (
+            ("Organization", "=Cover!C6"),
+            ("Assessment", "=Cover!C7"),
+            ("Current Score", "=Dashboard!B7"),
+            ("Assessment Completion", "=Dashboard!C12"),
+            ("Requirements Met", "=Dashboard!E7"),
+            ("Requirements Not Met", "=Dashboard!H7"),
+            ("Open Remediation Plans (POA&M)", "=Dashboard!L12"),
+            ("Evidence Coverage", "=Dashboard!F20"),
+            ("Certification Readiness", "=Dashboard!I23"),
+        )
+        for offset, (label, formula) in enumerate(metrics):
+            row = 5 + offset
+            worksheet.cell(row=row, column=2, value=label)
+            worksheet.cell(row=row, column=3, value=formula)
+            worksheet.cell(row=row, column=2).font = self.styles.header_font()
+            worksheet.cell(row=row, column=2).fill = self.styles.section_fill()
+            worksheet.cell(row=row, column=3).fill = self.styles.formula_fill()
+            for column in (2, 3):
+                worksheet.cell(row=row, column=column).border = (
+                    self.styles.thin_border()
+                )
+                worksheet.cell(row=row, column=column).alignment = (
+                    self.styles.left_alignment()
+                )
+
+        for row in (8, 12, 13):
+            worksheet.cell(row=row, column=3).number_format = "0.00%"
+
+        worksheet["E5"] = "Domain"
+        worksheet["F5"] = "Score"
+        worksheet["G5"] = "Completion %"
+        worksheet["H5"] = "Readiness"
+        self.factory.style_table_header(worksheet, 5, 5, 8)
+
+        domain_codes: List[str] = []
+        for control in controls:
+            code = control["domain_code"].strip().upper()
+            if code not in domain_codes:
+                domain_codes.append(code)
+        for offset, code in enumerate(domain_codes):
+            row = 6 + offset
+            source_row = 6 + offset
+            values = (
+                code,
+                f"='Domain Summary'!I{source_row}",
+                f"='Domain Summary'!H{source_row}",
+                f"='Domain Summary'!J{source_row}",
+            )
+            for column, value in enumerate(values, start=5):
+                cell = worksheet.cell(row=row, column=column, value=value)
+                cell.fill = self.styles.formula_fill()
+                cell.border = self.styles.thin_border()
+                cell.alignment = self.styles.center_alignment()
+            worksheet.cell(row=row, column=7).number_format = "0.00%"
+
+        worksheet["B17"] = "Management Commentary"
+        worksheet["B17"].font = self.styles.header_font()
+        worksheet["B17"].fill = self.styles.section_fill()
+        worksheet.merge_cells("B18:H24")
+        worksheet["B18"] = (
+            "Enter executive conclusions, principal risks, and required decisions."
+        )
+        worksheet["B18"].fill = self.styles.input_fill()
+        worksheet["B18"].border = self.styles.thin_border()
+        worksheet["B18"].alignment = self.styles.left_alignment()
+        worksheet["B18"].protection = self.styles.unlocked_protection()
+
+        widths = {"A": 3, "B": 34, "C": 24, "D": 3, "E": 12, "F": 14, "G": 16, "H": 18}
+        for column, width in widths.items():
+            worksheet.column_dimensions[column].width = width
+        worksheet.print_area = "A1:H24"

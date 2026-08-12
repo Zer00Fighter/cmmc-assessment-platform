@@ -8,7 +8,6 @@ from openpyxl.workbook.workbook import Workbook
 
 from src.workbook import WorkbookBuilder
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -16,14 +15,9 @@ ROOT = Path(__file__).resolve().parents[1]
 def generated_workbook(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> Workbook:
-    output_dir = tmp_path_factory.mktemp(
-        "poam_workbook"
-    )
+    output_dir = tmp_path_factory.mktemp("poam_workbook")
 
-    output_path = (
-        output_dir
-        / "CMMC_Assessment.xlsx"
-    )
+    output_path = output_dir / "CMMC_Assessment.xlsx"
 
     WorkbookBuilder(
         project_root=ROOT,
@@ -56,7 +50,7 @@ def test_poam_headers(
     ]
 
     assert headers == [
-        "POA&M ID",
+        "Remediation ID (POA&M ID)",
         "Requirement ID",
         "Requirement Title",
         "Domain",
@@ -78,7 +72,7 @@ def test_poam_headers(
         "Residual Risk",
         "Validation Status",
         "Evidence IDs",
-        "SSP Reference",
+        "Security Plan Reference (SSP)",
         "Assessor Notes",
     ]
 
@@ -130,8 +124,7 @@ def test_validations_exist(
     worksheet = generated_workbook["POA&M"]
 
     validation_ranges = {
-        str(v.sqref)
-        for v in worksheet.data_validations.dataValidation
+        str(v.sqref) for v in worksheet.data_validations.dataValidation
     }
 
     assert "J6:J305" in validation_ranges
@@ -157,9 +150,7 @@ def test_print_area(
 ) -> None:
     worksheet = generated_workbook["POA&M"]
 
-    assert "$A$1:$X$305" in str(
-        worksheet.print_area
-    )
+    assert "$A$1:$X$305" in str(worksheet.print_area)
 
 
 def test_conditional_formatting_exists(
@@ -167,30 +158,15 @@ def test_conditional_formatting_exists(
 ) -> None:
     worksheet = generated_workbook["POA&M"]
 
-    formatting = {
-        str(item)
-        for item in worksheet.conditional_formatting
-    }
+    formatting = {str(item) for item in worksheet.conditional_formatting}
 
-    assert any(
-        "J6:J305" in value
-        for value in formatting
-    )
+    assert any("J6:J305" in value for value in formatting)
 
-    assert any(
-        "N6:N305" in value
-        for value in formatting
-    )
+    assert any("N6:N305" in value for value in formatting)
 
-    assert any(
-        "P6:P305" in value
-        for value in formatting
-    )
+    assert any("P6:P305" in value for value in formatting)
 
-    assert any(
-        "S6:S305" in value
-        for value in formatting
-    )
+    assert any("S6:S305" in value for value in formatting)
 
 
 def test_locked_and_unlocked_cells(
