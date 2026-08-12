@@ -27,8 +27,8 @@ known boundaries.
 
 ## Export a Security Plan to Word
 
-Omni can copy an approved Word SSP template and append the workbook's Security
-Plan crosswalk without modifying the source template:
+Omni can copy an approved Word SSP template and populate each practice's
+existing Supporting Artifacts table without modifying the source template:
 
 ```powershell
 .\.venv\Scripts\python.exe export_ssp.py `

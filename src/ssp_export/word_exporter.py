@@ -3,20 +3,14 @@
 from __future__ import annotations
 
 import os
+import re
 import tempfile
 from dataclasses import dataclass
-from datetime import date
 from pathlib import Path
 from typing import Iterable
 
 from docx import Document
 from docx.document import Document as DocumentType
-from docx.enum.section import WD_ORIENT, WD_SECTION
-from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
-from docx.enum.text import WD_BREAK
-from docx.oxml import OxmlElement
-from docx.oxml.ns import qn
-from docx.shared import Inches, Pt
 from openpyxl import load_workbook
 
 INPUT_REQUIRED = "[REQUIRES ORGANIZATION INPUT]"
@@ -151,116 +145,65 @@ def _replace_literal(document: DocumentType, old: str, new: str) -> int:
     return replacements
 
 
-def _set_repeat_table_header(row) -> None:
-    properties = row._tr.get_or_add_trPr()
-    repeat = OxmlElement("w:tblHeader")
-    repeat.set(qn("w:val"), "true")
-    properties.append(repeat)
+def _write_artifact_value(cell, value: str) -> None:
+    """Replace template guidance in an artifact cell while preserving its style."""
 
-
-def _shade_cell(cell, fill: str) -> None:
-    properties = cell._tc.get_or_add_tcPr()
-    shading = properties.find(qn("w:shd"))
-    if shading is None:
-        shading = OxmlElement("w:shd")
-        properties.append(shading)
-    shading.set(qn("w:fill"), fill)
-
-
-def _set_cell_text(cell, text: str, *, bold: bool = False, size: float = 7.5) -> None:
-    cell.text = ""
     paragraph = cell.paragraphs[0]
-    paragraph.paragraph_format.space_after = Pt(0)
-    run = paragraph.add_run(text)
-    run.bold = bold
-    run.font.size = Pt(size)
-    cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.TOP
+    if paragraph.runs:
+        paragraph.runs[0].text = value
+        for run in paragraph.runs[1:]:
+            run.text = ""
+    else:
+        paragraph.add_run(value)
+    for extra_paragraph in cell.paragraphs[1:]:
+        for run in extra_paragraph.runs:
+            run.text = ""
 
 
-def _add_metadata_table(
-    document: DocumentType, metadata: SSPExportMetadata, cover: dict[str, str]
-) -> None:
-    values = [
-        ("Organization", metadata.organization_name),
-        (
-            "System / Assessment",
-            metadata.system_name or cover.get("Assessment Name", ""),
-        ),
-        ("Assessment Scope", cover.get("Assessment Scope", "")),
-        ("CAGE Code", cover.get("CAGE Code", "")),
-        ("System Owner", metadata.system_owner),
-        ("Prepared By", metadata.prepared_by or cover.get("Lead Assessor", "")),
-        ("Document Version", metadata.version),
-        ("Export Date", metadata.export_date or date.today().isoformat()),
-        ("Omni Workbook Version", cover.get("Workbook Version", "")),
-    ]
-    table = document.add_table(rows=0, cols=2)
-    table.style = "Table Grid"
-    for label, value in values:
-        cells = table.add_row().cells
-        _set_cell_text(cells[0], label, bold=True, size=9)
-        _shade_cell(cells[0], "D9EAF7")
-        _set_cell_text(cells[1], _display(value), size=9)
+def _populate_supporting_artifacts(
+    document: DocumentType, rows: list[SSPControlRow]
+) -> set[str]:
+    """Populate each practice's existing Supporting Artifacts table."""
 
+    controls = {row.requirement_id: row for row in rows}
+    populated: set[str] = set()
+    tables = document.tables
+    requirement_pattern = re.compile(r"[A-Z]{2}\.L2-3\.\d+\.\d+")
 
-def _add_crosswalk(document: DocumentType, rows: list[SSPControlRow]) -> None:
-    section = document.add_section(WD_SECTION.NEW_PAGE)
-    section.orientation = WD_ORIENT.LANDSCAPE
-    section.page_width, section.page_height = section.page_height, section.page_width
-    section.top_margin = Inches(0.45)
-    section.bottom_margin = Inches(0.45)
-    section.left_margin = Inches(0.45)
-    section.right_margin = Inches(0.45)
+    for index, table in enumerate(tables):
+        table_text = "\n".join(cell.text for row in table.rows for cell in row.cells)
+        match = requirement_pattern.search(table_text)
+        if not match or match.group(0) not in controls:
+            continue
 
-    heading = document.add_heading("Omni Security Plan Crosswalk", level=1)
-    heading.paragraph_format.keep_with_next = True
-    paragraph = document.add_paragraph(
-        "This appendix is generated from Omni. Bracketed markers identify content that "
-        "must be completed or validated by the organization before approval."
-    )
-    paragraph.paragraph_format.space_after = Pt(6)
+        artifact_table = None
+        for candidate in tables[index + 1 :]:
+            candidate_text = "\n".join(
+                cell.text for row in candidate.rows for cell in row.cells
+            )
+            if requirement_pattern.search(candidate_text):
+                break
+            if "Supporting Artifacts" in candidate_text:
+                artifact_table = candidate
+                break
+        if artifact_table is None:
+            continue
 
-    headers = [
-        "Requirement",
-        "Requirement title and statement",
-        "Security Plan reference",
-        "Governance references",
-        "Evidence references",
-        "Owner / status / notes",
-    ]
-    table = document.add_table(rows=1, cols=len(headers))
-    table.style = "Table Grid"
-    table.autofit = False
-    widths = [0.9, 3.25, 1.45, 1.7, 1.7, 1.55]
-    header_cells = table.rows[0].cells
-    _set_repeat_table_header(table.rows[0])
-    for cell, label, width in zip(header_cells, headers, widths):
-        cell.width = Inches(width)
-        _set_cell_text(cell, label, bold=True, size=7.5)
-        _shade_cell(cell, "1F4E78")
-        for run in cell.paragraphs[0].runs:
-            run.font.color.rgb = None
-            run._element.get_or_add_rPr().append(_color_element("FFFFFF"))
+        control = controls[match.group(0)]
+        artifact_values = {
+            "System Design Documentation": control.governance_references,
+            "System Configuration Settings And Associated Documentation": INPUT_REQUIRED,
+            "Supplemental Artifacts": control.evidence_references,
+        }
+        for row_index, artifact_row in enumerate(artifact_table.rows[:-1]):
+            label = artifact_row.cells[0].text.strip()
+            if label in artifact_values:
+                _write_artifact_value(
+                    artifact_table.rows[row_index + 1].cells[0], artifact_values[label]
+                )
+        populated.add(control.requirement_id)
 
-    for item in rows:
-        cells = table.add_row().cells
-        values = [
-            f"{item.requirement_id}\n({item.domain})",
-            f"{item.title}\n{item.statement}",
-            item.ssp_reference,
-            item.governance_references,
-            item.evidence_references,
-            f"Owner: {item.owner}\nStatus: {item.mapping_status}\nNotes: {item.notes}",
-        ]
-        for cell, text, width in zip(cells, values, widths):
-            cell.width = Inches(width)
-            _set_cell_text(cell, text)
-
-
-def _color_element(value: str):
-    color = OxmlElement("w:color")
-    color.set(qn("w:val"), value)
-    return color
+    return populated
 
 
 def export_ssp(
@@ -304,10 +247,15 @@ def export_ssp(
     document.core_properties.subject = "Omni Security Plan (SSP) export"
     document.core_properties.comments = "Generated by Omni by R!SC"
 
-    document.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
-    document.add_heading("Omni Export Information", level=1)
-    _add_metadata_table(document, resolved, cover)
-    _add_crosswalk(document, rows)
+    populated = _populate_supporting_artifacts(document, rows)
+    if len(populated) != len(rows):
+        missing = sorted(
+            row.requirement_id for row in rows if row.requirement_id not in populated
+        )
+        raise ValueError(
+            "The SSP template is missing Supporting Artifacts tables for: "
+            + ", ".join(missing)
+        )
 
     output.parent.mkdir(parents=True, exist_ok=True)
     file_descriptor, temporary_name = tempfile.mkstemp(

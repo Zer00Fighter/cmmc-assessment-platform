@@ -15,6 +15,21 @@ def _create_template(path: Path) -> None:
     document.add_heading("ACME System Security Plan", level=0)
     document.add_paragraph("Prepared for ACME")
     document.sections[0].header.paragraphs[0].text = "ACME SSP"
+    practice = document.add_table(rows=2, cols=2)
+    practice.cell(0, 0).text = "Practice ID:"
+    practice.cell(0, 1).text = "AC.L2-3.1.1"
+    practice.cell(1, 0).text = "Implementation Statement:"
+    practice.cell(1, 1).text = ""
+    artifacts = document.add_table(rows=7, cols=1)
+    artifacts.cell(0, 0).text = "Supporting Artifacts"
+    artifacts.cell(1, 0).text = "System Design Documentation"
+    artifacts.cell(2, 0).text = "Template guidance"
+    artifacts.cell(3, 0).text = (
+        "System Configuration Settings And Associated Documentation"
+    )
+    artifacts.cell(4, 0).text = "Template guidance"
+    artifacts.cell(5, 0).text = "Supplemental Artifacts"
+    artifacts.cell(6, 0).text = "Template guidance"
     document.save(path)
 
 
@@ -81,10 +96,12 @@ def test_export_preserves_template_and_adds_omni_crosswalk(tmp_path: Path) -> No
     text = _all_text(document)
     assert "ACME" not in text
     assert "R!SC System Security Plan" in text
-    assert "Omni Export Information" in text
-    assert "Omni Security Plan Crosswalk" in text
+    assert "Omni Export Information" not in text
+    assert "Omni Security Plan Crosswalk" not in text
     assert "AC.L2-3.1.1" in text
     assert "Access Control Policy" in text
+    assert "Access review records" in text
+    assert "Test Procedure" not in text
     assert INPUT_REQUIRED in text
 
 

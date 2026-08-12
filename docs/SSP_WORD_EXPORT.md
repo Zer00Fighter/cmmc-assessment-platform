@@ -4,8 +4,9 @@
 
 `export_ssp.py` creates a client-editable Word Security Plan (SSP) from an Omni
 assessment workbook. It starts from a copy of an approved `.docx` template,
-preserves that template's document package, and appends Omni's current Security
-Plan crosswalk. The source template is never overwritten.
+preserves that template's document package, and populates each practice's
+existing **Supporting Artifacts** table. The source template is never
+overwritten.
 
 The initial template authority is the supplied NIST SP 800-171 / CMMC Level 2
 SSP example. Its SHA-256 fingerprint at implementation time was:
@@ -17,13 +18,16 @@ SSP example. Its SHA-256 fingerprint at implementation time was:
 The source template provides the authoritative cover design, styles, headings,
 tables, section configuration, headers, footers, numbering, image, and embedded
 custom XML. Omni replaces literal `ACME` branding with the organization name
-and adds two sections at the end:
+and maps supporting evidence into the template's three artifact categories:
 
-1. **Omni Export Information** — organization, system/assessment, scope, CAGE
-   code, owner, preparer, version, export date, and workbook version.
-2. **Omni Security Plan Crosswalk** — one row per CMMC Level 2 requirement with
-   its title, requirement statement, SSP reference, governance references,
-   evidence references, owner, mapping status, and notes.
+1. **System Design Documentation** — policies, plans, standards, procedures,
+   and other governance references.
+2. **System Configuration Settings and Associated Documentation** — explicitly
+   marked for organization input until a configuration artifact is mapped.
+3. **Supplemental Artifacts** — the evidence references recorded in Omni.
+
+The exporter does not append assessment test procedures, governance columns,
+mapping statuses, assessor notes, or a separate crosswalk to the SSP.
 
 Missing organization-specific values are represented by
 `[REQUIRES ORGANIZATION INPUT]`. This is deliberate: generated output is a
@@ -34,10 +38,9 @@ draft until an authorized owner completes and approves those values.
 | Word export field | Omni source |
 |---|---|
 | Organization and assessment metadata | `Cover` worksheet |
-| Requirement ID, title, and statement | `Assessment` worksheet |
-| Security Plan reference | `SSP Crosswalk` worksheet |
-| Governance and evidence references | `SSP Crosswalk` worksheet |
-| Control owner, mapping status, and notes | `SSP Crosswalk` worksheet |
+| Practice ID used to locate the template table | `Assessment` / `SSP Crosswalk` worksheets |
+| System design documentation | Governance references in `SSP Crosswalk` |
+| Supplemental artifacts | Evidence references in `SSP Crosswalk` |
 
 Command-line metadata overrides the corresponding workbook value when supplied.
 
