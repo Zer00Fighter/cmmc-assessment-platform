@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}{{ organization.name }} team{% endblock %}
+{% block content %}
+<nav class="crumb"><a href="{% url 'organization-list' %}">Organizations</a> / <a href="{% url 'system-list' organization.slug %}">{{ organization.name }}</a> / Team</nav>
+<div class="page-head"><div><p class="eyebrow">Access management</p><h1>Organization team</h1><p class="muted">Assign existing Omni accounts to {{ organization.name }}.</p></div></div>
+<div class="two-column"><section class="list-card">{% for membership in memberships %}<div class="list-row"><div><strong>{{ membership.user.get_full_name|default:membership.user.username }}</strong><span>{{ membership.user.email|default:"No email" }}</span></div><span class="pill">{{ membership.get_role_display }}</span></div>{% endfor %}</section><section class="form-card compact"><h2>Add or update member</h2><form method="post" class="stack">{% csrf_token %}{{ form.as_p }}<button class="primary" type="submit">Save member</button></form></section></div>
+{% endblock %}

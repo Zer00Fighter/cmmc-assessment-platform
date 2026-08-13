@@ -2,6 +2,6 @@
 {% block title %}{{ system.name }} assessments{% endblock %}
 {% block content %}
 <nav class="crumb"><a href="{% url 'organization-list' %}">Organizations</a> / <a href="{% url 'system-list' organization.slug %}">{{ organization.name }}</a> / {{ system.name }}</nav>
-<div class="page-head"><div><p class="eyebrow">System</p><h1>{{ system.name }}</h1><p class="muted">{{ system.scope|default:"Assessment scope not yet recorded." }}</p></div><a class="primary button" href="{% url 'assessment-create' organization.slug system.id %}">New assessment</a></div>
+<div class="page-head"><div><p class="eyebrow">System</p><h1>{{ system.name }}</h1><p class="muted">{{ system.scope|default:"Assessment scope not yet recorded." }}</p></div><div class="actions">{% if can_admin %}<a class="secondary button" href="{% url 'system-edit' organization.slug system.id %}">Edit system</a>{% endif %}{% if can_edit %}<a class="primary button" href="{% url 'assessment-create' organization.slug system.id %}">New assessment</a>{% endif %}</div></div>
 <div class="list-card">{% for assessment in assessments %}<a class="list-row" href="{% url 'assessment-dashboard' organization.slug assessment.id %}"><div><strong>{{ assessment.name }}</strong><span>{{ assessment.framework }}</span></div><span class="pill">{{ assessment.get_status_display }}</span></a>{% empty %}<div class="empty">No assessments yet. Create the first one.</div>{% endfor %}</div>
 {% endblock %}

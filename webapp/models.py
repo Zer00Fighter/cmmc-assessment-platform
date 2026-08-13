@@ -11,6 +11,12 @@ class Organization(models.Model):
 
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
+    legal_name = models.CharField(max_length=250, blank=True)
+    website = models.URLField(blank=True)
+    industry = models.CharField(max_length=150, blank=True)
+    address = models.TextField(blank=True)
+    primary_contact_name = models.CharField(max_length=200, blank=True)
+    primary_contact_email = models.EmailField(blank=True)
     kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.CLIENT)
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -47,6 +53,10 @@ class Membership(models.Model):
             )
         ]
 
+    def __str__(self) -> str:
+        display_name = self.user.get_full_name() or self.user.username
+        return f"{display_name} ({self.get_role_display()})"
+
 
 class System(models.Model):
     organization = models.ForeignKey(
@@ -55,6 +65,11 @@ class System(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     cage_code = models.CharField(max_length=20, blank=True)
+    system_owner_name = models.CharField(max_length=200, blank=True)
+    system_owner_email = models.EmailField(blank=True)
+    location = models.CharField(max_length=250, blank=True)
+    environment = models.CharField(max_length=100, blank=True)
+    data_types = models.TextField(blank=True)
     scope = models.TextField(blank=True)
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -169,6 +184,16 @@ class ControlAssessment(models.Model):
     )
     assessor_notes_findings = models.TextField(blank=True)
     control_owner = models.CharField(max_length=200, blank=True)
+    primary_owner = models.ForeignKey(
+        Membership,
+        on_delete=models.SET_NULL,
+        related_name="primary_control_assignments",
+        null=True,
+        blank=True,
+    )
+    supporting_owners = models.ManyToManyField(
+        Membership, related_name="supporting_control_assignments", blank=True
+    )
     ssp_reference = models.CharField(max_length=300, blank=True)
     calculated_deduction = models.PositiveSmallIntegerField(default=0)
     updated_by = models.ForeignKey(

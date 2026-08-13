@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Organizations{% endblock %}
 {% block content %}
-<div class="page-head"><div><p class="eyebrow">Workspace</p><h1>Organizations</h1><p class="muted">Only organizations assigned to your account are shown.</p></div></div>
-<div class="card-grid">{% for org in organizations %}<a class="card" href="{% url 'system-list' org.slug %}"><span class="pill">{{ org.get_kind_display }}</span><h2>{{ org.name }}</h2><p>{{ org.system_count }} system{{ org.system_count|pluralize }} · {{ org.assessment_count }} assessment{{ org.assessment_count|pluralize }}</p><span class="card-link">Open organization →</span></a>{% empty %}<div class="empty">No organizations are assigned to this account.</div>{% endfor %}</div>
+<div class="page-head"><div><p class="eyebrow">Workspace</p><h1>Organizations</h1><p class="muted">Only organizations assigned to your account are shown.</p></div><a class="primary button" href="{% url 'organization-create' %}">Create organization</a></div>
+<div class="card-grid">{% for org in organizations %}<a class="card" href="{% url 'system-list' org.slug %}"><span class="pill">{{ org.get_kind_display }}</span><h2>{{ org.name }}</h2><p>{{ org.system_count }} system{{ org.system_count|pluralize }} · {{ org.assessment_count }} assessment{{ org.assessment_count|pluralize }}</p><span class="card-link">Open organization →</span></a>{% empty %}<div class="empty empty-onboarding"><h2>Welcome to Omni</h2><p>Create your organization to begin onboarding systems, team members, and assessments.</p><a class="primary button" href="{% url 'organization-create' %}">Create your first organization</a></div>{% endfor %}</div>
 {% endblock %}

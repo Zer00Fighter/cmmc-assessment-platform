@@ -118,3 +118,82 @@ class SprintOneWorkflowTests(TestCase):
             reverse("control-edit", args=("acme", self.assessment.id, self.result.id))
         )
         self.assertEqual(response.status_code, 404)
+
+
+class SprintTwoOnboardingTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.admin_user = user_model.objects.create_user(
+            "orgadmin", email="admin@example.com", password="test-password"
+        )
+        self.owner_user = user_model.objects.create_user(
+            "controlowner", email="owner@example.com", password="test-password"
+        )
+        self.client.login(username="orgadmin", password="test-password")
+
+    def test_user_can_create_first_organization_and_becomes_admin(self):
+        response = self.client.post(reverse("organization-create"), {
+            "name": "Acme Defense", "legal_name": "Acme Defense LLC",
+            "kind": Organization.Kind.CLIENT, "industry": "Defense",
+            "primary_contact_email": "ciso@example.com",
+        })
+        organization = Organization.objects.get(name="Acme Defense")
+        self.assertRedirects(response, reverse("system-list", args=(organization.slug,)))
+        self.assertTrue(Membership.objects.filter(
+            user=self.admin_user, organization=organization,
+            role=Membership.Role.ADMIN,
+        ).exists())
+
+    def test_admin_can_onboard_system_and_existing_member(self):
+        organization = Organization.objects.create(name="Acme", slug="acme")
+        Membership.objects.create(
+            user=self.admin_user, organization=organization, role=Membership.Role.ADMIN
+        )
+        response = self.client.post(reverse("system-create", args=("acme",)), {
+            "name": "CUI Enclave", "description": "Protected environment",
+            "system_owner_name": "Alex Owner", "system_owner_email": "alex@example.com",
+            "environment": "Production", "data_types": "CUI", "scope": "In scope",
+        })
+        system = System.objects.get(name="CUI Enclave")
+        self.assertRedirects(response, reverse("assessment-list", args=("acme", system.id)))
+        response = self.client.post(reverse("membership-list", args=("acme",)), {
+            "username_or_email": "owner@example.com", "role": Membership.Role.CLIENT,
+        })
+        self.assertRedirects(response, reverse("membership-list", args=("acme",)))
+        self.assertTrue(Membership.objects.filter(
+            user=self.owner_user, organization=organization,
+            role=Membership.Role.CLIENT,
+        ).exists())
+
+    def test_bulk_owner_assignment_is_limited_to_organization_members(self):
+        organization = Organization.objects.create(name="Acme", slug="acme")
+        admin_membership = Membership.objects.create(
+            user=self.admin_user, organization=organization, role=Membership.Role.ADMIN
+        )
+        owner_membership = Membership.objects.create(
+            user=self.owner_user, organization=organization, role=Membership.Role.CLIENT
+        )
+        system = System.objects.create(organization=organization, name="Enclave")
+        framework = Framework.objects.create(code="TEST", name="Test", version="1")
+        requirement = Requirement.objects.create(
+            framework=framework, requirement_id="AC.1", domain="AC",
+            title="Access", statement="Control access.", full_deduction=1,
+        )
+        assessment = Assessment.objects.create(
+            system=system, framework=framework, name="Assessment",
+            created_by=self.admin_user,
+        )
+        result = ControlAssessment.objects.create(
+            assessment=assessment, requirement=requirement
+        )
+        response = self.client.post(
+            reverse("bulk-control-owners", args=("acme", assessment.id)),
+            {"domain": "AC", "primary_owner": owner_membership.id,
+             "supporting_owners": [admin_membership.id]},
+        )
+        self.assertRedirects(
+            response, reverse("assessment-dashboard", args=("acme", assessment.id))
+        )
+        result.refresh_from_db()
+        self.assertEqual(result.primary_owner, owner_membership)
+        self.assertEqual(list(result.supporting_owners.all()), [admin_membership])
