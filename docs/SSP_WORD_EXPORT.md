@@ -27,6 +27,16 @@ the control and its assessment-objective conformity indicators. The
 `Assessor Notes / Findings` field supplies the narrative: it is a conformity
 statement when the control is MET and a finding when it is NOT MET.
 
+## Section 0 assessment summary
+
+Immediately before Purpose, Omni inserts **0. Assessment Summary and Overall
+SPRS Score**. This Word-native dashboard includes the overall SPRS score,
+provisional/complete scoring status, MET/NOT MET/NOT APPLICABLE/NOT ASSESSED
+counts, assessment completion, completed-evidence coverage, open remediation
+items, certification readiness, assessment date, and scope. Values are computed
+directly from workbook records so the export does not depend on refreshed Excel
+formula caches. Existing Sections 6.9 and 6.9.1 are left unchanged.
+
 Omni also maps supporting evidence into the template's three artifact categories:
 
 1. **System Design Documentation** — policies, plans, standards, procedures,

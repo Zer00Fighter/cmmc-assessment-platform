@@ -49,6 +49,21 @@ class SSPControlRow:
     calculated_deduction: int | None
 
 
+@dataclass(frozen=True)
+class SSPAssessmentSummary:
+    overall_sprs_score: int
+    scoring_status: str
+    met: int
+    not_met: int
+    not_applicable: int
+    not_assessed: int
+    completion_percent: float
+    evidence_complete: int
+    evidence_coverage_percent: float
+    open_remediation_items: int
+    readiness_percent: float
+
+
 def _display(value: object, *, required: bool = True) -> str:
     if value is None or not str(value).strip():
         return INPUT_REQUIRED if required else ""
@@ -67,7 +82,7 @@ def _workbook_value(formula_sheet, value_sheet, row: int, column: int) -> object
 
 def _read_workbook(
     workbook_path: Path,
-) -> tuple[dict[str, str], list[SSPControlRow]]:
+) -> tuple[dict[str, str], list[SSPControlRow], SSPAssessmentSummary]:
     formulas = load_workbook(workbook_path, data_only=False, read_only=True)
     values = load_workbook(workbook_path, data_only=True, read_only=True)
     try:
@@ -142,7 +157,43 @@ def _read_workbook(
                     calculated_deduction=calculated_deduction,
                 )
             )
-        return cover, rows
+        statuses = [row.status for row in rows]
+        met = statuses.count("MET")
+        not_met = statuses.count("NOT MET")
+        not_applicable = statuses.count("NOT APPLICABLE")
+        not_assessed = statuses.count("NOT ASSESSED")
+        total = len(rows)
+        total_deduction = sum(row.calculated_deduction or 0 for row in rows)
+        evidence_complete = sum(
+            1
+            for source in assessment.values()
+            if len(source) > 14 and str(source[14] or "").strip() == "Complete"
+        )
+        open_remediation_items = sum(
+            1
+            for source in assessment.values()
+            if len(source) > 18 and str(source[18] or "").strip() == "Yes"
+        )
+        summary = SSPAssessmentSummary(
+            overall_sprs_score=110 - total_deduction,
+            scoring_status="COMPLETE" if not_assessed == 0 else "PROVISIONAL",
+            met=met,
+            not_met=not_met,
+            not_applicable=not_applicable,
+            not_assessed=not_assessed,
+            completion_percent=(
+                0.0
+                if total == 0
+                else round((met + not_met + not_applicable) / total * 100, 2)
+            ),
+            evidence_complete=evidence_complete,
+            evidence_coverage_percent=(
+                0.0 if total == 0 else round(evidence_complete / total * 100, 2)
+            ),
+            open_remediation_items=open_remediation_items,
+            readiness_percent=(0.0 if total == 0 else round(met / total * 100, 2)),
+        )
+        return cover, rows, summary
     finally:
         formulas.close()
         values.close()
@@ -290,6 +341,68 @@ def _bind_demographics(
                     _write_artifact_value(row.cells[1], cage_code)
 
 
+def _insert_assessment_summary(
+    document: DocumentType,
+    cover: dict[str, str],
+    summary: SSPAssessmentSummary,
+) -> None:
+    """Insert Section 0 immediately before the template's Purpose section."""
+
+    purpose = next(
+        (
+            paragraph
+            for paragraph in document.paragraphs
+            if paragraph.text.strip() == "Purpose"
+            and paragraph.style.name.startswith("Heading 1")
+        ),
+        None,
+    )
+    if purpose is None:
+        raise ValueError("The SSP template has no recognizable Purpose section.")
+
+    assessment_date = cover.get("Assessment End Date") or cover.get(
+        "Assessment Start Date", ""
+    )
+    values = (
+        ("Overall SPRS Score", str(summary.overall_sprs_score)),
+        ("Scoring Status", summary.scoring_status),
+        ("Assessment Completion", f"{summary.completion_percent:.2f}%"),
+        ("Requirements MET", str(summary.met)),
+        ("Requirements NOT MET", str(summary.not_met)),
+        ("Requirements NOT APPLICABLE", str(summary.not_applicable)),
+        ("Requirements NOT ASSESSED", str(summary.not_assessed)),
+        (
+            "Evidence Complete / Coverage",
+            f"{summary.evidence_complete} / {summary.evidence_coverage_percent:.2f}%",
+        ),
+        ("Open Remediation Items (POA&M)", str(summary.open_remediation_items)),
+        ("Certification Readiness", f"{summary.readiness_percent:.2f}%"),
+        ("Assessment Date", _display(assessment_date)),
+        ("Assessment Scope", _display(cover.get("Assessment Scope", ""))),
+    )
+
+    heading = document.add_heading(
+        "0. Assessment Summary and Overall SPRS Score", level=1
+    )
+    qualification = document.add_paragraph(
+        "This summary reflects the assessment data recorded in Omni as of the "
+        "assessment date shown below. A PROVISIONAL score is subject to change "
+        "until all requirements are assessed."
+    )
+    table = document.add_table(rows=0, cols=2)
+    table.style = "Table Grid"
+    for label, value in values:
+        cells = table.add_row().cells
+        _write_artifact_value(cells[0], label)
+        _write_artifact_value(cells[1], value)
+        for run in cells[0].paragraphs[0].runs:
+            run.bold = True
+
+    purpose._p.addprevious(heading._p)
+    purpose._p.addprevious(qualification._p)
+    purpose._p.addprevious(table._tbl)
+
+
 def _write_artifact_value(cell, value: str) -> None:
     """Replace template guidance in an artifact cell while preserving its style."""
 
@@ -369,7 +482,7 @@ def export_ssp(
     if not workbook.is_file():
         raise FileNotFoundError(f"Omni workbook not found: {workbook}")
 
-    cover, rows = _read_workbook(workbook)
+    cover, rows, summary = _read_workbook(workbook)
     if not rows:
         raise ValueError("The Omni workbook contains no SSP Crosswalk records.")
 
@@ -387,6 +500,7 @@ def export_ssp(
     document = Document(template)
     _replace_literal(document, "ACME", resolved.organization_name)
     _bind_demographics(document, cover, resolved)
+    _insert_assessment_summary(document, cover, summary)
     controls = {row.requirement_id: row for row in rows}
     updated_headers = _bind_control_results(document, controls)
     expected_headers = {row.requirement_id for row in rows}

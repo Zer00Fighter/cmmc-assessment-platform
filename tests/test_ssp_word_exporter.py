@@ -14,6 +14,8 @@ def _create_template(path: Path) -> None:
     document = Document()
     document.add_heading("ACME System Security Plan", level=0)
     document.add_paragraph("Prepared for ACME")
+    document.add_heading("Purpose", level=1)
+    document.add_paragraph("Purpose text remains unchanged.")
     document.sections[0].header.paragraphs[0].text = "ACME SSP"
     practice = document.add_table(rows=2, cols=7)
     practice.cell(0, 0).text = "Requirement Conformity:"
@@ -137,6 +139,20 @@ def test_export_preserves_template_and_adds_omni_crosswalk(tmp_path: Path) -> No
     assert control_table.cell(4, 0).text == (
         "Access is limited through approved identities and devices."
     )
+    summary_table = next(
+        table
+        for table in document.tables
+        if table.cell(0, 0).text == "Overall SPRS Score"
+    )
+    summary = {row.cells[0].text: row.cells[1].text for row in summary_table.rows}
+    assert summary["Overall SPRS Score"] == "110"
+    assert summary["Scoring Status"] == "COMPLETE"
+    assert summary["Requirements MET"] == "1"
+    assert summary["Requirements NOT MET"] == "0"
+    assert summary["Assessment Completion"] == "100.00%"
+    assert summary["Assessment Scope"] == INPUT_REQUIRED
+    body_xml = document._element.body.xml
+    assert body_xml.index("0. Assessment Summary") < body_xml.index("Purpose")
 
 
 def test_export_rejects_overwriting_source_template(tmp_path: Path) -> None:

@@ -47,6 +47,9 @@ Organization-specific values that are not yet available are exported as
 The Assessment worksheet's `Assessor Notes / Findings` value becomes the
 conformity statement for MET controls and the finding narrative for NOT MET
 controls.
+The Word SSP also receives a Section 0 executive assessment summary calculated
+from the same records as the workbook Dashboard; existing System Conformity
+Sections 6.9 and 6.9.1 remain unchanged.
 See [the Word export guide](docs/SSP_WORD_EXPORT.md) for the field mapping and
 template-preservation contract.
 
