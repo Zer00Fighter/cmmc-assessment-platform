@@ -15,3 +15,6 @@ output/
 
 # Local Django development database.
 omni.sqlite3
+
+# Tenant evidence is private runtime data and must never be committed.
+private_uploads/

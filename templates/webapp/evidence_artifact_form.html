@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<nav class="crumb"><a href="{% url 'assessment-dashboard' organization.slug assessment.id %}">{{ assessment.name }}</a> / <a href="{% url 'evidence-list' organization.slug assessment.id %}">Evidence</a> / {{ title }}</nav>
+<section class="form-card wide"><p class="eyebrow">Evidence artifact</p><h1>{{ title }}</h1><p class="muted">Upload once and link the artifact to every applicable request and control.</p><form method="post" enctype="multipart/form-data" class="stack">{% csrf_token %}{{ form.as_p }}<button class="primary" type="submit">{{ submit_label }}</button></form></section>
+{% endblock %}

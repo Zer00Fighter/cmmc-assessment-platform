@@ -2,7 +2,12 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.utils.text import slugify
 
-from .models import Assessment, ControlAssessment, Membership, Organization, System
+from src.evidence.evidence_knowledge import EVIDENCE_KNOWLEDGE
+
+from .models import (
+    Assessment, ControlAssessment, EvidenceArtifact, EvidenceRequest,
+    Membership, Organization, System,
+)
 
 
 class OrganizationForm(forms.ModelForm):
@@ -81,6 +86,111 @@ class BulkControlOwnerForm(forms.Form):
         self.fields["domain"].choices = [(value, value) for value in domains]
         self.fields["primary_owner"].queryset = members
         self.fields["supporting_owners"].queryset = members
+
+
+class EvidenceRequestForm(forms.ModelForm):
+    catalog_object = forms.ChoiceField(
+        required=False, label="Omni evidence object",
+        help_text="Optional: select a curated, framework-agnostic evidence object.",
+        choices=[("", "Custom request")] + [
+            (item.evidence_id, f"{item.evidence_id} — {item.canonical_name}")
+            for item in EVIDENCE_KNOWLEDGE
+        ],
+    )
+
+    class Meta:
+        model = EvidenceRequest
+        fields = (
+            "catalog_object", "title", "description", "status", "owner",
+            "due_date", "controls",
+        )
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 4}),
+            "due_date": forms.DateInput(attrs={"type": "date"}),
+            "controls": forms.CheckboxSelectMultiple(),
+        }
+
+    def __init__(self, *args, organization, assessment, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["title"].required = False
+        if self.instance.pk and self.instance.evidence_code:
+            self.fields["catalog_object"].initial = self.instance.evidence_code
+        self.fields["owner"].queryset = Membership.objects.filter(
+            organization=organization, active=True
+        ).select_related("user").order_by("user__first_name", "user__username")
+        self.fields["controls"].queryset = assessment.control_results.select_related(
+            "requirement"
+        )
+
+    def clean(self):
+        cleaned = super().clean()
+        code = cleaned.get("catalog_object")
+        if code:
+            evidence = next(item for item in EVIDENCE_KNOWLEDGE if item.evidence_id == code)
+            if not (cleaned.get("title") or "").strip():
+                cleaned["title"] = evidence.canonical_name
+            if not (cleaned.get("description") or "").strip():
+                cleaned["description"] = evidence.description
+        elif not (cleaned.get("title") or "").strip():
+            self.add_error("title", "Enter a title for a custom evidence request.")
+        return cleaned
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        code = self.cleaned_data.get("catalog_object", "")
+        if code:
+            evidence = next(item for item in EVIDENCE_KNOWLEDGE if item.evidence_id == code)
+            instance.evidence_code = code
+            if not instance.title.strip():
+                instance.title = evidence.canonical_name
+            if not instance.description.strip():
+                instance.description = evidence.description
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
+
+
+class EvidenceArtifactForm(forms.ModelForm):
+    class Meta:
+        model = EvidenceArtifact
+        fields = (
+            "title", "file", "external_reference", "source", "period_start",
+            "period_end", "review_status", "assessor_notes", "requests", "controls",
+        )
+        widgets = {
+            "period_start": forms.DateInput(attrs={"type": "date"}),
+            "period_end": forms.DateInput(attrs={"type": "date"}),
+            "assessor_notes": forms.Textarea(attrs={"rows": 4}),
+            "requests": forms.CheckboxSelectMultiple(),
+            "controls": forms.CheckboxSelectMultiple(),
+        }
+
+    def __init__(self, *args, assessment, can_review=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["requests"].queryset = assessment.evidence_requests.all()
+        self.fields["controls"].queryset = assessment.control_results.select_related(
+            "requirement"
+        )
+        if not can_review:
+            self.fields["review_status"].disabled = True
+            self.fields["assessor_notes"].disabled = True
+
+    def clean_file(self):
+        uploaded = self.cleaned_data.get("file")
+        if uploaded and uploaded.size > 25 * 1024 * 1024:
+            raise forms.ValidationError("Evidence files cannot exceed 25 MB.")
+        return uploaded
+
+    def clean(self):
+        cleaned = super().clean()
+        existing_file = self.instance.file if self.instance.pk else None
+        if not cleaned.get("file") and not existing_file and not cleaned.get("external_reference"):
+            self.add_error("file", "Upload a file or provide an external reference.")
+        start, end = cleaned.get("period_start"), cleaned.get("period_end")
+        if start and end and end < start:
+            self.add_error("period_end", "The period end cannot precede the start.")
+        return cleaned
 
 
 class AssessmentForm(forms.ModelForm):

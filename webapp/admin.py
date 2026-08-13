@@ -4,6 +4,8 @@ from .models import (
     Assessment,
     AuditEvent,
     ControlAssessment,
+    EvidenceArtifact,
+    EvidenceRequest,
     Framework,
     Membership,
     Organization,
@@ -20,6 +22,8 @@ admin.site.register(
         Requirement,
         Assessment,
         ControlAssessment,
+        EvidenceArtifact,
+        EvidenceRequest,
         AuditEvent,
     )
 )

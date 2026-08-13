@@ -1,11 +1,18 @@
+import tempfile
+from types import SimpleNamespace
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from .models import (
     Assessment,
     AuditEvent,
     ControlAssessment,
+    EvidenceArtifact,
+    EvidenceRequest,
     Framework,
     Membership,
     Organization,
@@ -197,3 +204,158 @@ class SprintTwoOnboardingTests(TestCase):
         result.refresh_from_db()
         self.assertEqual(result.primary_owner, owner_membership)
         self.assertEqual(list(result.supporting_owners.all()), [admin_membership])
+
+
+class SprintThreeEvidenceTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.assessor = user_model.objects.create_user(
+            "evidence-assessor", password="test-password"
+        )
+        self.client_user = user_model.objects.create_user(
+            "evidence-client", password="test-password"
+        )
+        self.outsider = user_model.objects.create_user(
+            "evidence-outsider", password="test-password"
+        )
+        self.organization = Organization.objects.create(name="Acme", slug="acme")
+        self.other_org = Organization.objects.create(name="Other", slug="other-evidence")
+        self.assessor_membership = Membership.objects.create(
+            user=self.assessor, organization=self.organization,
+            role=Membership.Role.ASSESSOR,
+        )
+        self.client_membership = Membership.objects.create(
+            user=self.client_user, organization=self.organization,
+            role=Membership.Role.CLIENT,
+        )
+        Membership.objects.create(
+            user=self.outsider, organization=self.other_org,
+            role=Membership.Role.ASSESSOR,
+        )
+        self.system = System.objects.create(
+            organization=self.organization, name="CUI Enclave"
+        )
+        self.framework = Framework.objects.create(
+            code="EVIDENCE-TEST", name="Evidence Test", version="1"
+        )
+        self.requirement = Requirement.objects.create(
+            framework=self.framework, requirement_id="AC.1", domain="AC",
+            title="Access Control", statement="Control access.", full_deduction=1,
+        )
+        self.assessment = Assessment.objects.create(
+            system=self.system, framework=self.framework, name="Evidence Assessment",
+            created_by=self.assessor, status=Assessment.Status.IN_PROGRESS,
+        )
+        self.control = ControlAssessment.objects.create(
+            assessment=self.assessment, requirement=self.requirement
+        )
+
+    def test_curated_request_populates_canonical_object_and_control_mapping(self):
+        self.client.login(username="evidence-assessor", password="test-password")
+        response = self.client.post(
+            reverse("evidence-request-create", args=("acme", self.assessment.id)),
+            {
+                "catalog_object": "EV-0001", "title": "", "description": "",
+                "status": EvidenceRequest.Status.REQUESTED,
+                "owner": self.client_membership.id, "controls": [self.control.id],
+            },
+        )
+        request_item = EvidenceRequest.objects.get(assessment=self.assessment)
+        self.assertRedirects(
+            response, reverse("evidence-list", args=("acme", self.assessment.id))
+        )
+        self.assertEqual(request_item.evidence_code, "EV-0001")
+        self.assertEqual(request_item.title, "Security Plan")
+        self.assertEqual(list(request_item.controls.all()), [self.control])
+
+    def test_generate_request_list_imports_optimized_drl_idempotently(self):
+        self.framework.code = "CMMC-TEST"
+        self.framework.save(update_fields=("code",))
+        generated = SimpleNamespace(
+            requests=[SimpleNamespace(
+                requested_item="Access Control Policy",
+                description="Provide the current policy.",
+                controls=[SimpleNamespace(control_id="AC.1")],
+            )]
+        )
+        self.client.login(username="evidence-assessor", password="test-password")
+        url = reverse("evidence-request-generate", args=("acme", self.assessment.id))
+        with patch("webapp.views._generate_cmmc_drl", return_value=generated):
+            self.client.post(url)
+            self.client.post(url)
+        self.assertEqual(
+            EvidenceRequest.objects.filter(title="Access Control Policy").count(), 1
+        )
+        item = EvidenceRequest.objects.get(title="Access Control Policy")
+        self.assertEqual(list(item.controls.all()), [self.control])
+
+    def test_client_can_register_artifact_and_request_becomes_received(self):
+        request_item = EvidenceRequest.objects.create(
+            assessment=self.assessment, title="Security Plan",
+            created_by=self.assessor, owner=self.client_membership,
+        )
+        self.client.login(username="evidence-client", password="test-password")
+        response = self.client.post(
+            reverse("evidence-artifact-create", args=("acme", self.assessment.id)),
+            {
+                "title": "Current SSP", "external_reference": "https://example.com/ssp",
+                "source": "GRC repository", "review_status": "ACCEPTED",
+                "requests": [request_item.id], "controls": [self.control.id],
+            },
+        )
+        self.assertRedirects(
+            response, reverse("evidence-list", args=("acme", self.assessment.id))
+        )
+        artifact = EvidenceArtifact.objects.get(title="Current SSP")
+        self.assertEqual(artifact.review_status, EvidenceArtifact.ReviewStatus.RECEIVED)
+        request_item.refresh_from_db()
+        self.assertEqual(request_item.status, EvidenceRequest.Status.RECEIVED)
+
+    def test_assessor_acceptance_updates_request_and_dashboard_readiness(self):
+        request_item = EvidenceRequest.objects.create(
+            assessment=self.assessment, title="Security Plan", created_by=self.assessor
+        )
+        artifact = EvidenceArtifact.objects.create(
+            organization=self.organization, assessment=self.assessment,
+            title="SSP", external_reference="https://example.com/ssp",
+            uploaded_by=self.client_user,
+        )
+        artifact.requests.add(request_item)
+        self.client.login(username="evidence-assessor", password="test-password")
+        response = self.client.post(
+            reverse("evidence-artifact-edit", args=(
+                "acme", self.assessment.id, artifact.id,
+            )),
+            {
+                "title": "SSP", "external_reference": "https://example.com/ssp",
+                "review_status": EvidenceArtifact.ReviewStatus.ACCEPTED,
+                "assessor_notes": "Accepted and current.",
+                "requests": [request_item.id], "controls": [self.control.id],
+            },
+        )
+        self.assertRedirects(
+            response, reverse("evidence-list", args=("acme", self.assessment.id))
+        )
+        request_item.refresh_from_db()
+        self.assertEqual(request_item.status, EvidenceRequest.Status.ACCEPTED)
+        dashboard = self.client.get(
+            reverse("assessment-dashboard", args=("acme", self.assessment.id))
+        )
+        self.assertContains(dashboard, "100.0%")
+
+    def test_cross_tenant_user_cannot_download_private_evidence(self):
+        with tempfile.TemporaryDirectory() as media_root:
+            with override_settings(MEDIA_ROOT=media_root):
+                artifact = EvidenceArtifact.objects.create(
+                    organization=self.organization, assessment=self.assessment,
+                    title="Private Evidence",
+                    file=SimpleUploadedFile("evidence.txt", b"private"),
+                    uploaded_by=self.assessor,
+                )
+                self.client.login(username="evidence-outsider", password="test-password")
+                response = self.client.get(
+                    reverse("evidence-artifact-download", args=(
+                        "acme", self.assessment.id, artifact.id,
+                    ))
+                )
+                self.assertEqual(response.status_code, 404)

@@ -36,4 +36,32 @@ urlpatterns = [
         "organizations/<slug:org_slug>/assessments/<int:assessment_id>/owners/",
         views.bulk_control_owners, name="bulk-control-owners",
     ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/evidence/",
+        views.evidence_list, name="evidence-list",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/evidence/requests/new/",
+        views.evidence_request_create, name="evidence-request-create",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/evidence/requests/generate/",
+        views.evidence_request_generate, name="evidence-request-generate",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/evidence/requests/<int:evidence_request_id>/",
+        views.evidence_request_edit, name="evidence-request-edit",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/evidence/artifacts/new/",
+        views.evidence_artifact_create, name="evidence-artifact-create",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/evidence/artifacts/<int:artifact_id>/",
+        views.evidence_artifact_edit, name="evidence-artifact-edit",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/evidence/artifacts/<int:artifact_id>/download/",
+        views.evidence_artifact_download, name="evidence-artifact-download",
+    ),
 ]

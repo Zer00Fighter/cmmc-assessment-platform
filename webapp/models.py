@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 from django.conf import settings
+from django.core.validators import FileExtensionValidator
 from django.db import models
+
+
+def evidence_upload_path(instance, filename: str) -> str:
+    return f"evidence/org-{instance.organization_id}/assessment-{instance.assessment_id}/{filename}"
 
 
 class Organization(models.Model):
@@ -213,6 +218,9 @@ class ControlAssessment(models.Model):
             )
         ]
 
+    def __str__(self) -> str:
+        return f"{self.requirement.requirement_id} — {self.requirement.title}"
+
     def calculate_deduction(self) -> int:
         if self.status != self.Status.NOT_MET:
             return 0
@@ -226,6 +234,94 @@ class ControlAssessment(models.Model):
     def save(self, *args, **kwargs):
         self.calculated_deduction = self.calculate_deduction()
         super().save(*args, **kwargs)
+
+
+class EvidenceRequest(models.Model):
+    class Status(models.TextChoices):
+        REQUESTED = "REQUESTED", "Requested"
+        RECEIVED = "RECEIVED", "Received"
+        UNDER_REVIEW = "UNDER_REVIEW", "Under review"
+        ACCEPTED = "ACCEPTED", "Accepted"
+        REJECTED = "REJECTED", "Rejected"
+
+    assessment = models.ForeignKey(
+        Assessment, on_delete=models.CASCADE, related_name="evidence_requests"
+    )
+    evidence_code = models.CharField(max_length=30, blank=True)
+    title = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.REQUESTED
+    )
+    owner = models.ForeignKey(
+        Membership, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="evidence_requests",
+    )
+    due_date = models.DateField(null=True, blank=True)
+    controls = models.ManyToManyField(
+        ControlAssessment, related_name="evidence_requests", blank=True
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="created_evidence_requests",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("status", "due_date", "title")
+
+    def __str__(self) -> str:
+        return self.title
+
+
+class EvidenceArtifact(models.Model):
+    class ReviewStatus(models.TextChoices):
+        RECEIVED = "RECEIVED", "Received"
+        UNDER_REVIEW = "UNDER_REVIEW", "Under review"
+        ACCEPTED = "ACCEPTED", "Accepted"
+        REJECTED = "REJECTED", "Rejected"
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="evidence_artifacts"
+    )
+    assessment = models.ForeignKey(
+        Assessment, on_delete=models.CASCADE, related_name="evidence_artifacts"
+    )
+    title = models.CharField(max_length=300)
+    file = models.FileField(
+        upload_to=evidence_upload_path, blank=True,
+        validators=[FileExtensionValidator(allowed_extensions=(
+            "pdf", "doc", "docx", "xls", "xlsx", "csv", "txt", "png",
+            "jpg", "jpeg", "zip", "json", "xml", "log",
+        ))],
+    )
+    external_reference = models.URLField(blank=True)
+    source = models.CharField(max_length=250, blank=True)
+    period_start = models.DateField(null=True, blank=True)
+    period_end = models.DateField(null=True, blank=True)
+    review_status = models.CharField(
+        max_length=20, choices=ReviewStatus.choices, default=ReviewStatus.RECEIVED
+    )
+    assessor_notes = models.TextField(blank=True)
+    controls = models.ManyToManyField(
+        ControlAssessment, related_name="evidence_artifacts", blank=True
+    )
+    requests = models.ManyToManyField(
+        EvidenceRequest, related_name="artifacts", blank=True
+    )
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="uploaded_evidence_artifacts",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-updated_at",)
+
+    def __str__(self) -> str:
+        return self.title
 
 
 class AuditEvent(models.Model):
