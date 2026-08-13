@@ -12,3 +12,6 @@ docs/source/sp800-171a-assessment-procedures.xlsx
 
 # Generated workbook output.
 output/
+
+# Local Django development database.
+omni.sqlite3

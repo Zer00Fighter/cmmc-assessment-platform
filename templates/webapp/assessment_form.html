@@ -1,0 +1,3 @@
+{% extends "base.html" %}
+{% block title %}New assessment{% endblock %}
+{% block content %}<nav class="crumb"><a href="{% url 'assessment-list' organization.slug system.id %}">Assessments</a> / New</nav><section class="form-card"><p class="eyebrow">{{ system.name }}</p><h1>Create assessment</h1><form method="post" class="stack">{% csrf_token %}{{ form.as_p }}<button class="primary" type="submit">Create and load controls</button></form></section>{% endblock %}

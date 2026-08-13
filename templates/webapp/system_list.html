@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}{{ organization.name }}{% endblock %}
+{% block content %}
+<nav class="crumb"><a href="{% url 'organization-list' %}">Organizations</a> / {{ organization.name }}</nav>
+<div class="page-head"><div><p class="eyebrow">Client environment</p><h1>{{ organization.name }}</h1><p class="muted">Select a system or enclave.</p></div></div>
+<div class="card-grid">{% for system in systems %}<a class="card" href="{% url 'assessment-list' organization.slug system.id %}"><span class="pill">System</span><h2>{{ system.name }}</h2><p>{{ system.assessment_count }} assessment{{ system.assessment_count|pluralize }}</p><span class="card-link">Open system →</span></a>{% empty %}<div class="empty">No systems have been configured.</div>{% endfor %}</div>
+{% endblock %}

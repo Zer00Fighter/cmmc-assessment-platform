@@ -14,6 +14,12 @@ weighted scoring.
 
 The default output is `output/Omni_CMMC_Assessment_v1.0.xlsx`.
 
+## Run the web application
+
+Web Sprint 1 provides authenticated client/system selection, assessment
+creation, control scoring, live dashboard updates, tenant-aware authorization,
+and audit logging. See [Web Sprint 1](docs/WEB_SPRINT_1.md) for setup and scope.
+
 The v1 workflow builds on its documented
 [CMMC end-to-end acceptance](docs/CMMC_END_TO_END_ACCEPTANCE.md). See the
 [v1.0.0 release notes](docs/RELEASE_NOTES_v1.0.0.md) for the release scope and

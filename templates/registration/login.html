@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<section class="auth-card">
+  <p class="eyebrow">Governance · Risk · Compliance</p>
+  <h1>Welcome to Omni</h1>
+  <p class="muted">Sign in to access your authorized organizations and assessments.</p>
+  <form method="post" class="stack">{% csrf_token %}{{ form.as_p }}<button class="primary" type="submit">Sign in</button></form>
+</section>
+{% endblock %}

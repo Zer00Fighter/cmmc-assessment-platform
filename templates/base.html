@@ -1,0 +1,22 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Omni{% endblock %} · R!SC</title>
+  <link rel="stylesheet" href="{% static 'omni.css' %}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{% url 'organization-list' %}"><span>OMNI</span><small>by R!SC</small></a>
+    {% if user.is_authenticated %}
+      <div class="userbar"><span>{{ user.get_full_name|default:user.username }}</span><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link-button">Sign out</button></form></div>
+    {% endif %}
+  </header>
+  <main class="shell">
+    {% if messages %}<div class="messages">{% for message in messages %}<div class="message">{{ message }}</div>{% endfor %}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
