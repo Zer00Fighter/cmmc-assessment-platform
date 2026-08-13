@@ -1,6 +1,8 @@
 import tempfile
+import zipfile
 from datetime import date, timedelta
 from io import BytesIO
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -17,6 +19,7 @@ from .models import (
     EvidenceArtifact,
     EvidenceRequest,
     Framework,
+    GeneratedDocument,
     Membership,
     Organization,
     RemediationMilestone,
@@ -510,3 +513,102 @@ class SprintFourRemediationTests(TestCase):
         self.assertEqual(sheet.cell(5, 1).value, "Remediation ID (POA&M ID)")
         self.assertEqual(sheet.cell(5, 24).value, "Assessor Notes")
         self.assertEqual(sheet.cell(6, 2).value, "AC.1")
+
+
+class SprintFiveReportingTests(TestCase):
+    def setUp(self):
+        users = get_user_model()
+        self.assessor = users.objects.create_user("report-assessor", password="test-password")
+        self.outsider = users.objects.create_user("report-outsider", password="test-password")
+        self.organization = Organization.objects.create(name="Synthetic Defense", slug="synthetic")
+        self.other_org = Organization.objects.create(name="Other Synthetic", slug="other-synthetic")
+        Membership.objects.create(
+            user=self.assessor, organization=self.organization, role=Membership.Role.ASSESSOR
+        )
+        Membership.objects.create(
+            user=self.outsider, organization=self.other_org, role=Membership.Role.ASSESSOR
+        )
+        self.system = System.objects.create(
+            organization=self.organization, name="Synthetic Enclave", scope="CUI enclave",
+            cage_code="1AB23", system_owner_name="Synthetic Owner",
+        )
+        self.framework = Framework.objects.create(code="CMMC-REPORT", name="CMMC Level 2", version="2.13")
+        self.requirement = Requirement.objects.create(
+            framework=self.framework, requirement_id="AC.L2-3.1.1", domain="AC",
+            title="Authorized Access Control", statement="Limit access.", full_deduction=5,
+        )
+        self.assessment = Assessment.objects.create(
+            system=self.system, framework=self.framework, name="Synthetic Assessment",
+            created_by=self.assessor, status=Assessment.Status.COMPLETE,
+        )
+        self.result = ControlAssessment.objects.create(
+            assessment=self.assessment, requirement=self.requirement,
+            status=ControlAssessment.Status.MET,
+            implementation_state=ControlAssessment.Implementation.FULL,
+            assessor_notes_findings="Access is restricted to authorized users.",
+            ssp_reference="SSP 3.1.1",
+        )
+
+    def test_workbook_binds_web_assessment_data(self):
+        from .reporting import build_assessment_workbook
+        content = build_assessment_workbook(self.assessment)
+        workbook = load_workbook(BytesIO(content), data_only=False, read_only=True)
+        try:
+            cover = workbook["Cover"]
+            self.assertEqual(cover["C6"].value, "Synthetic Defense")
+            assessment = workbook["Assessment"]
+            self.assertEqual(assessment["I6"].value, "MET")
+            self.assertEqual(assessment["R6"].value, "Access is restricted to authorized users.")
+            crosswalk = workbook["SSP Crosswalk"]
+            self.assertEqual(crosswalk["C6"].value, "SSP 3.1.1")
+        finally:
+            workbook.close()
+
+    def test_package_embeds_upload_and_external_reference_text(self):
+        from .reporting import build_package
+        with tempfile.TemporaryDirectory() as directory:
+            template = f"{directory}/private-template.docx"
+            Path(template).touch()
+            with override_settings(MEDIA_ROOT=directory, OMNI_SSP_TEMPLATE=template):
+                artifact = EvidenceArtifact.objects.create(
+                    organization=self.organization, assessment=self.assessment,
+                    title="Access Review Evidence",
+                    file=SimpleUploadedFile("access-review.txt", b"synthetic evidence"),
+                    external_reference="https://example.com/access-review",
+                    source="Synthetic repository",
+                    review_status=EvidenceArtifact.ReviewStatus.ACCEPTED,
+                    uploaded_by=self.assessor,
+                )
+                artifact.controls.add(self.result)
+                with patch("webapp.reporting.build_word_ssp", return_value=b"synthetic docx"):
+                    content, readiness = build_package(self.assessment, self.assessor)
+            self.assertTrue(readiness["ready"])
+            with zipfile.ZipFile(BytesIO(content)) as package:
+                names = package.namelist()
+                self.assertIn("Deliverables/Omni-Assessment-Workbook.xlsx", names)
+                self.assertIn("Evidence/Evidence-Index.csv", names)
+                upload = next(name for name in names if name.endswith("access-review.txt"))
+                reference = next(name for name in names if name.endswith("External_Reference.txt"))
+                self.assertEqual(package.read(upload), b"synthetic evidence")
+                reference_text = package.read(reference).decode()
+                self.assertIn("https://example.com/access-review", reference_text)
+                self.assertIn("AC.L2-3.1.1", reference_text)
+
+    def test_download_creates_metadata_history_without_persisting_client_file(self):
+        self.client.login(username="report-assessor", password="test-password")
+        with patch("webapp.reporting.build_assessment_workbook", return_value=b"workbook"):
+            response = self.client.get(reverse(
+                "report-download", args=("synthetic", self.assessment.id, "WORKBOOK")
+            ))
+        self.assertEqual(response.content, b"workbook")
+        record = GeneratedDocument.objects.get(assessment=self.assessment)
+        self.assertEqual(record.kind, GeneratedDocument.Kind.WORKBOOK)
+        self.assertEqual(record.size_bytes, 8)
+        self.assertFalse(hasattr(record, "file"))
+
+    def test_cross_tenant_report_center_is_denied(self):
+        self.client.login(username="report-outsider", password="test-password")
+        response = self.client.get(reverse(
+            "report-center", args=("synthetic", self.assessment.id)
+        ))
+        self.assertEqual(response.status_code, 404)

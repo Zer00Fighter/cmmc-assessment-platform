@@ -29,6 +29,7 @@ from .models import (
     ControlAssessment,
     EvidenceArtifact,
     EvidenceRequest,
+    GeneratedDocument,
     Membership,
     Organization,
     RemediationMilestone,
@@ -802,6 +803,83 @@ def remediation_export(request: HttpRequest, org_slug: str, assessment_id: int) 
     return FileResponse(
         output, as_attachment=True,
         filename=f"Omni-{assessment.id}-Remediation-Action-Plan.xlsx",
+    )
+
+
+@login_required
+def report_center(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    from .reporting import assessment_readiness
+    readiness = assessment_readiness(assessment, require_template=True)
+    return render(request, "webapp/report_center.html", {
+        "organization": organization, "assessment": assessment,
+        "readiness": readiness,
+        "history": assessment.generated_documents.select_related("generated_by")[:50],
+    })
+
+
+def _generated_response(assessment, organization, user, kind, filename, content, readiness):
+    from .reporting import digest
+    record = GeneratedDocument.objects.create(
+        assessment=assessment, kind=kind, filename=filename, version="1.0",
+        readiness=readiness, content_sha256=digest(content), size_bytes=len(content),
+        generated_by=user,
+    )
+    AuditEvent.objects.create(
+        organization=organization, actor=user, action="document.generated",
+        object_type="GeneratedDocument", object_id=str(record.id),
+        detail={"kind": kind, "filename": filename, "size_bytes": len(content)},
+    )
+    response = HttpResponse(content, content_type={
+        GeneratedDocument.Kind.WORKBOOK: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        GeneratedDocument.Kind.SSP: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        GeneratedDocument.Kind.REMEDIATION: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        GeneratedDocument.Kind.PACKAGE: "application/zip",
+    }[kind])
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+def report_download(
+    request: HttpRequest, org_slug: str, assessment_id: int, kind: str
+) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    from .reporting import (
+        ReportNotReady, assessment_readiness, build_assessment_workbook,
+        build_package, build_word_ssp,
+    )
+    from .remediation_export import build_remediation_workbook
+    normalized = kind.upper()
+    if normalized not in GeneratedDocument.Kind.values:
+        raise Http404
+    readiness = assessment_readiness(
+        assessment, require_template=normalized in (
+            GeneratedDocument.Kind.SSP, GeneratedDocument.Kind.PACKAGE
+        )
+    )
+    try:
+        if normalized == GeneratedDocument.Kind.WORKBOOK:
+            content = build_assessment_workbook(assessment)
+            filename = f"Omni-{assessment.id}-Assessment-Workbook.xlsx"
+        elif normalized == GeneratedDocument.Kind.REMEDIATION:
+            content = build_remediation_workbook(assessment).getvalue()
+            filename = f"Omni-{assessment.id}-Remediation-Action-Plan.xlsx"
+        elif normalized == GeneratedDocument.Kind.SSP:
+            workbook = build_assessment_workbook(assessment)
+            content = build_word_ssp(assessment, workbook, request.user)
+            filename = f"Omni-{assessment.id}-System-Security-Plan.docx"
+        else:
+            content, readiness = build_package(assessment, request.user)
+            filename = f"Omni-{assessment.id}-Complete-Assessment-Package.zip"
+    except ReportNotReady as error:
+        for issue in error.issues[:10]:
+            messages.error(request, issue)
+        if len(error.issues) > 10:
+            messages.error(request, f"{len(error.issues) - 10} additional blockers remain.")
+        return redirect("report-center", org_slug=org_slug, assessment_id=assessment.id)
+    return _generated_response(
+        assessment, organization, request.user, normalized, filename, content, readiness
     )
 
 

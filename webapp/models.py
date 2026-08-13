@@ -465,6 +465,35 @@ class RemediationMilestone(models.Model):
         return self.title
 
 
+class GeneratedDocument(models.Model):
+    class Kind(models.TextChoices):
+        WORKBOOK = "WORKBOOK", "Assessment workbook"
+        SSP = "SSP", "Word Security Plan"
+        REMEDIATION = "REMEDIATION", "Remediation workbook"
+        PACKAGE = "PACKAGE", "Complete assessment package"
+
+    assessment = models.ForeignKey(
+        Assessment, on_delete=models.CASCADE, related_name="generated_documents"
+    )
+    kind = models.CharField(max_length=15, choices=Kind.choices)
+    filename = models.CharField(max_length=300)
+    version = models.CharField(max_length=30, default="1.0")
+    readiness = models.JSONField(default=dict, blank=True)
+    content_sha256 = models.CharField(max_length=64, blank=True)
+    size_bytes = models.PositiveBigIntegerField(default=0)
+    generated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="generated_omni_documents",
+    )
+    generated_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-generated_at",)
+
+    def __str__(self) -> str:
+        return self.filename
+
+
 class AuditEvent(models.Model):
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="audit_events"

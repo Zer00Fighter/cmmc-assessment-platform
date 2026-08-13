@@ -88,4 +88,12 @@ urlpatterns = [
         "organizations/<slug:org_slug>/assessments/<int:assessment_id>/remediation/<int:plan_id>/milestones/new/",
         views.remediation_milestone_create, name="remediation-milestone-create",
     ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/reports/",
+        views.report_center, name="report-center",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/reports/<str:kind>/",
+        views.report_download, name="report-download",
+    ),
 ]

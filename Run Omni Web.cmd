@@ -1,6 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0"
+if exist "Omni.local.cmd" call "Omni.local.cmd"
 if not exist ".venv\Scripts\python.exe" (
   echo Omni's Python environment was not found.
   echo Run setup before starting the web application.
