@@ -13,6 +13,7 @@ from .models import (
     Requirement,
     RemediationMilestone,
     RemediationPlan,
+    RequirementMapping,
     System,
 )
 
@@ -26,6 +27,7 @@ admin.site.register(
         Requirement,
         RemediationMilestone,
         RemediationPlan,
+        RequirementMapping,
         Assessment,
         ControlAssessment,
         EvidenceArtifact,

@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}{{ assessment.name }} frameworks{% endblock %}
+{% block content %}
+<nav class="crumb"><a href="{% url 'assessment-dashboard' organization.slug assessment.id %}">{{ assessment.name }}</a> / Frameworks</nav>
+<section class="form-card wide"><p class="eyebrow">Assessment configuration</p><h1>Framework selection</h1><p class="muted">Add frameworks at any time. A framework can only be removed while all of its results remain untouched. The primary framework controls the default scoring and reporting context.</p><form method="post" class="stack">{% csrf_token %}{{ form.as_p }}<button class="primary" type="submit">Save framework selection</button></form></section>
+{% endblock %}

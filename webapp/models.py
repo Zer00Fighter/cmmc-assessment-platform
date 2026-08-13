@@ -92,9 +92,22 @@ class System(models.Model):
 
 
 class Framework(models.Model):
+    class ScoringMethod(models.TextChoices):
+        NONE = "NONE", "No numeric score"
+        SPRS = "SPRS", "SPRS"
+        DEDUCTION = "DEDUCTION", "Maximum less deductions"
+
     code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=200)
     version = models.CharField(max_length=50)
+    authority = models.CharField(max_length=200, blank=True)
+    description = models.TextField(blank=True)
+    effective_date = models.DateField(null=True, blank=True)
+    scoring_method = models.CharField(
+        max_length=15, choices=ScoringMethod.choices, default=ScoringMethod.NONE
+    )
+    maximum_score = models.IntegerField(null=True, blank=True)
+    active = models.BooleanField(default=True)
 
     def __str__(self) -> str:
         return f"{self.name} {self.version}"
@@ -124,6 +137,40 @@ class Requirement(models.Model):
         return self.requirement_id
 
 
+class RequirementMapping(models.Model):
+    class Relationship(models.TextChoices):
+        EQUIVALENT = "EQUIVALENT", "Equivalent"
+        PARTIAL = "PARTIAL", "Partially equivalent"
+        RELATED = "RELATED", "Related"
+
+    source = models.ForeignKey(
+        Requirement, on_delete=models.CASCADE, related_name="outbound_mappings"
+    )
+    target = models.ForeignKey(
+        Requirement, on_delete=models.CASCADE, related_name="inbound_mappings"
+    )
+    relationship = models.CharField(
+        max_length=15, choices=Relationship.choices, default=Relationship.RELATED
+    )
+    mapping_reference = models.CharField(max_length=300, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ("source__framework__code", "source__requirement_id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("source", "target"), name="unique_requirement_mapping_direction"
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(source=models.F("target")),
+                name="requirement_mapping_not_self",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.source} → {self.target} ({self.get_relationship_display()})"
+
+
 class Assessment(models.Model):
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Draft"
@@ -135,6 +182,9 @@ class Assessment(models.Model):
     )
     framework = models.ForeignKey(
         Framework, on_delete=models.PROTECT, related_name="assessments"
+    )
+    frameworks = models.ManyToManyField(
+        Framework, through="AssessmentFramework", related_name="multi_assessments"
     )
     name = models.CharField(max_length=200)
     status = models.CharField(
@@ -155,10 +205,43 @@ class Assessment(models.Model):
         return self.name
 
     @property
-    def current_score(self) -> int:
-        return 110 - sum(
-            self.control_results.values_list("calculated_deduction", flat=True)
+    def current_score(self) -> int | None:
+        if self.framework.maximum_score is None:
+            return None
+        return self.framework.maximum_score - sum(
+            self.control_results.filter(requirement__framework=self.framework)
+            .values_list("calculated_deduction", flat=True)
         )
+
+
+class AssessmentFramework(models.Model):
+    assessment = models.ForeignKey(
+        Assessment, on_delete=models.CASCADE, related_name="framework_selections"
+    )
+    framework = models.ForeignKey(
+        Framework, on_delete=models.PROTECT, related_name="assessment_selections"
+    )
+    is_primary = models.BooleanField(default=False)
+    added_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="added_assessment_frameworks", null=True, blank=True,
+    )
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-is_primary", "framework__name", "framework__version")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("assessment", "framework"), name="unique_assessment_framework"
+            ),
+            models.UniqueConstraint(
+                fields=("assessment",), condition=models.Q(is_primary=True),
+                name="one_primary_framework_per_assessment",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.assessment}: {self.framework}"
 
 
 class ControlAssessment(models.Model):

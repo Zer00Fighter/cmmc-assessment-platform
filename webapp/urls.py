@@ -4,6 +4,7 @@ from . import views
 
 urlpatterns = [
     path("", views.organization_list, name="organization-list"),
+    path("frameworks/", views.framework_catalog, name="framework-catalog"),
     path("organizations/new/", views.organization_create, name="organization-create"),
     path("organizations/<slug:org_slug>/edit/", views.organization_edit, name="organization-edit"),
     path("organizations/<slug:org_slug>/members/", views.membership_list, name="membership-list"),
@@ -26,6 +27,10 @@ urlpatterns = [
         "organizations/<slug:org_slug>/assessments/<int:assessment_id>/",
         views.assessment_dashboard,
         name="assessment-dashboard",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/frameworks/",
+        views.assessment_frameworks, name="assessment-frameworks",
     ),
     path(
         "organizations/<slug:org_slug>/assessments/<int:assessment_id>/controls/<int:result_id>/",

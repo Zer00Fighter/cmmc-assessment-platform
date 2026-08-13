@@ -6,8 +6,9 @@ from django.utils.text import slugify
 from src.evidence.evidence_knowledge import EVIDENCE_KNOWLEDGE
 
 from .models import (
-    Assessment, ControlAssessment, EvidenceArtifact, EvidenceRequest,
-    Membership, Organization, RemediationMilestone, RemediationPlan, System,
+    Assessment, AssessmentFramework, ControlAssessment, EvidenceArtifact,
+    EvidenceRequest, Framework, Membership, Organization, RemediationMilestone,
+    RemediationPlan, System,
 )
 
 
@@ -300,9 +301,36 @@ class RemediationMilestoneForm(forms.ModelForm):
 
 
 class AssessmentForm(forms.ModelForm):
+    frameworks = forms.ModelMultipleChoiceField(
+        queryset=Framework.objects.none(), widget=forms.CheckboxSelectMultiple(),
+        help_text="Select every framework included in this assessment.",
+    )
+    primary_framework = forms.ModelChoiceField(
+        queryset=Framework.objects.none(),
+        help_text="The primary framework controls the default view and primary scoring context.",
+    )
+
     class Meta:
         model = Assessment
-        fields = ("framework", "name")
+        fields = ("name",)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        frameworks = Framework.objects.filter(active=True).order_by("name", "version")
+        self.fields["frameworks"].queryset = frameworks
+        self.fields["primary_framework"].queryset = frameworks
+        if self.instance.pk:
+            selected = self.instance.frameworks.all()
+            self.fields["frameworks"].initial = selected
+            self.fields["primary_framework"].initial = self.instance.framework
+
+    def clean(self):
+        cleaned = super().clean()
+        frameworks = cleaned.get("frameworks")
+        primary = cleaned.get("primary_framework")
+        if frameworks is not None and primary is not None and primary not in frameworks:
+            self.add_error("primary_framework", "The primary framework must also be selected.")
+        return cleaned
 
 
 class ControlAssessmentForm(forms.ModelForm):

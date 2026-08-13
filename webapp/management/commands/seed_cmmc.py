@@ -23,7 +23,13 @@ class Command(BaseCommand):
             }
         framework, _ = Framework.objects.update_or_create(
             code="CMMC-L2",
-            defaults={"name": "CMMC Level 2", "version": "2.13"},
+            defaults={
+                "name": "CMMC Level 2", "version": "2.13",
+                "authority": "U.S. Department of Defense",
+                "description": "CMMC Level 2 assessment requirements aligned to NIST SP 800-171.",
+                "scoring_method": Framework.ScoringMethod.SPRS,
+                "maximum_score": 110, "active": True,
+            },
         )
         loaded = 0
         with controls_path.open(encoding="utf-8-sig", newline="") as source:

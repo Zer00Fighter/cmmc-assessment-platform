@@ -96,10 +96,45 @@ def build_assessment_workbook(assessment) -> bytes:
 
         results = {
             item.requirement.requirement_id: item
-            for item in assessment.control_results.select_related(
+            for item in assessment.control_results.filter(
+                requirement__framework=assessment.framework
+            ).select_related(
                 "requirement", "primary_owner__user"
             ).prefetch_related("evidence_artifacts", "remediation_plans")
         }
+        multi_sheet = workbook.create_sheet("Multi-Framework Results", 3)
+        multi_headers = (
+            "Framework Code", "Framework Name", "Version", "Primary",
+            "Requirement ID", "Domain", "Title", "Statement", "Status",
+            "Implementation State", "Calculated Deduction", "Control Owner",
+            "SSP Reference", "Assessor Notes / Findings", "Evidence References",
+        )
+        for column, header in enumerate(multi_headers, 1):
+            multi_sheet.cell(1, column, header)
+        for offset, result in enumerate(
+            assessment.control_results.select_related(
+                "requirement__framework", "primary_owner__user"
+            ).prefetch_related("evidence_artifacts"), 2
+        ):
+            framework = result.requirement.framework
+            artifacts = list(result.evidence_artifacts.all())
+            values = (
+                framework.code, framework.name, framework.version,
+                "Yes" if framework.pk == assessment.framework_id else "No",
+                result.requirement.requirement_id, result.requirement.domain,
+                result.requirement.title, result.requirement.statement, result.status,
+                result.implementation_state,
+                result.calculated_deduction if framework.scoring_method != "NONE" else "",
+                _display_member(result.primary_owner) or result.control_owner,
+                result.ssp_reference, result.assessor_notes_findings,
+                "; ".join(f"EA-{item.id:04d} {item.title}" for item in artifacts),
+            )
+            for column, value in enumerate(values, 1):
+                multi_sheet.cell(offset, column, value)
+        multi_sheet.freeze_panes = "A2"
+        multi_sheet.auto_filter.ref = multi_sheet.dimensions
+        for column in range(1, len(multi_headers) + 1):
+            multi_sheet.column_dimensions[chr(64 + column)].width = 20
         sheet = workbook["Assessment"]
         crosswalk = workbook["SSP Crosswalk"]
         for row in range(6, sheet.max_row + 1):

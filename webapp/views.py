@@ -25,15 +25,18 @@ from .forms import (
 )
 from .models import (
     Assessment,
+    AssessmentFramework,
     AuditEvent,
     ControlAssessment,
     EvidenceArtifact,
     EvidenceRequest,
+    Framework,
     GeneratedDocument,
     Membership,
     Organization,
     RemediationMilestone,
     RemediationPlan,
+    RequirementMapping,
     System,
 )
 
@@ -97,6 +100,14 @@ def organization_list(request: HttpRequest) -> HttpResponse:
     return render(
         request, "webapp/organization_list.html", {"organizations": organizations}
     )
+
+
+@login_required
+def framework_catalog(request: HttpRequest) -> HttpResponse:
+    frameworks = Framework.objects.filter(active=True).annotate(
+        requirement_count=Count("requirements")
+    ).order_by("name", "version")
+    return render(request, "webapp/framework_catalog.html", {"frameworks": frameworks})
 
 
 @login_required
@@ -239,13 +250,22 @@ def assessment_create(
         if form.is_valid():
             assessment = form.save(commit=False)
             assessment.system = system
+            assessment.framework = form.cleaned_data["primary_framework"]
             assessment.created_by = request.user
             assessment.status = Assessment.Status.IN_PROGRESS
             assessment.save()
+            AssessmentFramework.objects.bulk_create([
+                AssessmentFramework(
+                    assessment=assessment, framework=framework,
+                    is_primary=framework == assessment.framework, added_by=request.user,
+                )
+                for framework in form.cleaned_data["frameworks"]
+            ])
             ControlAssessment.objects.bulk_create(
                 [
                     ControlAssessment(assessment=assessment, requirement=requirement)
-                    for requirement in assessment.framework.requirements.all()
+                    for framework in form.cleaned_data["frameworks"]
+                    for requirement in framework.requirements.all()
                 ]
             )
             AuditEvent.objects.create(
@@ -254,7 +274,10 @@ def assessment_create(
                 action="assessment.created",
                 object_type="Assessment",
                 object_id=str(assessment.id),
-                detail={"framework": assessment.framework.code},
+                detail={
+                    "primary_framework": assessment.framework.code,
+                    "frameworks": [item.code for item in form.cleaned_data["frameworks"]],
+                },
             )
             return redirect(
                 "assessment-dashboard", org_slug=org_slug, assessment_id=assessment.id
@@ -268,6 +291,94 @@ def assessment_create(
     )
 
 
+def _selected_frameworks(assessment: Assessment):
+    selected = Framework.objects.filter(
+        assessment_selections__assessment=assessment
+    ).order_by("name", "version")
+    return selected if selected.exists() else Framework.objects.filter(pk=assessment.framework_id)
+
+
+def _framework_has_work(assessment: Assessment, framework: Framework) -> bool:
+    results = assessment.control_results.filter(requirement__framework=framework)
+    return results.filter(
+        Q(status__in=(
+            ControlAssessment.Status.MET,
+            ControlAssessment.Status.NOT_MET,
+            ControlAssessment.Status.NOT_APPLICABLE,
+        ))
+        | ~Q(assessor_notes_findings="")
+        | ~Q(control_owner="")
+        | Q(primary_owner__isnull=False)
+        | Q(supporting_owners__isnull=False)
+        | Q(updated_by__isnull=False)
+        | ~Q(ssp_reference="")
+        | Q(evidence_artifacts__isnull=False)
+        | Q(evidence_requests__isnull=False)
+        | Q(remediation_plans__isnull=False)
+    ).exists()
+
+
+@login_required
+@transaction.atomic
+def assessment_frameworks(
+    request: HttpRequest, org_slug: str, assessment_id: int
+) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    if not _can_edit(request.user, organization):
+        raise Http404
+    form = AssessmentForm(request.POST or None, instance=assessment)
+    if request.method == "POST" and form.is_valid():
+        selected = set(form.cleaned_data["frameworks"])
+        current = set(_selected_frameworks(assessment))
+        removed = current - selected
+        blocked = [framework for framework in removed if _framework_has_work(assessment, framework)]
+        if blocked:
+            for framework in blocked:
+                form.add_error(
+                    "frameworks",
+                    f"{framework} cannot be removed because assessment work is recorded.",
+                )
+        else:
+            added = selected - current
+            for framework in added:
+                AssessmentFramework.objects.create(
+                    assessment=assessment, framework=framework, added_by=request.user
+                )
+                ControlAssessment.objects.bulk_create([
+                    ControlAssessment(assessment=assessment, requirement=requirement)
+                    for requirement in framework.requirements.all()
+                ])
+            for framework in removed:
+                assessment.control_results.filter(requirement__framework=framework).delete()
+                AssessmentFramework.objects.filter(
+                    assessment=assessment, framework=framework
+                ).delete()
+            primary = form.cleaned_data["primary_framework"]
+            assessment.framework = primary
+            assessment.name = form.cleaned_data["name"]
+            assessment.save(update_fields=("framework", "name", "updated_at"))
+            AssessmentFramework.objects.filter(assessment=assessment).update(is_primary=False)
+            AssessmentFramework.objects.update_or_create(
+                assessment=assessment, framework=primary,
+                defaults={"is_primary": True, "added_by": request.user},
+            )
+            AuditEvent.objects.create(
+                organization=organization, actor=request.user,
+                action="assessment.frameworks_updated", object_type="Assessment",
+                object_id=str(assessment.id), detail={
+                    "primary": primary.code,
+                    "added": sorted(item.code for item in added),
+                    "removed": sorted(item.code for item in removed),
+                },
+            )
+            messages.success(request, "Assessment frameworks updated.")
+            return redirect("assessment-dashboard", org_slug=org_slug,
+                            assessment_id=assessment.id)
+    return render(request, "webapp/assessment_frameworks.html", {
+        "organization": organization, "assessment": assessment, "form": form,
+    })
+
+
 @login_required
 def assessment_dashboard(
     request: HttpRequest, org_slug: str, assessment_id: int
@@ -278,16 +389,44 @@ def assessment_dashboard(
         id=assessment_id,
         system__organization=organization,
     )
-    results = assessment.control_results.select_related(
-        "requirement", "primary_owner__user"
+    all_results = assessment.control_results.select_related(
+        "requirement__framework", "primary_owner__user"
     ).prefetch_related("supporting_owners")
+    selected_frameworks = list(_selected_frameworks(assessment))
+    framework_code = request.GET.get("framework", "").strip()
+    active_framework = next(
+        (item for item in selected_frameworks if item.code == framework_code), None
+    )
+    results = all_results.filter(requirement__framework=active_framework) if active_framework else all_results
     counts = {
         value: results.filter(status=value).count()
         for value in ControlAssessment.Status.values
     }
     total = results.count()
     assessed = total - counts[ControlAssessment.Status.NOT_ASSESSED]
-    deduction = results.aggregate(total=Sum("calculated_deduction"))["total"] or 0
+    framework_metrics = []
+    for framework in selected_frameworks:
+        framework_results = all_results.filter(requirement__framework=framework)
+        framework_total = framework_results.count()
+        framework_assessed = framework_results.exclude(
+            status=ControlAssessment.Status.NOT_ASSESSED
+        ).count()
+        deduction = framework_results.aggregate(total=Sum("calculated_deduction"))["total"] or 0
+        score = None
+        if framework.scoring_method in (
+            Framework.ScoringMethod.SPRS, Framework.ScoringMethod.DEDUCTION
+        ) and framework.maximum_score is not None:
+            score = framework.maximum_score - deduction
+        framework_metrics.append({
+            "framework": framework, "total": framework_total,
+            "assessed": framework_assessed,
+            "completion": round(framework_assessed / framework_total * 100, 1)
+            if framework_total else 0, "score": score,
+        })
+    primary_metric = next(
+        (item for item in framework_metrics if item["framework"].pk == assessment.framework_id),
+        None,
+    )
     evidence_counts = {
         value: assessment.evidence_requests.filter(status=value).count()
         for value in EvidenceRequest.Status.values
@@ -305,8 +444,12 @@ def assessment_dashboard(
             "met_count": counts[ControlAssessment.Status.MET],
             "not_met_count": counts[ControlAssessment.Status.NOT_MET],
             "not_assessed_count": counts[ControlAssessment.Status.NOT_ASSESSED],
-            "score": 110 - deduction,
+            "score": primary_metric["score"] if primary_metric else None,
+            "score_label": assessment.framework.get_scoring_method_display(),
             "completion": round(assessed / total * 100, 1) if total else 0,
+            "framework_metrics": framework_metrics,
+            "selected_frameworks": selected_frameworks,
+            "active_framework": active_framework,
             "can_edit": _can_edit(request.user, organization),
             "can_manage_evidence": _can_manage_evidence(request.user, organization),
             "evidence_total": evidence_total,
@@ -332,12 +475,13 @@ def _assessment_for(user, org_slug: str, assessment_id: int):
     return organization, assessment
 
 
-def _generate_cmmc_drl(assessment: Assessment):
+def _generate_cmmc_drl(assessment: Assessment, framework: Framework | None = None):
     from src.evidence_requests.assessment_procedure_loader import AssessmentProcedureLoader
     from src.evidence_requests.catalog_compiler import CatalogCompiler
     from src.evidence_requests.request_generator import RequestGenerator
     from src.evidence_requests.request_optimizer import RequestOptimizer
 
+    framework = framework or assessment.framework
     source = Path(settings.BASE_DIR) / "data" / "sp800-171a-assessment-procedures.xlsx"
     fallback = {
         "SC.L2-3.13.12": (
@@ -346,16 +490,16 @@ def _generate_cmmc_drl(assessment: Assessment):
         )
     }
     loader = AssessmentProcedureLoader(
-        framework_id=assessment.framework.code,
-        framework_name=assessment.framework.name,
-        framework_version=assessment.framework.version,
+        framework_id=framework.code,
+        framework_name=framework.name,
+        framework_version=framework.version,
         source_document="NIST SP 800-171A",
         requirement_text_provider=fallback.get,
     )
     dataset = loader.load(source)
     knowledge = CatalogCompiler().compile(dataset.rows)
     raw = RequestGenerator().generate(
-        knowledge, framework_id=assessment.framework.code,
+        knowledge, framework_id=framework.code,
         engagement_name=assessment.name,
         organization_name=assessment.system.organization.name,
     )
@@ -372,13 +516,19 @@ def evidence_request_generate(
     organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
     if not _can_edit(request.user, organization):
         raise Http404
-    if not assessment.framework.code.upper().startswith("CMMC"):
+    cmmc_framework = next(
+        (item for item in _selected_frameworks(assessment)
+         if item.code.upper().startswith("CMMC")), None
+    )
+    if cmmc_framework is None:
         messages.error(request, "Automatic evidence generation is not configured for this framework yet.")
         return redirect("evidence-list", org_slug=org_slug, assessment_id=assessment.id)
-    collection = _generate_cmmc_drl(assessment)
+    collection = _generate_cmmc_drl(assessment, cmmc_framework)
     results_by_id = {
         item.requirement.requirement_id.casefold(): item
-        for item in assessment.control_results.select_related("requirement")
+        for item in assessment.control_results.filter(
+            requirement__framework=cmmc_framework
+        ).select_related("requirement")
     }
     existing = {
         title.casefold() for title in assessment.evidence_requests.values_list("title", flat=True)
@@ -930,7 +1080,12 @@ def control_edit(
     return render(
         request,
         "webapp/control_form.html",
-        {"organization": organization, "result": result, "form": form},
+        {
+            "organization": organization, "result": result, "form": form,
+            "requirement_mappings": RequirementMapping.objects.filter(
+                Q(source=result.requirement) | Q(target=result.requirement)
+            ).select_related("source__framework", "target__framework"),
+        },
     )
 
 

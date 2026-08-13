@@ -14,6 +14,7 @@ from openpyxl import load_workbook
 
 from .models import (
     Assessment,
+    AssessmentFramework,
     AuditEvent,
     ControlAssessment,
     EvidenceArtifact,
@@ -25,6 +26,7 @@ from .models import (
     RemediationMilestone,
     RemediationPlan,
     Requirement,
+    RequirementMapping,
     System,
 )
 
@@ -54,7 +56,8 @@ class SprintOneWorkflowTests(TestCase):
             organization=self.client_org, name="CUI Enclave"
         )
         self.framework = Framework.objects.create(
-            code="CMMC-L2", name="CMMC Level 2", version="2.13"
+            code="CMMC-L2", name="CMMC Level 2", version="2.13",
+            scoring_method=Framework.ScoringMethod.SPRS, maximum_score=110,
         )
         self.requirement = Requirement.objects.create(
             framework=self.framework,
@@ -91,7 +94,11 @@ class SprintOneWorkflowTests(TestCase):
         self.client.login(username="assessor", password="test-password")
         response = self.client.post(
             reverse("assessment-create", args=("acme", self.system.id)),
-            {"framework": self.framework.id, "name": "New Assessment"},
+            {
+                "frameworks": [self.framework.id],
+                "primary_framework": self.framework.id,
+                "name": "New Assessment",
+            },
         )
         created = Assessment.objects.get(name="New Assessment")
         self.assertRedirects(
@@ -612,3 +619,144 @@ class SprintFiveReportingTests(TestCase):
             "report-center", args=("synthetic", self.assessment.id)
         ))
         self.assertEqual(response.status_code, 404)
+
+
+class SprintFivePointFiveFrameworkTests(TestCase):
+    def setUp(self):
+        user = get_user_model()
+        self.assessor = user.objects.create_user("multi-assessor", password="test-password")
+        self.organization = Organization.objects.create(name="Synthetic Multi", slug="multi")
+        Membership.objects.create(
+            user=self.assessor, organization=self.organization, role=Membership.Role.ASSESSOR
+        )
+        self.system = System.objects.create(organization=self.organization, name="Shared System")
+        self.cmmc = Framework.objects.create(
+            code="CMMC-MULTI", name="CMMC Level 2", version="2.13",
+            authority="DoD", scoring_method=Framework.ScoringMethod.SPRS,
+            maximum_score=110,
+        )
+        self.iso = Framework.objects.create(
+            code="ISO-MULTI", name="ISO Synthetic", version="2026",
+            authority="ISO", scoring_method=Framework.ScoringMethod.NONE,
+        )
+        self.cmmc_req = Requirement.objects.create(
+            framework=self.cmmc, requirement_id="AC.1", domain="AC",
+            title="CMMC Access", statement="Restrict access.", full_deduction=5,
+        )
+        self.iso_req = Requirement.objects.create(
+            framework=self.iso, requirement_id="AC.1", domain="Access",
+            title="ISO Access", statement="Manage access.", full_deduction=1,
+        )
+        self.client.login(username="multi-assessor", password="test-password")
+
+    def test_create_selects_multiple_frameworks_and_loads_native_requirements(self):
+        response = self.client.post(
+            reverse("assessment-create", args=("multi", self.system.id)),
+            {"name": "Integrated Assessment", "frameworks": [self.cmmc.id, self.iso.id],
+             "primary_framework": self.cmmc.id},
+        )
+        assessment = Assessment.objects.get(name="Integrated Assessment")
+        self.assertRedirects(response, reverse(
+            "assessment-dashboard", args=("multi", assessment.id)
+        ))
+        self.assertEqual(assessment.framework, self.cmmc)
+        self.assertEqual(set(assessment.frameworks.all()), {self.cmmc, self.iso})
+        self.assertEqual(assessment.control_results.count(), 2)
+        self.assertEqual(
+            assessment.control_results.filter(requirement__requirement_id="AC.1").count(), 2
+        )
+
+    def test_framework_scores_are_independent_and_non_scored_framework_has_no_score(self):
+        assessment = Assessment.objects.create(
+            system=self.system, framework=self.cmmc, name="Scored Multi",
+            created_by=self.assessor,
+        )
+        AssessmentFramework.objects.create(
+            assessment=assessment, framework=self.cmmc, is_primary=True,
+            added_by=self.assessor,
+        )
+        AssessmentFramework.objects.create(
+            assessment=assessment, framework=self.iso, added_by=self.assessor,
+        )
+        ControlAssessment.objects.create(
+            assessment=assessment, requirement=self.cmmc_req,
+            status=ControlAssessment.Status.NOT_MET,
+        )
+        ControlAssessment.objects.create(
+            assessment=assessment, requirement=self.iso_req,
+            status=ControlAssessment.Status.MET,
+        )
+        response = self.client.get(reverse(
+            "assessment-dashboard", args=("multi", assessment.id)
+        ))
+        self.assertContains(response, "105")
+        self.assertContains(response, "ISO-MULTI")
+        self.assertContains(response, "1/1 assessed")
+
+    def test_framework_with_recorded_work_cannot_be_removed(self):
+        assessment = Assessment.objects.create(
+            system=self.system, framework=self.cmmc, name="Protected Multi",
+            created_by=self.assessor,
+        )
+        AssessmentFramework.objects.create(
+            assessment=assessment, framework=self.cmmc, is_primary=True,
+            added_by=self.assessor,
+        )
+        AssessmentFramework.objects.create(
+            assessment=assessment, framework=self.iso, added_by=self.assessor,
+        )
+        ControlAssessment.objects.create(assessment=assessment, requirement=self.cmmc_req)
+        ControlAssessment.objects.create(
+            assessment=assessment, requirement=self.iso_req,
+            status=ControlAssessment.Status.MET,
+            assessor_notes_findings="Control is conforming.",
+        )
+        response = self.client.post(
+            reverse("assessment-frameworks", args=("multi", assessment.id)),
+            {"name": assessment.name, "frameworks": [self.cmmc.id],
+             "primary_framework": self.cmmc.id},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "cannot be removed")
+        self.assertTrue(assessment.frameworks.filter(pk=self.iso.id).exists())
+
+    def test_framework_catalog_displays_metadata(self):
+        response = self.client.get(reverse("framework-catalog"))
+        self.assertContains(response, "ISO Synthetic")
+        self.assertContains(response, "No numeric score")
+
+    def test_crosswalk_preserves_traceability_and_artifact_reuse(self):
+        assessment = Assessment.objects.create(
+            system=self.system, framework=self.cmmc, name="Mapped Multi",
+            created_by=self.assessor,
+        )
+        AssessmentFramework.objects.create(
+            assessment=assessment, framework=self.cmmc, is_primary=True,
+            added_by=self.assessor,
+        )
+        AssessmentFramework.objects.create(
+            assessment=assessment, framework=self.iso, added_by=self.assessor,
+        )
+        cmmc_result = ControlAssessment.objects.create(
+            assessment=assessment, requirement=self.cmmc_req
+        )
+        iso_result = ControlAssessment.objects.create(
+            assessment=assessment, requirement=self.iso_req
+        )
+        RequirementMapping.objects.create(
+            source=self.cmmc_req, target=self.iso_req,
+            relationship=RequirementMapping.Relationship.EQUIVALENT,
+            mapping_reference="Synthetic crosswalk",
+        )
+        artifact = EvidenceArtifact.objects.create(
+            organization=self.organization, assessment=assessment,
+            title="Shared access evidence", external_reference="https://example.com/shared",
+            uploaded_by=self.assessor,
+        )
+        artifact.controls.add(cmmc_result, iso_result)
+        self.assertEqual(artifact.controls.count(), 2)
+        response = self.client.get(reverse(
+            "control-edit", args=("multi", assessment.id, cmmc_result.id)
+        ))
+        self.assertContains(response, "ISO-MULTI · AC.1")
+        self.assertContains(response, "Equivalent")
