@@ -43,6 +43,18 @@ class SSPControlRow:
     owner: str
     mapping_status: str
     notes: str
+    status: str
+    implementation_state: str
+    full_deduction: int
+    calculated_deduction: int | None
+
+
+@dataclass(frozen=True)
+class SSPObjectiveRow:
+    requirement_id: str
+    objective_id: str
+    finding: str
+    conformity_statement: str
 
 
 def _display(value: object, *, required: bool = True) -> str:
@@ -61,7 +73,9 @@ def _workbook_value(formula_sheet, value_sheet, row: int, column: int) -> object
     return formula_sheet.cell(row, column).value
 
 
-def _read_workbook(workbook_path: Path) -> tuple[dict[str, str], list[SSPControlRow]]:
+def _read_workbook(
+    workbook_path: Path,
+) -> tuple[dict[str, str], list[SSPControlRow], dict[tuple[str, str], SSPObjectiveRow]]:
     formulas = load_workbook(workbook_path, data_only=False, read_only=True)
     values = load_workbook(workbook_path, data_only=True, read_only=True)
     try:
@@ -94,6 +108,22 @@ def _read_workbook(workbook_path: Path) -> tuple[dict[str, str], list[SSPControl
             if not requirement_id:
                 continue
             source = assessment.get(requirement_id, [])
+            status = _display(source[8] if len(source) > 8 else None, required=False)
+            implementation_state = _display(
+                source[9] if len(source) > 9 else None, required=False
+            )
+            full_deduction = int(source[11] or 0) if len(source) > 11 else 0
+            calculated_deduction = None
+            if status in {"MET", "NOT APPLICABLE"}:
+                calculated_deduction = 0
+            elif status == "NOT MET":
+                calculated_deduction = (
+                    3
+                    if len(source) > 10
+                    and source[10] == "Yes"
+                    and implementation_state == "PARTIALLY IMPLEMENTED"
+                    else full_deduction
+                )
             rows.append(
                 SSPControlRow(
                     domain=_display(crosswalk_f.cell(row, 1).value, required=False),
@@ -114,9 +144,38 @@ def _read_workbook(workbook_path: Path) -> tuple[dict[str, str], list[SSPControl
                         _workbook_value(crosswalk_f, crosswalk_v, row, 7)
                     ),
                     notes=_display(_workbook_value(crosswalk_f, crosswalk_v, row, 8)),
+                    status=status,
+                    implementation_state=implementation_state,
+                    full_deduction=full_deduction,
+                    calculated_deduction=calculated_deduction,
                 )
             )
-        return cover, rows
+        objectives: dict[tuple[str, str], SSPObjectiveRow] = {}
+        if "Objective Assessment" in formulas.sheetnames:
+            objective_f = formulas["Objective Assessment"]
+            objective_v = values["Objective Assessment"]
+            for row in range(6, objective_f.max_row + 1):
+                requirement_id = _display(
+                    objective_f.cell(row, 2).value, required=False
+                )
+                objective_id = _display(
+                    objective_f.cell(row, 3).value, required=False
+                ).lower()
+                if not requirement_id or not objective_id:
+                    continue
+                objectives[(requirement_id, objective_id)] = SSPObjectiveRow(
+                    requirement_id=requirement_id,
+                    objective_id=objective_id,
+                    finding=_display(
+                        _workbook_value(objective_f, objective_v, row, 5),
+                        required=False,
+                    ),
+                    conformity_statement=_display(
+                        _workbook_value(objective_f, objective_v, row, 6),
+                        required=False,
+                    ),
+                )
+        return cover, rows, objectives
     finally:
         formulas.close()
         values.close()
@@ -157,8 +216,25 @@ def _set_grid_span(cell_xml, span: int) -> None:
     grid_span.set(qn("w:val"), str(span))
 
 
-def _add_blank_sprs_score_fields(document: DocumentType) -> set[str]:
-    """Insert a blank SPRS Score between CMMC Level and Practice ID."""
+def _format_conformity(status: str, *, objective: bool = False) -> str:
+    if objective:
+        labels = ("Met", "Not Met", "N/A")
+        selected = {"MET": 0, "NOT MET": 1, "NOT APPLICABLE": 2}.get(status)
+    else:
+        labels = ("MET", "NOT MET", "NOT APPLICABLE")
+        selected = {"MET": 0, "NOT MET": 1, "NOT APPLICABLE": 2}.get(status)
+    return "   ".join(
+        f"[{'X' if index == selected else ' '}] {label}"
+        for index, label in enumerate(labels)
+    )
+
+
+def _bind_control_results(
+    document: DocumentType,
+    controls: dict[str, SSPControlRow],
+    objectives: dict[tuple[str, str], SSPObjectiveRow],
+) -> set[str]:
+    """Bind conformity, SPRS deduction, and narratives into each control table."""
 
     requirement_pattern = re.compile(r"[A-Z]{2}\.L2-3\.\d+\.\d+")
     updated: set[str] = set()
@@ -176,6 +252,9 @@ def _add_blank_sprs_score_fields(document: DocumentType) -> set[str]:
             continue
 
         practice_id = match.group(0)
+        control = controls.get(practice_id)
+        if control is None:
+            continue
         practice_name = header.cells[6].text
         physical_cells = list(header._tr.tc_lst)
         if len(physical_cells) != 6:
@@ -193,14 +272,80 @@ def _add_blank_sprs_score_fields(document: DocumentType) -> set[str]:
         header._tr.addnext(practice_row)
 
         _write_artifact_value(header.cells[2], "SPRS Score:")
-        _write_artifact_value(header.cells[3], "")
+        score = (
+            ""
+            if control.calculated_deduction is None
+            else str(control.calculated_deduction)
+        )
+        _write_artifact_value(header.cells[3], score)
         _write_artifact_value(header.cells[4], "Practice ID:")
         _write_artifact_value(header.cells[6], practice_id)
         inserted_row = table.rows[2]
         _write_artifact_value(inserted_row.cells[0], "Practice Name:")
         _write_artifact_value(inserted_row.cells[2], practice_name)
+
+        _write_artifact_value(
+            table.rows[0].cells[1], _format_conformity(control.status)
+        )
+        narrative_written = False
+        for row_index, row in enumerate(table.rows):
+            row_text = "\n".join(cell.text for cell in row.cells)
+            objective_match = re.search(r"\[([a-z])\]", row_text, re.IGNORECASE)
+            objective = (
+                objectives.get((practice_id, objective_match.group(1).lower()))
+                if objective_match
+                else None
+            )
+            if "Met" in row_text and "Not Met" in row_text and "N/A" in row_text:
+                finding = objective.finding if objective else control.status
+                if finding in {"MET", "NOT MET", "NOT APPLICABLE"} and (
+                    objective is not None or control.status in {"MET", "NOT APPLICABLE"}
+                ):
+                    _write_artifact_value(
+                        row.cells[-1],
+                        _format_conformity(finding, objective=True),
+                    )
+                if (
+                    objective
+                    and objective.conformity_statement
+                    and row_index + 1 < len(table.rows)
+                ):
+                    statement_row = table.rows[row_index + 1]
+                    statement_text = "\n".join(
+                        cell.text for cell in statement_row.cells
+                    )
+                    if "Assessment Objective Conformity Statement:" in statement_text:
+                        _write_artifact_value(
+                            statement_row.cells[0], objective.conformity_statement
+                        )
+            if (
+                not narrative_written
+                and control.notes != INPUT_REQUIRED
+                and not objectives
+                and "Assessment Objective Conformity Statement:" in row_text
+            ):
+                _write_artifact_value(row.cells[0], control.notes)
+                narrative_written = True
         updated.add(practice_id)
     return updated
+
+
+def _bind_demographics(
+    document: DocumentType, cover: dict[str, str], metadata: SSPExportMetadata
+) -> None:
+    organization = metadata.organization_name
+    system_name = metadata.system_name or cover.get("Assessment Name", "")
+    cage_code = cover.get("CAGE Code", "")
+    _replace_literal(document, "<<Company>>", organization)
+
+    for table in document.tables:
+        table_text = "\n".join(cell.text for row in table.rows for cell in row.cells)
+        if "System Name/Title:" in table_text and system_name:
+            _write_artifact_value(table.rows[0].cells[1], system_name)
+        if "Cage Code:" in table_text and cage_code:
+            for row in table.rows:
+                if row.cells[0].text.strip() == "Cage Code:":
+                    _write_artifact_value(row.cells[1], cage_code)
 
 
 def _write_artifact_value(cell, value: str) -> None:
@@ -282,7 +427,7 @@ def export_ssp(
     if not workbook.is_file():
         raise FileNotFoundError(f"Omni workbook not found: {workbook}")
 
-    cover, rows = _read_workbook(workbook)
+    cover, rows, objectives = _read_workbook(workbook)
     if not rows:
         raise ValueError("The Omni workbook contains no SSP Crosswalk records.")
 
@@ -299,7 +444,9 @@ def export_ssp(
 
     document = Document(template)
     _replace_literal(document, "ACME", resolved.organization_name)
-    updated_headers = _add_blank_sprs_score_fields(document)
+    _bind_demographics(document, cover, resolved)
+    controls = {row.requirement_id: row for row in rows}
+    updated_headers = _bind_control_results(document, controls, objectives)
     expected_headers = {row.requirement_id for row in rows}
     if updated_headers != expected_headers:
         missing = sorted(expected_headers - updated_headers)

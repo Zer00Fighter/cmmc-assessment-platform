@@ -29,8 +29,9 @@ known boundaries.
 
 Omni can copy an approved Word SSP template and populate each practice's
 existing Supporting Artifacts table without modifying the source template. The
-export also adds a blank SPRS Score field between CMMC Level and Practice ID in
-every control header:
+export also adds an SPRS Score field between CMMC Level and Practice ID in
+every control header, then populates it and the conformity result from a
+completed assessment:
 
 ```powershell
 .\.venv\Scripts\python.exe export_ssp.py `
@@ -43,6 +44,8 @@ every control header:
 
 Organization-specific values that are not yet available are exported as
 `[REQUIRES ORGANIZATION INPUT]`; the exporter does not invent SSP content.
+Objective-level findings and conformity statements are entered on the
+`Objective Assessment` worksheet and bind to the matching SSP objective rows.
 See [the Word export guide](docs/SSP_WORD_EXPORT.md) for the field mapping and
 template-preservation contract.
 

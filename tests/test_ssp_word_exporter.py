@@ -4,7 +4,7 @@ import hashlib
 from pathlib import Path
 
 from docx import Document
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 
 from src.ssp_export import SSPExportMetadata, export_ssp
 from src.ssp_export.word_exporter import INPUT_REQUIRED
@@ -17,12 +17,24 @@ def _create_template(path: Path) -> None:
     document.sections[0].header.paragraphs[0].text = "ACME SSP"
     practice = document.add_table(rows=2, cols=7)
     practice.cell(0, 0).text = "Requirement Conformity:"
+    practice.cell(0, 1).merge(
+        practice.cell(0, 6)
+    ).text = "MET    NOT MET    NOT APPLICABLE"
     practice.cell(1, 0).text = "CMMC Level:"
     practice.cell(1, 1).text = "L2"
     practice.cell(1, 2).text = "Practice ID:"
     practice.cell(1, 3).text = "AC.L2-3.1.1"
     practice.cell(1, 4).merge(practice.cell(1, 5)).text = "Practice Name:"
     practice.cell(1, 6).text = "Authorized Access Control"
+    objective = practice.add_row()
+    objective.cells[0].merge(
+        objective.cells[4]
+    ).text = "[a] authorized users are identified."
+    objective.cells[5].merge(objective.cells[6]).text = "Met    Not Met    N/A"
+    statement = practice.add_row()
+    statement.cells[0].merge(
+        statement.cells[6]
+    ).text = "Assessment Objective Conformity Statement:"
     artifacts = document.add_table(rows=7, cols=1)
     artifacts.cell(0, 0).text = "Supporting Artifacts"
     artifacts.cell(1, 0).text = "System Design Documentation"
@@ -53,6 +65,8 @@ def _create_workbook(path: Path) -> None:
     assessment.cell(6, 2, "AC.L2-3.1.1")
     assessment.cell(6, 3, "Authorized Access Control")
     assessment.cell(6, 4, "Limit access to authorized users and devices.")
+    assessment.cell(6, 9, "MET")
+    assessment.cell(6, 12, 5)
     assessment.cell(6, 16, "Security Officer")
     assessment.cell(6, 17, "SSP 3.1.1")
 
@@ -65,6 +79,7 @@ def _create_workbook(path: Path) -> None:
     crosswalk.cell(6, 5, "Access review records")
     crosswalk.cell(6, 6, "Security Officer")
     crosswalk.cell(6, 7, "Mapped")
+    crosswalk.cell(6, 8, "Access is limited through approved identities and devices.")
     workbook.save(path)
 
 
@@ -112,11 +127,16 @@ def test_export_preserves_template_and_adds_omni_crosswalk(tmp_path: Path) -> No
     assert control_table.cell(1, 0).text == "CMMC Level:"
     assert control_table.cell(1, 1).text == "L2"
     assert control_table.cell(1, 2).text == "SPRS Score:"
-    assert control_table.cell(1, 3).text == ""
+    assert control_table.cell(1, 3).text == "0"
     assert control_table.cell(1, 4).text == "Practice ID:"
     assert control_table.cell(1, 6).text == "AC.L2-3.1.1"
     assert control_table.cell(2, 0).text == "Practice Name:"
     assert control_table.cell(2, 2).text == "Authorized Access Control"
+    assert "[X] MET" in control_table.cell(0, 1).text
+    assert "[X] Met" in control_table.cell(3, 6).text
+    assert control_table.cell(4, 0).text == (
+        "Access is limited through approved identities and devices."
+    )
 
 
 def test_export_rejects_overwriting_source_template(tmp_path: Path) -> None:
@@ -131,3 +151,48 @@ def test_export_rejects_overwriting_source_template(tmp_path: Path) -> None:
         assert "must differ" in str(error)
     else:
         raise AssertionError("Expected source-template overwrite to be rejected")
+
+
+def test_export_binds_objective_finding_and_statement(tmp_path: Path) -> None:
+    template = tmp_path / "source.docx"
+    workbook_path = tmp_path / "omni.xlsx"
+    output = tmp_path / "export.docx"
+    _create_template(template)
+    _create_workbook(workbook_path)
+
+    workbook = load_workbook(workbook_path)
+    objectives = workbook.create_sheet("Objective Assessment")
+    objectives.append(
+        [
+            "Domain",
+            "Requirement ID",
+            "Objective ID",
+            "Assessment Objective",
+            "Finding",
+            "Conformity Statement",
+        ]
+    )
+    for _ in range(4):
+        objectives.append([])
+    objectives.append(
+        [
+            "AC",
+            "AC.L2-3.1.1",
+            "a",
+            "authorized users are identified",
+            "NOT MET",
+            "The authorized-user inventory is incomplete.",
+        ]
+    )
+    workbook.save(workbook_path)
+
+    export_ssp(template, workbook_path, output)
+
+    document = Document(output)
+    control_table = next(
+        table for table in document.tables if "AC.L2-3.1.1" in table.cell(1, 6).text
+    )
+    assert "[X] Not Met" in control_table.cell(3, 6).text
+    assert control_table.cell(4, 0).text == (
+        "The authorized-user inventory is incomplete."
+    )

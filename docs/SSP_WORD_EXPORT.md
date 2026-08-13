@@ -18,9 +18,15 @@ SSP example. Its SHA-256 fingerprint at implementation time was:
 The source template provides the authoritative cover design, styles, headings,
 tables, section configuration, headers, footers, numbering, image, and embedded
 custom XML. Omni replaces literal `ACME` branding with the organization name
-and adds a blank **SPRS Score** field to every control header, positioned between
-**CMMC Level** and **Practice ID**. The score is intentionally not calculated or
-prepopulated by this export.
+and adds an **SPRS Score** field to every control header, positioned between
+**CMMC Level** and **Practice ID**. When the workbook is assessed, this field is
+populated with the requirement's calculated SPRS deduction (0, 1, 3, or 5).
+
+The exporter also binds the control-level MET, NOT MET, or NOT APPLICABLE result.
+The `Objective Assessment` worksheet stores all 320 objective findings and
+conformity statements and binds them into their corresponding Word rows. For
+legacy workbooks without that worksheet, only MET and NOT APPLICABLE safely
+propagate from the control result; NOT MET objectives remain unselected.
 
 Omni also maps supporting evidence into the template's three artifact categories:
 
@@ -43,6 +49,8 @@ draft until an authorized owner completes and approves those values.
 |---|---|
 | Organization and assessment metadata | `Cover` worksheet |
 | Practice ID used to locate the template table | `Assessment` / `SSP Crosswalk` worksheets |
+| Requirement conformity and SPRS deduction | `Assessment` worksheet |
+| Objective conformity and narratives | `Objective Assessment` worksheet |
 | System design documentation | Governance references in `SSP Crosswalk` |
 | Supplemental artifacts | Evidence references in `SSP Crosswalk` |
 

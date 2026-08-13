@@ -69,6 +69,7 @@ def test_workbook_contains_expected_sheets(
         "Cover",
         "Dashboard",
         "Assessment",
+        "Objective Assessment",
         "Domain Summary",
         "Evidence",
         "POA&M",
@@ -80,6 +81,22 @@ def test_workbook_contains_expected_sheets(
     ]
 
     assert workbook.sheetnames == expected_sheets
+
+
+def test_objective_assessment_contains_all_objectives(tmp_path: Path) -> None:
+    workbook = load_test_workbook(tmp_path)
+    worksheet = workbook["Objective Assessment"]
+
+    assert worksheet["A5"].value == "Domain"
+    assert worksheet["E5"].value == "Finding"
+    assert worksheet["F5"].value == "Conformity Statement"
+    objective_ids = [
+        worksheet.cell(row=row, column=3).value
+        for row in range(6, worksheet.max_row + 1)
+    ]
+    assert len(objective_ids) == 320
+    assert all(objective_ids)
+    assert worksheet["E6"].value == "NOT ASSESSED"
 
 
 def test_cover_is_active_sheet(
