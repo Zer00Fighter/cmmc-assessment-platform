@@ -324,6 +324,147 @@ class EvidenceArtifact(models.Model):
         return self.title
 
 
+class RemediationPlan(models.Model):
+    class Status(models.TextChoices):
+        OPEN = "OPEN", "Open"
+        IN_PROGRESS = "IN_PROGRESS", "In progress"
+        BLOCKED = "BLOCKED", "Blocked"
+        READY_VALIDATION = "READY_VALIDATION", "Ready for validation"
+        CLOSED = "CLOSED", "Closed"
+        RISK_ACCEPTED = "RISK_ACCEPTED", "Risk accepted"
+
+    class Priority(models.TextChoices):
+        LOW = "LOW", "Low"
+        MEDIUM = "MEDIUM", "Medium"
+        HIGH = "HIGH", "High"
+        CRITICAL = "CRITICAL", "Critical"
+
+    class Likelihood(models.TextChoices):
+        RARE = "RARE", "Rare"
+        UNLIKELY = "UNLIKELY", "Unlikely"
+        POSSIBLE = "POSSIBLE", "Possible"
+        LIKELY = "LIKELY", "Likely"
+        ALMOST_CERTAIN = "ALMOST_CERTAIN", "Almost certain"
+
+    class ValidationStatus(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        VALIDATED = "VALIDATED", "Validated"
+        REJECTED = "REJECTED", "Rejected"
+
+    assessment = models.ForeignKey(
+        Assessment, on_delete=models.CASCADE, related_name="remediation_plans"
+    )
+    remediation_id = models.CharField(max_length=30)
+    title = models.CharField(max_length=300)
+    controls = models.ManyToManyField(
+        ControlAssessment, related_name="remediation_plans"
+    )
+    weakness_description = models.TextField()
+    root_cause = models.TextField(blank=True)
+    corrective_action = models.TextField(blank=True)
+    compensating_controls = models.TextField(blank=True)
+    closure_criteria = models.TextField(blank=True)
+    owner = models.ForeignKey(
+        Membership, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="owned_remediation_plans",
+    )
+    supporting_owners = models.ManyToManyField(
+        Membership, related_name="supported_remediation_plans", blank=True
+    )
+    status = models.CharField(
+        max_length=25, choices=Status.choices, default=Status.OPEN
+    )
+    priority = models.CharField(
+        max_length=10, choices=Priority.choices, default=Priority.MEDIUM
+    )
+    severity = models.CharField(
+        max_length=10, choices=Priority.choices, default=Priority.MEDIUM
+    )
+    likelihood = models.CharField(
+        max_length=20, choices=Likelihood.choices, default=Likelihood.POSSIBLE
+    )
+    residual_risk = models.CharField(
+        max_length=10, choices=Priority.choices, default=Priority.MEDIUM
+    )
+    date_identified = models.DateField()
+    planned_completion = models.DateField(null=True, blank=True)
+    actual_completion = models.DateField(null=True, blank=True)
+    risk_acceptance_requested = models.BooleanField(default=False)
+    risk_acceptance_rationale = models.TextField(blank=True)
+    risk_accepted_by = models.ForeignKey(
+        Membership, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="accepted_remediation_risks",
+    )
+    risk_acceptance_expires = models.DateField(null=True, blank=True)
+    closure_evidence = models.ManyToManyField(
+        EvidenceArtifact, related_name="remediation_plans", blank=True
+    )
+    validation_status = models.CharField(
+        max_length=15, choices=ValidationStatus.choices,
+        default=ValidationStatus.PENDING,
+    )
+    validation_notes = models.TextField(blank=True)
+    validated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="validated_remediation_plans",
+    )
+    validated_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="created_remediation_plans",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("status", "-priority", "planned_completion", "remediation_id")
+        constraints = [models.UniqueConstraint(
+            fields=("assessment", "remediation_id"), name="unique_assessment_remediation_id"
+        )]
+
+    def __str__(self) -> str:
+        return f"{self.remediation_id} — {self.title}"
+
+    @property
+    def risk_score(self) -> int:
+        severity = {"LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
+        likelihood = {
+            "RARE": 1, "UNLIKELY": 2, "POSSIBLE": 3,
+            "LIKELY": 4, "ALMOST_CERTAIN": 5,
+        }
+        return severity[self.severity] * likelihood[self.likelihood]
+
+
+class RemediationMilestone(models.Model):
+    class Status(models.TextChoices):
+        NOT_STARTED = "NOT_STARTED", "Not started"
+        IN_PROGRESS = "IN_PROGRESS", "In progress"
+        COMPLETE = "COMPLETE", "Complete"
+        BLOCKED = "BLOCKED", "Blocked"
+
+    plan = models.ForeignKey(
+        RemediationPlan, on_delete=models.CASCADE, related_name="milestones"
+    )
+    title = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    owner = models.ForeignKey(
+        Membership, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="remediation_milestones",
+    )
+    due_date = models.DateField(null=True, blank=True)
+    completed_date = models.DateField(null=True, blank=True)
+    status = models.CharField(
+        max_length=15, choices=Status.choices, default=Status.NOT_STARTED
+    )
+    sequence = models.PositiveSmallIntegerField(default=1)
+
+    class Meta:
+        ordering = ("sequence", "due_date", "id")
+
+    def __str__(self) -> str:
+        return self.title
+
+
 class AuditEvent(models.Model):
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="audit_events"

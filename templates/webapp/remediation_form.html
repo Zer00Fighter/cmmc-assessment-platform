@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<nav class="crumb"><a href="{% url 'assessment-dashboard' organization.slug assessment.id %}">{{ assessment.name }}</a> / <a href="{% url 'remediation-list' organization.slug assessment.id %}">Remediation</a> / {{ title }}</nav>
+<section class="form-card wide"><p class="eyebrow">Remediation Action Plan</p><h1>{{ title }}</h1><p class="muted">POA&M and Corrective Action Plan are supported aliases for this framework-agnostic record.</p><form method="post" class="stack">{% csrf_token %}{{ form.as_p }}<button class="primary" type="submit">{{ submit_label }}</button></form></section>
+{% endblock %}

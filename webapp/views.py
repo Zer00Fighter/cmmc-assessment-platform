@@ -6,9 +6,10 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Count, Sum
+from django.db.models import Count, Q, Sum
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from .forms import (
     AssessmentForm,
@@ -18,6 +19,8 @@ from .forms import (
     EvidenceRequestForm,
     MembershipForm,
     OrganizationForm,
+    RemediationMilestoneForm,
+    RemediationPlanForm,
     SystemForm,
 )
 from .models import (
@@ -28,6 +31,8 @@ from .models import (
     EvidenceRequest,
     Membership,
     Organization,
+    RemediationMilestone,
+    RemediationPlan,
     System,
 )
 
@@ -70,6 +75,16 @@ def _can_manage_evidence(user, organization: Organization) -> bool:
         user=user, organization=organization, active=True,
         role__in=(Membership.Role.ADMIN, Membership.Role.ASSESSOR, Membership.Role.CLIENT),
     ).exists()
+
+
+def _can_manage_remediation(user, organization: Organization, plan=None) -> bool:
+    if _can_edit(user, organization):
+        return True
+    if plan is None:
+        return False
+    return Membership.objects.filter(
+        user=user, organization=organization, active=True
+    ).filter(Q(owned_remediation_plans=plan) | Q(remediation_milestones__plan=plan)).exists()
 
 
 @login_required
@@ -297,6 +312,12 @@ def assessment_dashboard(
             "evidence_ready": evidence_ready,
             "evidence_readiness": round(evidence_ready / evidence_total * 100, 1)
             if evidence_total else 0,
+            "remediation_open": assessment.remediation_plans.exclude(
+                status__in=(RemediationPlan.Status.CLOSED, RemediationPlan.Status.RISK_ACCEPTED)
+            ).count(),
+            "remediation_overdue": assessment.remediation_plans.filter(
+                planned_completion__lt=timezone.localdate()
+            ).exclude(status__in=(RemediationPlan.Status.CLOSED, RemediationPlan.Status.RISK_ACCEPTED)).count(),
         },
     )
 
@@ -573,6 +594,214 @@ def evidence_artifact_download(
     return FileResponse(
         artifact.file.open("rb"), as_attachment=True,
         filename=artifact.file.name.rsplit("/", 1)[-1],
+    )
+
+
+def _next_remediation_id(assessment: Assessment) -> str:
+    existing = assessment.remediation_plans.values_list("remediation_id", flat=True)
+    numbers = []
+    for value in existing:
+        try:
+            numbers.append(int(value.rsplit("-", 1)[-1]))
+        except (TypeError, ValueError):
+            continue
+    return f"RAP-{max(numbers, default=0) + 1:04d}"
+
+
+@login_required
+def remediation_list(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    plans = assessment.remediation_plans.select_related(
+        "owner__user", "validated_by"
+    ).prefetch_related("controls__requirement", "milestones")
+    status = request.GET.get("status", "").strip()
+    priority = request.GET.get("priority", "").strip()
+    domain = request.GET.get("domain", "").strip()
+    owner = request.GET.get("owner", "").strip()
+    due = request.GET.get("due", "").strip()
+    query = request.GET.get("q", "").strip()
+    if status:
+        plans = plans.filter(status=status)
+    if priority:
+        plans = plans.filter(priority=priority)
+    if domain:
+        plans = plans.filter(controls__requirement__domain=domain).distinct()
+    if owner.isdigit():
+        plans = plans.filter(owner_id=int(owner))
+    if due == "overdue":
+        plans = plans.filter(planned_completion__lt=timezone.localdate()).exclude(
+            status__in=(RemediationPlan.Status.CLOSED, RemediationPlan.Status.RISK_ACCEPTED)
+        )
+    if query:
+        plans = plans.filter(title__icontains=query)
+    all_plans = assessment.remediation_plans.all()
+    open_count = all_plans.exclude(
+        status__in=(RemediationPlan.Status.CLOSED, RemediationPlan.Status.RISK_ACCEPTED)
+    ).count()
+    overdue_count = all_plans.filter(planned_completion__lt=timezone.localdate()).exclude(
+        status__in=(RemediationPlan.Status.CLOSED, RemediationPlan.Status.RISK_ACCEPTED)
+    ).count()
+    domains = assessment.control_results.values_list(
+        "requirement__domain", flat=True
+    ).distinct().order_by("requirement__domain")
+    return render(request, "webapp/remediation_list.html", {
+        "organization": organization, "assessment": assessment, "plans": plans,
+        "open_count": open_count, "overdue_count": overdue_count,
+        "closed_count": all_plans.filter(status=RemediationPlan.Status.CLOSED).count(),
+        "statuses": RemediationPlan.Status.choices,
+        "priorities": RemediationPlan.Priority.choices, "domains": domains,
+        "memberships": organization.memberships.filter(active=True).select_related("user"),
+        "filters": {"status": status, "priority": priority, "domain": domain,
+                    "owner": owner, "due": due, "q": query},
+        "can_edit": _can_edit(request.user, organization),
+    })
+
+
+@login_required
+@transaction.atomic
+def remediation_create(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    if not _can_edit(request.user, organization):
+        raise Http404
+    initial = {}
+    result_id = request.GET.get("control", "")
+    if result_id.isdigit():
+        result = get_object_or_404(
+            assessment.control_results.select_related("requirement"), id=int(result_id)
+        )
+        initial = {
+            "title": f"Remediate {result.requirement.requirement_id}",
+            "weakness_description": result.assessor_notes_findings,
+            "controls": [result],
+        }
+    form = RemediationPlanForm(
+        request.POST or None, initial=initial, organization=organization,
+        assessment=assessment, can_validate=True,
+        can_accept_risk=_is_org_admin(request.user, organization),
+    )
+    if request.method == "POST" and form.is_valid():
+        plan = form.save(commit=False)
+        plan.assessment = assessment
+        plan.remediation_id = _next_remediation_id(assessment)
+        plan.created_by = request.user
+        if plan.validation_status == RemediationPlan.ValidationStatus.VALIDATED:
+            plan.validated_by = request.user
+            plan.validated_at = timezone.now()
+        plan.save()
+        form.save_m2m()
+        AuditEvent.objects.create(
+            organization=organization, actor=request.user, action="remediation.created",
+            object_type="RemediationPlan", object_id=str(plan.id),
+            detail={"remediation_id": plan.remediation_id, "controls": plan.controls.count()},
+        )
+        messages.success(request, f"{plan.remediation_id} created.")
+        return redirect("remediation-detail", org_slug=org_slug,
+                        assessment_id=assessment.id, plan_id=plan.id)
+    return render(request, "webapp/remediation_form.html", {
+        "organization": organization, "assessment": assessment, "form": form,
+        "title": "New remediation plan", "submit_label": "Create remediation plan",
+    })
+
+
+@login_required
+def remediation_detail(
+    request: HttpRequest, org_slug: str, assessment_id: int, plan_id: int
+) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    plan = get_object_or_404(
+        RemediationPlan.objects.select_related("owner__user", "validated_by").prefetch_related(
+            "controls__requirement", "supporting_owners__user", "closure_evidence", "milestones__owner__user"
+        ), id=plan_id, assessment=assessment,
+    )
+    return render(request, "webapp/remediation_detail.html", {
+        "organization": organization, "assessment": assessment, "plan": plan,
+        "can_edit": _can_manage_remediation(request.user, organization, plan),
+        "today": timezone.localdate(),
+    })
+
+
+@login_required
+def remediation_edit(
+    request: HttpRequest, org_slug: str, assessment_id: int, plan_id: int
+) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    plan = get_object_or_404(RemediationPlan, id=plan_id, assessment=assessment)
+    if not _can_manage_remediation(request.user, organization, plan):
+        raise Http404
+    can_validate = _can_edit(request.user, organization)
+    previous = {"status": plan.status, "validation_status": plan.validation_status}
+    form = RemediationPlanForm(
+        request.POST or None, instance=plan, organization=organization,
+        assessment=assessment, can_validate=can_validate,
+        can_accept_risk=_is_org_admin(request.user, organization),
+    )
+    if request.method == "POST" and form.is_valid():
+        plan = form.save(commit=False)
+        if (can_validate and plan.validation_status == RemediationPlan.ValidationStatus.VALIDATED
+                and previous["validation_status"] != plan.validation_status):
+            plan.validated_by = request.user
+            plan.validated_at = timezone.now()
+        elif plan.validation_status != RemediationPlan.ValidationStatus.VALIDATED:
+            plan.validated_by = None
+            plan.validated_at = None
+        plan.save()
+        form.save_m2m()
+        AuditEvent.objects.create(
+            organization=organization, actor=request.user, action="remediation.updated",
+            object_type="RemediationPlan", object_id=str(plan.id),
+            detail={"previous": previous, "status": plan.status,
+                    "validation_status": plan.validation_status},
+        )
+        messages.success(request, f"{plan.remediation_id} updated.")
+        return redirect("remediation-detail", org_slug=org_slug,
+                        assessment_id=assessment.id, plan_id=plan.id)
+    return render(request, "webapp/remediation_form.html", {
+        "organization": organization, "assessment": assessment, "form": form,
+        "plan": plan, "title": f"Edit {plan.remediation_id}",
+        "submit_label": "Save remediation plan",
+    })
+
+
+@login_required
+def remediation_milestone_create(
+    request: HttpRequest, org_slug: str, assessment_id: int, plan_id: int
+) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    plan = get_object_or_404(RemediationPlan, id=plan_id, assessment=assessment)
+    if not _can_manage_remediation(request.user, organization, plan):
+        raise Http404
+    form = RemediationMilestoneForm(request.POST or None, organization=organization)
+    if request.method == "POST" and form.is_valid():
+        milestone = form.save(commit=False)
+        milestone.plan = plan
+        milestone.save()
+        AuditEvent.objects.create(
+            organization=organization, actor=request.user, action="remediation_milestone.created",
+            object_type="RemediationMilestone", object_id=str(milestone.id),
+            detail={"remediation_id": plan.remediation_id, "title": milestone.title},
+        )
+        messages.success(request, "Milestone added.")
+        return redirect("remediation-detail", org_slug=org_slug,
+                        assessment_id=assessment.id, plan_id=plan.id)
+    return render(request, "webapp/entity_form.html", {
+        "organization": organization, "form": form, "title": "Add milestone",
+        "eyebrow": plan.remediation_id, "submit_label": "Add milestone",
+    })
+
+
+@login_required
+def remediation_export(request: HttpRequest, org_slug: str, assessment_id: int) -> FileResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    from .remediation_export import build_remediation_workbook
+    output = build_remediation_workbook(assessment)
+    AuditEvent.objects.create(
+        organization=organization, actor=request.user, action="remediation.exported",
+        object_type="Assessment", object_id=str(assessment.id),
+        detail={"plans": assessment.remediation_plans.count()},
+    )
+    return FileResponse(
+        output, as_attachment=True,
+        filename=f"Omni-{assessment.id}-Remediation-Action-Plan.xlsx",
     )
 
 

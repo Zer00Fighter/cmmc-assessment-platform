@@ -64,4 +64,28 @@ urlpatterns = [
         "organizations/<slug:org_slug>/assessments/<int:assessment_id>/evidence/artifacts/<int:artifact_id>/download/",
         views.evidence_artifact_download, name="evidence-artifact-download",
     ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/remediation/",
+        views.remediation_list, name="remediation-list",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/remediation/new/",
+        views.remediation_create, name="remediation-create",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/remediation/export/",
+        views.remediation_export, name="remediation-export",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/remediation/<int:plan_id>/",
+        views.remediation_detail, name="remediation-detail",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/remediation/<int:plan_id>/edit/",
+        views.remediation_edit, name="remediation-edit",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/remediation/<int:plan_id>/milestones/new/",
+        views.remediation_milestone_create, name="remediation-milestone-create",
+    ),
 ]

@@ -1,12 +1,13 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from django.utils.text import slugify
 
 from src.evidence.evidence_knowledge import EVIDENCE_KNOWLEDGE
 
 from .models import (
     Assessment, ControlAssessment, EvidenceArtifact, EvidenceRequest,
-    Membership, Organization, System,
+    Membership, Organization, RemediationMilestone, RemediationPlan, System,
 )
 
 
@@ -190,6 +191,111 @@ class EvidenceArtifactForm(forms.ModelForm):
         start, end = cleaned.get("period_start"), cleaned.get("period_end")
         if start and end and end < start:
             self.add_error("period_end", "The period end cannot precede the start.")
+        return cleaned
+
+
+class RemediationPlanForm(forms.ModelForm):
+    class Meta:
+        model = RemediationPlan
+        fields = (
+            "title", "controls", "weakness_description", "root_cause",
+            "corrective_action", "compensating_controls", "closure_criteria",
+            "owner", "supporting_owners", "status", "priority", "severity",
+            "likelihood", "residual_risk", "date_identified", "planned_completion",
+            "actual_completion", "risk_acceptance_requested",
+            "risk_acceptance_rationale", "risk_accepted_by",
+            "risk_acceptance_expires", "closure_evidence", "validation_status",
+            "validation_notes",
+        )
+        widgets = {
+            "controls": forms.CheckboxSelectMultiple(),
+            "supporting_owners": forms.CheckboxSelectMultiple(),
+            "closure_evidence": forms.CheckboxSelectMultiple(),
+            "date_identified": forms.DateInput(attrs={"type": "date"}),
+            "planned_completion": forms.DateInput(attrs={"type": "date"}),
+            "actual_completion": forms.DateInput(attrs={"type": "date"}),
+            "risk_acceptance_expires": forms.DateInput(attrs={"type": "date"}),
+            "weakness_description": forms.Textarea(attrs={"rows": 4}),
+            "root_cause": forms.Textarea(attrs={"rows": 3}),
+            "corrective_action": forms.Textarea(attrs={"rows": 4}),
+            "compensating_controls": forms.Textarea(attrs={"rows": 3}),
+            "closure_criteria": forms.Textarea(attrs={"rows": 3}),
+            "risk_acceptance_rationale": forms.Textarea(attrs={"rows": 3}),
+            "validation_notes": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, organization, assessment, can_validate=False,
+                 can_accept_risk=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        members = Membership.objects.filter(
+            organization=organization, active=True
+        ).select_related("user").order_by("user__first_name", "user__username")
+        self.fields["owner"].queryset = members
+        self.fields["supporting_owners"].queryset = members
+        self.fields["risk_accepted_by"].queryset = members.filter(role=Membership.Role.ADMIN)
+        self.fields["controls"].queryset = assessment.control_results.select_related(
+            "requirement"
+        )
+        self.fields["closure_evidence"].queryset = assessment.evidence_artifacts.all()
+        if not self.instance.pk:
+            self.fields["date_identified"].initial = timezone.localdate()
+        if not can_validate:
+            self.fields["validation_status"].disabled = True
+            self.fields["validation_notes"].disabled = True
+        if not can_accept_risk:
+            self.fields["risk_accepted_by"].disabled = True
+
+    def clean(self):
+        cleaned = super().clean()
+        status = cleaned.get("status")
+        if status in (RemediationPlan.Status.READY_VALIDATION, RemediationPlan.Status.CLOSED):
+            for field in ("root_cause", "corrective_action", "closure_criteria"):
+                if not (cleaned.get(field) or "").strip():
+                    self.add_error(field, "Required before validation or closure.")
+        if status == RemediationPlan.Status.CLOSED:
+            if cleaned.get("validation_status") != RemediationPlan.ValidationStatus.VALIDATED:
+                self.add_error("status", "Only a validated remediation plan may be closed.")
+            if not cleaned.get("actual_completion"):
+                self.add_error("actual_completion", "Required when the plan is closed.")
+            if not cleaned.get("closure_evidence"):
+                self.add_error("closure_evidence", "At least one closure artifact is required.")
+        if cleaned.get("risk_acceptance_requested"):
+            if not (cleaned.get("risk_acceptance_rationale") or "").strip():
+                self.add_error("risk_acceptance_rationale", "Explain the risk acceptance request.")
+            if not cleaned.get("risk_acceptance_expires"):
+                self.add_error("risk_acceptance_expires", "An expiration date is required.")
+        if status == RemediationPlan.Status.RISK_ACCEPTED and not cleaned.get("risk_accepted_by"):
+            self.add_error("risk_accepted_by", "An organization administrator must accept the risk.")
+        identified = cleaned.get("date_identified")
+        planned = cleaned.get("planned_completion")
+        actual = cleaned.get("actual_completion")
+        if identified and planned and planned < identified:
+            self.add_error("planned_completion", "Cannot precede the identification date.")
+        if identified and actual and actual < identified:
+            self.add_error("actual_completion", "Cannot precede the identification date.")
+        return cleaned
+
+
+class RemediationMilestoneForm(forms.ModelForm):
+    class Meta:
+        model = RemediationMilestone
+        fields = ("title", "description", "owner", "due_date", "completed_date", "status", "sequence")
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 3}),
+            "due_date": forms.DateInput(attrs={"type": "date"}),
+            "completed_date": forms.DateInput(attrs={"type": "date"}),
+        }
+
+    def __init__(self, *args, organization, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["owner"].queryset = Membership.objects.filter(
+            organization=organization, active=True
+        ).select_related("user")
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("status") == RemediationMilestone.Status.COMPLETE and not cleaned.get("completed_date"):
+            self.add_error("completed_date", "Required for a completed milestone.")
         return cleaned
 
 

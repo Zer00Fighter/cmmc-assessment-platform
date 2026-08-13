@@ -10,6 +10,8 @@ from .models import (
     Membership,
     Organization,
     Requirement,
+    RemediationMilestone,
+    RemediationPlan,
     System,
 )
 
@@ -20,6 +22,8 @@ admin.site.register(
         System,
         Framework,
         Requirement,
+        RemediationMilestone,
+        RemediationPlan,
         Assessment,
         ControlAssessment,
         EvidenceArtifact,
