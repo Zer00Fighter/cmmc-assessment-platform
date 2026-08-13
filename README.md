@@ -50,6 +50,12 @@ controls.
 The Word SSP also receives a Section 0 executive assessment summary calculated
 from the same records as the workbook Dashboard; existing System Conformity
 Sections 6.9 and 6.9.1 remain unchanged.
+
+For a guided Windows workflow, double-click `Generate Word SSP.cmd`. The
+launcher validates readiness, writes a companion `.readiness.txt` report, and
+generates the completed Word SSP only when blockers have been resolved. Clear
+the readiness requirement in the window when an explicitly provisional draft
+is needed.
 See [the Word export guide](docs/SSP_WORD_EXPORT.md) for the field mapping and
 template-preservation contract.
 

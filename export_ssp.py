@@ -5,7 +5,12 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from src.ssp_export import SSPExportMetadata, export_ssp
+from src.ssp_export import (
+    SSPExportMetadata,
+    export_ssp,
+    validate_ssp_readiness,
+    write_readiness_report,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -27,11 +32,31 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prepared-by", default="", help="Document preparer")
     parser.add_argument("--version", default="1.0", help="Document version")
     parser.add_argument("--export-date", default="", help="Export date (YYYY-MM-DD)")
+    parser.add_argument(
+        "--readiness-report",
+        type=Path,
+        help="Write the SSP readiness report to this text file",
+    )
+    parser.add_argument(
+        "--require-ready",
+        action="store_true",
+        help="Do not generate Word output when readiness blockers exist",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    report = validate_ssp_readiness(args.workbook)
+    report_path = args.readiness_report or args.output.with_suffix(".readiness.txt")
+    write_readiness_report(report, report_path)
+    print(report.to_text())
+    print(f"Readiness report: {report_path.resolve()}")
+    if args.require_ready and not report.ready:
+        raise SystemExit(
+            f"Completed SSP generation blocked by {len(report.blockers)} "
+            "readiness issue(s)."
+        )
     result = export_ssp(
         args.template,
         args.workbook,

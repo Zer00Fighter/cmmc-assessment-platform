@@ -190,3 +190,40 @@ def test_not_met_uses_assessor_notes_as_finding(tmp_path: Path) -> None:
     assert "[X] NOT MET" in control_table.cell(0, 1).text
     assert "[X] Not Met" in control_table.cell(3, 6).text
     assert control_table.cell(4, 0).text == "Authorized-user evidence was incomplete."
+
+
+def test_partial_credit_and_not_applicable_bindings(tmp_path: Path) -> None:
+    template = tmp_path / "source.docx"
+    workbook_path = tmp_path / "omni.xlsx"
+    output = tmp_path / "export.docx"
+    _create_template(template)
+    _create_workbook(workbook_path)
+    workbook = load_workbook(workbook_path)
+    assessment = workbook["Assessment"]
+    assessment["I6"] = "NOT MET"
+    assessment["J6"] = "PARTIALLY IMPLEMENTED"
+    assessment["K6"] = "Yes"
+    assessment["L6"] = 5
+    assessment["R6"] = "The control is partially implemented."
+    workbook.save(workbook_path)
+
+    export_ssp(template, workbook_path, output)
+    document = Document(output)
+    control_table = next(
+        table for table in document.tables if "AC.L2-3.1.1" in table.cell(1, 6).text
+    )
+    assert control_table.cell(1, 3).text == "3"
+    assert "[X] NOT MET" in control_table.cell(0, 1).text
+
+    workbook = load_workbook(workbook_path)
+    workbook["Assessment"]["I6"] = "NOT APPLICABLE"
+    workbook["Assessment"]["R6"] = "The requirement is outside the assessed scope."
+    workbook.save(workbook_path)
+    export_ssp(template, workbook_path, output)
+    document = Document(output)
+    control_table = next(
+        table for table in document.tables if "AC.L2-3.1.1" in table.cell(1, 6).text
+    )
+    assert control_table.cell(1, 3).text == "0"
+    assert "[X] NOT APPLICABLE" in control_table.cell(0, 1).text
+    assert "[X] N/A" in control_table.cell(3, 6).text

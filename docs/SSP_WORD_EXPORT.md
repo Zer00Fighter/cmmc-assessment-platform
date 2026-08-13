@@ -67,6 +67,16 @@ Command-line metadata overrides the corresponding workbook value when supplied.
 
 ## Usage
 
+### One-click Windows launcher
+
+Double-click `Generate Word SSP.cmd`, select the completed Omni workbook, the
+approved Word template, and the output path, then select **Generate Word SSP**.
+The recommended default blocks completed-document generation when readiness
+blockers exist and always writes a companion `.readiness.txt` report. The user
+can explicitly clear that requirement to create a provisional draft.
+
+### Command line
+
 ```powershell
 .\.venv\Scripts\python.exe export_ssp.py `
   --template "C:\path\to\SSP-template.docx" `
@@ -76,8 +86,13 @@ Command-line metadata overrides the corresponding workbook value when supplied.
   --system "System Name" `
   --system-owner "System Owner" `
   --prepared-by "Document Preparer" `
-  --version "1.0"
+  --version "1.0" `
+  --require-ready
 ```
+
+The command writes a readiness report beside the Word output by default. Use
+`--readiness-report` to choose another report path. Omit `--require-ready` only
+when deliberately generating a provisional draft.
 
 The output path must differ from the source template path. The file is written
 atomically so an interrupted export does not leave a partially written final
