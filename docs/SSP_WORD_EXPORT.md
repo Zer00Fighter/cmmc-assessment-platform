@@ -18,8 +18,9 @@ SSP example. Its SHA-256 fingerprint at implementation time was:
 The source template provides the authoritative cover design, styles, headings,
 tables, section configuration, headers, footers, numbering, image, and embedded
 custom XML. Omni replaces literal `ACME` branding with the organization name
-and adds a blank **SPRS Score** field to the System Information table. The score
-is intentionally not calculated or prepopulated by this export.
+and adds a blank **SPRS Score** field to every control header, positioned between
+**CMMC Level** and **Practice ID**. The score is intentionally not calculated or
+prepopulated by this export.
 
 Omni also maps supporting evidence into the template's three artifact categories:
 

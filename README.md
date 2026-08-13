@@ -29,7 +29,8 @@ known boundaries.
 
 Omni can copy an approved Word SSP template and populate each practice's
 existing Supporting Artifacts table without modifying the source template. The
-export also adds a blank SPRS Score field to the System Information table:
+export also adds a blank SPRS Score field between CMMC Level and Practice ID in
+every control header:
 
 ```powershell
 .\.venv\Scripts\python.exe export_ssp.py `

@@ -15,18 +15,14 @@ def _create_template(path: Path) -> None:
     document.add_heading("ACME System Security Plan", level=0)
     document.add_paragraph("Prepared for ACME")
     document.sections[0].header.paragraphs[0].text = "ACME SSP"
-    system_information = document.add_table(rows=3, cols=2)
-    system_information.cell(0, 0).text = "System Name/Title:"
-    system_information.cell(0, 1).text = "ACME System"
-    system_information.cell(1, 0).text = "System Categorization:"
-    system_information.cell(1, 1).text = "High Impact for Confidentiality"
-    system_information.cell(2, 0).text = "System Unique Identifier:"
-    system_information.cell(2, 1).text = "ACME"
-    practice = document.add_table(rows=2, cols=2)
-    practice.cell(0, 0).text = "Practice ID:"
-    practice.cell(0, 1).text = "AC.L2-3.1.1"
-    practice.cell(1, 0).text = "Implementation Statement:"
-    practice.cell(1, 1).text = ""
+    practice = document.add_table(rows=2, cols=7)
+    practice.cell(0, 0).text = "Requirement Conformity:"
+    practice.cell(1, 0).text = "CMMC Level:"
+    practice.cell(1, 1).text = "L2"
+    practice.cell(1, 2).text = "Practice ID:"
+    practice.cell(1, 3).text = "AC.L2-3.1.1"
+    practice.cell(1, 4).merge(practice.cell(1, 5)).text = "Practice Name:"
+    practice.cell(1, 6).text = "Authorized Access Control"
     artifacts = document.add_table(rows=7, cols=1)
     artifacts.cell(0, 0).text = "Supporting Artifacts"
     artifacts.cell(1, 0).text = "System Design Documentation"
@@ -110,14 +106,17 @@ def test_export_preserves_template_and_adds_omni_crosswalk(tmp_path: Path) -> No
     assert "Access review records" in text
     assert "Test Procedure" not in text
     assert INPUT_REQUIRED in text
-    sprs_rows = [
-        row
-        for table in document.tables
-        for row in table.rows
-        if row.cells[0].text == "SPRS Score:"
-    ]
-    assert len(sprs_rows) == 1
-    assert sprs_rows[0].cells[1].text == ""
+    control_table = next(
+        table for table in document.tables if "AC.L2-3.1.1" in table.cell(1, 6).text
+    )
+    assert control_table.cell(1, 0).text == "CMMC Level:"
+    assert control_table.cell(1, 1).text == "L2"
+    assert control_table.cell(1, 2).text == "SPRS Score:"
+    assert control_table.cell(1, 3).text == ""
+    assert control_table.cell(1, 4).text == "Practice ID:"
+    assert control_table.cell(1, 6).text == "AC.L2-3.1.1"
+    assert control_table.cell(2, 0).text == "Practice Name:"
+    assert control_table.cell(2, 2).text == "Authorized Access Control"
 
 
 def test_export_rejects_overwriting_source_template(tmp_path: Path) -> None:

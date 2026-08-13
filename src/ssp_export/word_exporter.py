@@ -12,6 +12,8 @@ from typing import Iterable
 
 from docx import Document
 from docx.document import Document as DocumentType
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 from openpyxl import load_workbook
 
 INPUT_REQUIRED = "[REQUIRES ORGANIZATION INPUT]"
@@ -146,26 +148,59 @@ def _replace_literal(document: DocumentType, old: str, new: str) -> int:
     return replacements
 
 
-def _add_blank_sprs_score_field(document: DocumentType) -> bool:
-    """Add a blank SPRS Score row to the template's System Information table."""
+def _set_grid_span(cell_xml, span: int) -> None:
+    properties = cell_xml.get_or_add_tcPr()
+    grid_span = properties.find(qn("w:gridSpan"))
+    if grid_span is None:
+        grid_span = OxmlElement("w:gridSpan")
+        properties.append(grid_span)
+    grid_span.set(qn("w:val"), str(span))
 
+
+def _add_blank_sprs_score_fields(document: DocumentType) -> set[str]:
+    """Insert a blank SPRS Score between CMMC Level and Practice ID."""
+
+    requirement_pattern = re.compile(r"[A-Z]{2}\.L2-3\.\d+\.\d+")
+    updated: set[str] = set()
     for table in document.tables:
-        table_text = "\n".join(cell.text for row in table.rows for cell in row.cells)
-        if "SPRS Score:" in table_text:
-            return True
+        if len(table.rows) < 2:
+            continue
+        header = table.rows[1]
+        header_text = "\n".join(cell.text for cell in header.cells)
+        match = requirement_pattern.search(header_text)
         if (
-            "System Name/Title:" not in table_text
-            or "System Unique Identifier:" not in table_text
+            not match
+            or "CMMC Level:" not in header_text
+            or "Practice ID:" not in header_text
         ):
             continue
 
-        new_row_xml = deepcopy(table.rows[-1]._tr)
-        table._tbl.append(new_row_xml)
-        new_row = table.rows[-1]
-        _write_artifact_value(new_row.cells[0], "SPRS Score:")
-        _write_artifact_value(new_row.cells[1], "")
-        return True
-    return False
+        practice_id = match.group(0)
+        practice_name = header.cells[6].text
+        physical_cells = list(header._tr.tc_lst)
+        if len(physical_cells) != 6:
+            raise ValueError(f"Unexpected control-header geometry for {practice_id}.")
+
+        practice_row = deepcopy(header._tr)
+        for cell in list(practice_row.tc_lst):
+            practice_row.remove(cell)
+        label_cell = deepcopy(physical_cells[4])
+        value_cell = deepcopy(physical_cells[5])
+        _set_grid_span(label_cell, 2)
+        _set_grid_span(value_cell, 5)
+        practice_row.append(label_cell)
+        practice_row.append(value_cell)
+        header._tr.addnext(practice_row)
+
+        _write_artifact_value(header.cells[2], "SPRS Score:")
+        _write_artifact_value(header.cells[3], "")
+        _write_artifact_value(header.cells[4], "Practice ID:")
+        _write_artifact_value(header.cells[6], practice_id)
+        inserted_row = table.rows[2]
+        _write_artifact_value(inserted_row.cells[0], "Practice Name:")
+        _write_artifact_value(inserted_row.cells[2], practice_name)
+        updated.add(practice_id)
+    return updated
 
 
 def _write_artifact_value(cell, value: str) -> None:
@@ -264,9 +299,12 @@ def export_ssp(
 
     document = Document(template)
     _replace_literal(document, "ACME", resolved.organization_name)
-    if not _add_blank_sprs_score_field(document):
+    updated_headers = _add_blank_sprs_score_fields(document)
+    expected_headers = {row.requirement_id for row in rows}
+    if updated_headers != expected_headers:
+        missing = sorted(expected_headers - updated_headers)
         raise ValueError(
-            "The SSP template has no recognizable System Information table."
+            "The SSP template is missing control headers for: " + ", ".join(missing)
         )
     document.core_properties.title = (
         f"{resolved.organization_name} System Security Plan"
