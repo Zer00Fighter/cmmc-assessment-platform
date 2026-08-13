@@ -34,7 +34,6 @@ class WorkbookBuilder:
         "Cover",
         "Dashboard",
         "Assessment",
-        "Objective Assessment",
         "Domain Summary",
         "Evidence",
         "POA&M",
@@ -59,10 +58,6 @@ class WorkbookBuilder:
 
         self.controls_path = (
             self.project_root / "data" / "controls" / "cmmc_level2_controls.csv"
-        )
-
-        self.objectives_path = (
-            self.project_root / "data" / "controls" / "cmmc_level2_objectives.csv"
         )
 
         self.scoring_weights_path = (
@@ -90,8 +85,6 @@ class WorkbookBuilder:
 
     def build(self) -> Path:
         controls = self._load_controls()
-        objectives = self._load_objectives()
-
         scoring_rules = WorkbookScoringData(self.scoring_weights_path).load_map()
 
         self._validate_control_scoring_alignment(
@@ -118,11 +111,6 @@ class WorkbookBuilder:
             worksheets["Assessment"],
             controls,
             scoring_rules,
-        )
-
-        self._build_objective_assessment(
-            worksheets["Objective Assessment"],
-            objectives,
         )
 
         self._build_domain_summary(
@@ -235,27 +223,6 @@ class WorkbookBuilder:
             )
 
         return controls
-
-    def _load_objectives(self) -> List[Dict[str, str]]:
-        if not self.objectives_path.exists():
-            raise FileNotFoundError(
-                f"Compiled objectives CSV was not found: {self.objectives_path}."
-            )
-        with self.objectives_path.open("r", encoding="utf-8-sig", newline="") as file:
-            reader = csv.DictReader(file)
-            if reader.fieldnames is None:
-                raise ValueError("Compiled objectives CSV has no header.")
-            required = {"requirement_id", "objective_id", "objective_text"}
-            missing = required - set(reader.fieldnames)
-            if missing:
-                raise ValueError(
-                    "Compiled objectives CSV is missing columns: "
-                    + ", ".join(sorted(missing))
-                )
-            objectives = list(reader)
-        if not objectives:
-            raise ValueError("Compiled objectives CSV contains no objectives.")
-        return objectives
 
     @staticmethod
     def _validate_control_scoring_alignment(
@@ -648,7 +615,7 @@ class WorkbookBuilder:
             "Evidence Status",  # O
             "Control Owner",  # P
             "Security Plan Reference (SSP)",  # Q
-            "Assessor Notes",  # R
+            "Assessor Notes / Findings",  # R
             "Remediation Required (POA&M)",  # S
             "Partial Credit Condition",  # T
             "Scoring Source",  # U
@@ -1064,68 +1031,6 @@ class WorkbookBuilder:
             ),
         )
 
-    def _build_objective_assessment(
-        self,
-        worksheet: Worksheet,
-        objectives: List[Dict[str, str]],
-    ) -> None:
-        """Build objective-level findings and SSP conformity narratives."""
-
-        self.factory.configure_standard_sheet(
-            worksheet, freeze_cell="A6", show_gridlines=False, zoom_scale=80
-        )
-        self.factory.create_title_band(
-            worksheet,
-            title="CMMC Objective Assessment",
-            subtitle=(
-                "Record the finding and conformity statement for each assessment "
-                "objective. These values bind directly into the Word Security Plan."
-            ),
-            end_column=6,
-        )
-        headers = (
-            "Domain",
-            "Requirement ID",
-            "Objective ID",
-            "Assessment Objective",
-            "Finding",
-            "Conformity Statement",
-        )
-        for column, header in enumerate(headers, start=1):
-            worksheet.cell(row=5, column=column, value=header)
-        self.factory.style_table_header(worksheet, 5, 1, len(headers))
-
-        for row, objective in enumerate(objectives, start=6):
-            requirement_id = objective["requirement_id"].strip().upper()
-            values = (
-                requirement_id.split(".", 1)[0],
-                requirement_id,
-                objective["objective_id"].strip().lower(),
-                objective["objective_text"].strip(),
-                "NOT ASSESSED",
-                "",
-            )
-            for column, value in enumerate(values, start=1):
-                cell = worksheet.cell(row=row, column=column, value=value)
-                cell.border = self.styles.thin_border()
-                cell.font = self.styles.body_font()
-                cell.alignment = self.styles.left_alignment()
-                if column in {5, 6}:
-                    cell.fill = self.styles.input_fill()
-                    cell.protection = self.styles.unlocked_protection()
-                else:
-                    cell.fill = self.styles.formula_fill()
-
-        last_row = 5 + len(objectives)
-        validation = DataValidation(
-            type="list", formula1="='_Lists'!$E$2:$E$5", allow_blank=False
-        )
-        worksheet.add_data_validation(validation)
-        validation.add(f"E6:E{last_row}")
-        worksheet.auto_filter.ref = f"A5:F{last_row}"
-        for column, width in enumerate((12, 20, 14, 70, 20, 70), start=1):
-            worksheet.column_dimensions[get_column_letter(column)].width = width
-
     def _build_domain_summary(
         self,
         worksheet: Worksheet,
@@ -1460,15 +1365,6 @@ class WorkbookBuilder:
                     "FULLY IMPLEMENTED",
                     "PARTIALLY IMPLEMENTED",
                     "NOT IMPLEMENTED",
-                    "NOT APPLICABLE",
-                    "NOT ASSESSED",
-                ],
-            ),
-            "E": (
-                "Objective Finding",
-                [
-                    "MET",
-                    "NOT MET",
                     "NOT APPLICABLE",
                     "NOT ASSESSED",
                 ],

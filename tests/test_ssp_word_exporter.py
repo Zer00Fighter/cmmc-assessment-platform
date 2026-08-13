@@ -69,6 +69,7 @@ def _create_workbook(path: Path) -> None:
     assessment.cell(6, 12, 5)
     assessment.cell(6, 16, "Security Officer")
     assessment.cell(6, 17, "SSP 3.1.1")
+    assessment.cell(6, 18, "Access is limited through approved identities and devices.")
 
     crosswalk = workbook.create_sheet("SSP Crosswalk")
     crosswalk.cell(5, 2, "Requirement ID")
@@ -79,7 +80,6 @@ def _create_workbook(path: Path) -> None:
     crosswalk.cell(6, 5, "Access review records")
     crosswalk.cell(6, 6, "Security Officer")
     crosswalk.cell(6, 7, "Mapped")
-    crosswalk.cell(6, 8, "Access is limited through approved identities and devices.")
     workbook.save(path)
 
 
@@ -153,37 +153,15 @@ def test_export_rejects_overwriting_source_template(tmp_path: Path) -> None:
         raise AssertionError("Expected source-template overwrite to be rejected")
 
 
-def test_export_binds_objective_finding_and_statement(tmp_path: Path) -> None:
+def test_not_met_uses_assessor_notes_as_finding(tmp_path: Path) -> None:
     template = tmp_path / "source.docx"
     workbook_path = tmp_path / "omni.xlsx"
     output = tmp_path / "export.docx"
     _create_template(template)
     _create_workbook(workbook_path)
-
     workbook = load_workbook(workbook_path)
-    objectives = workbook.create_sheet("Objective Assessment")
-    objectives.append(
-        [
-            "Domain",
-            "Requirement ID",
-            "Objective ID",
-            "Assessment Objective",
-            "Finding",
-            "Conformity Statement",
-        ]
-    )
-    for _ in range(4):
-        objectives.append([])
-    objectives.append(
-        [
-            "AC",
-            "AC.L2-3.1.1",
-            "a",
-            "authorized users are identified",
-            "NOT MET",
-            "The authorized-user inventory is incomplete.",
-        ]
-    )
+    workbook["Assessment"]["I6"] = "NOT MET"
+    workbook["Assessment"]["R6"] = "Authorized-user evidence was incomplete."
     workbook.save(workbook_path)
 
     export_ssp(template, workbook_path, output)
@@ -192,7 +170,7 @@ def test_export_binds_objective_finding_and_statement(tmp_path: Path) -> None:
     control_table = next(
         table for table in document.tables if "AC.L2-3.1.1" in table.cell(1, 6).text
     )
+    assert control_table.cell(1, 3).text == "5"
+    assert "[X] NOT MET" in control_table.cell(0, 1).text
     assert "[X] Not Met" in control_table.cell(3, 6).text
-    assert control_table.cell(4, 0).text == (
-        "The authorized-user inventory is incomplete."
-    )
+    assert control_table.cell(4, 0).text == "Authorized-user evidence was incomplete."

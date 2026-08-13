@@ -49,14 +49,6 @@ class SSPControlRow:
     calculated_deduction: int | None
 
 
-@dataclass(frozen=True)
-class SSPObjectiveRow:
-    requirement_id: str
-    objective_id: str
-    finding: str
-    conformity_statement: str
-
-
 def _display(value: object, *, required: bool = True) -> str:
     if value is None or not str(value).strip():
         return INPUT_REQUIRED if required else ""
@@ -75,7 +67,7 @@ def _workbook_value(formula_sheet, value_sheet, row: int, column: int) -> object
 
 def _read_workbook(
     workbook_path: Path,
-) -> tuple[dict[str, str], list[SSPControlRow], dict[tuple[str, str], SSPObjectiveRow]]:
+) -> tuple[dict[str, str], list[SSPControlRow]]:
     formulas = load_workbook(workbook_path, data_only=False, read_only=True)
     values = load_workbook(workbook_path, data_only=True, read_only=True)
     try:
@@ -143,39 +135,14 @@ def _read_workbook(
                     mapping_status=_display(
                         _workbook_value(crosswalk_f, crosswalk_v, row, 7)
                     ),
-                    notes=_display(_workbook_value(crosswalk_f, crosswalk_v, row, 8)),
+                    notes=_display(source[17] if len(source) > 17 else None),
                     status=status,
                     implementation_state=implementation_state,
                     full_deduction=full_deduction,
                     calculated_deduction=calculated_deduction,
                 )
             )
-        objectives: dict[tuple[str, str], SSPObjectiveRow] = {}
-        if "Objective Assessment" in formulas.sheetnames:
-            objective_f = formulas["Objective Assessment"]
-            objective_v = values["Objective Assessment"]
-            for row in range(6, objective_f.max_row + 1):
-                requirement_id = _display(
-                    objective_f.cell(row, 2).value, required=False
-                )
-                objective_id = _display(
-                    objective_f.cell(row, 3).value, required=False
-                ).lower()
-                if not requirement_id or not objective_id:
-                    continue
-                objectives[(requirement_id, objective_id)] = SSPObjectiveRow(
-                    requirement_id=requirement_id,
-                    objective_id=objective_id,
-                    finding=_display(
-                        _workbook_value(objective_f, objective_v, row, 5),
-                        required=False,
-                    ),
-                    conformity_statement=_display(
-                        _workbook_value(objective_f, objective_v, row, 6),
-                        required=False,
-                    ),
-                )
-        return cover, rows, objectives
+        return cover, rows
     finally:
         formulas.close()
         values.close()
@@ -232,7 +199,6 @@ def _format_conformity(status: str, *, objective: bool = False) -> str:
 def _bind_control_results(
     document: DocumentType,
     controls: dict[str, SSPControlRow],
-    objectives: dict[tuple[str, str], SSPObjectiveRow],
 ) -> set[str]:
     """Bind conformity, SPRS deduction, and narratives into each control table."""
 
@@ -287,45 +253,21 @@ def _bind_control_results(
         _write_artifact_value(
             table.rows[0].cells[1], _format_conformity(control.status)
         )
-        narrative_written = False
         for row_index, row in enumerate(table.rows):
             row_text = "\n".join(cell.text for cell in row.cells)
-            objective_match = re.search(r"\[([a-z])\]", row_text, re.IGNORECASE)
-            objective = (
-                objectives.get((practice_id, objective_match.group(1).lower()))
-                if objective_match
-                else None
-            )
             if "Met" in row_text and "Not Met" in row_text and "N/A" in row_text:
-                finding = objective.finding if objective else control.status
-                if finding in {"MET", "NOT MET", "NOT APPLICABLE"} and (
-                    objective is not None or control.status in {"MET", "NOT APPLICABLE"}
-                ):
+                if control.status in {"MET", "NOT MET", "NOT APPLICABLE"}:
                     _write_artifact_value(
                         row.cells[-1],
-                        _format_conformity(finding, objective=True),
+                        _format_conformity(control.status, objective=True),
                     )
-                if (
-                    objective
-                    and objective.conformity_statement
-                    and row_index + 1 < len(table.rows)
-                ):
+                if control.notes != INPUT_REQUIRED and row_index + 1 < len(table.rows):
                     statement_row = table.rows[row_index + 1]
                     statement_text = "\n".join(
                         cell.text for cell in statement_row.cells
                     )
                     if "Assessment Objective Conformity Statement:" in statement_text:
-                        _write_artifact_value(
-                            statement_row.cells[0], objective.conformity_statement
-                        )
-            if (
-                not narrative_written
-                and control.notes != INPUT_REQUIRED
-                and not objectives
-                and "Assessment Objective Conformity Statement:" in row_text
-            ):
-                _write_artifact_value(row.cells[0], control.notes)
-                narrative_written = True
+                        _write_artifact_value(statement_row.cells[0], control.notes)
         updated.add(practice_id)
     return updated
 
@@ -427,7 +369,7 @@ def export_ssp(
     if not workbook.is_file():
         raise FileNotFoundError(f"Omni workbook not found: {workbook}")
 
-    cover, rows, objectives = _read_workbook(workbook)
+    cover, rows = _read_workbook(workbook)
     if not rows:
         raise ValueError("The Omni workbook contains no SSP Crosswalk records.")
 
@@ -446,7 +388,7 @@ def export_ssp(
     _replace_literal(document, "ACME", resolved.organization_name)
     _bind_demographics(document, cover, resolved)
     controls = {row.requirement_id: row for row in rows}
-    updated_headers = _bind_control_results(document, controls, objectives)
+    updated_headers = _bind_control_results(document, controls)
     expected_headers = {row.requirement_id for row in rows}
     if updated_headers != expected_headers:
         missing = sorted(expected_headers - updated_headers)

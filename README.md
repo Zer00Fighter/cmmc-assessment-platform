@@ -44,8 +44,9 @@ completed assessment:
 
 Organization-specific values that are not yet available are exported as
 `[REQUIRES ORGANIZATION INPUT]`; the exporter does not invent SSP content.
-Objective-level findings and conformity statements are entered on the
-`Objective Assessment` worksheet and bind to the matching SSP objective rows.
+The Assessment worksheet's `Assessor Notes / Findings` value becomes the
+conformity statement for MET controls and the finding narrative for NOT MET
+controls.
 See [the Word export guide](docs/SSP_WORD_EXPORT.md) for the field mapping and
 template-preservation contract.
 
