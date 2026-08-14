@@ -1777,3 +1777,13 @@ class SprintFifteenSharedWorkTests(SprintThirteenHarmonizationTests):
         self.assertEqual(len(consolidated), 1)
         self.assertEqual(len(primary), 1)
         self.assertEqual(primary[0].controls.count(), 2)
+
+    def test_multiframework_reports_and_traceability_are_generated(self):
+        from .reporting import build_multi_framework_report, build_traceability_csv
+        report = build_multi_framework_report(self.assessment)
+        framework_report = build_multi_framework_report(self.assessment, self.framework_a)
+        traceability = build_traceability_csv(self.assessment)
+        self.assertTrue(report.startswith(b"PK"))
+        self.assertTrue(framework_report.startswith(b"PK"))
+        self.assertIn(b"FRAME-A", traceability)
+        self.assertIn(b"A-1", traceability)

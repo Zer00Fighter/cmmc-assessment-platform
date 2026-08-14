@@ -1106,11 +1106,19 @@ class GeneratedDocument(models.Model):
         SSP = "SSP", "Word Security Plan"
         REMEDIATION = "REMEDIATION", "Remediation workbook"
         PACKAGE = "PACKAGE", "Complete assessment package"
+        FRAMEWORK_REPORT = "FRAMEWORK_REPORT", "Framework assessment report"
+        CONSOLIDATED_REPORT = "CONSOLIDATED", "Consolidated multi-framework report"
+        TRACEABILITY = "TRACEABILITY", "Cross-framework traceability matrix"
 
     assessment = models.ForeignKey(
         Assessment, on_delete=models.CASCADE, related_name="generated_documents"
     )
-    kind = models.CharField(max_length=15, choices=Kind.choices)
+    kind = models.CharField(max_length=25, choices=Kind.choices)
+    framework = models.ForeignKey(Framework, null=True, blank=True, on_delete=models.PROTECT, related_name="generated_documents")
+    status = models.CharField(max_length=10, choices=(("DRAFT", "Draft"), ("FINAL", "Final"), ("SUPERSEDED", "Superseded")), default="DRAFT")
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="approved_omni_documents")
+    approved_at = models.DateTimeField(null=True, blank=True)
+    superseded_by = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="supersedes")
     filename = models.CharField(max_length=300)
     version = models.CharField(max_length=30, default="1.0")
     readiness = models.JSONField(default=dict, blank=True)
@@ -1127,6 +1135,17 @@ class GeneratedDocument(models.Model):
 
     def __str__(self) -> str:
         return self.filename
+
+
+class ReportingProfile(models.Model):
+    framework = models.OneToOneField(Framework, on_delete=models.CASCADE, related_name="reporting_profile")
+    report_title = models.CharField(max_length=250)
+    template_version = models.CharField(max_length=50, default="1.0")
+    required_sections = models.JSONField(default=list)
+    status_labels = models.JSONField(default=dict, blank=True)
+    require_objectives = models.BooleanField(default=True)
+    require_evidence_applicability = models.BooleanField(default=True)
+    active = models.BooleanField(default=True)
 
 
 class AuditEvent(models.Model):

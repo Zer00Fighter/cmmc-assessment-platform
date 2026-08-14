@@ -1,5 +1,11 @@
 # Changelog
 
+## Sprint 16 — Multi-framework reporting
+
+- Added framework-specific and consolidated Word assessment reports.
+- Added cross-framework traceability CSV export.
+- Added reporting profiles, multi-framework readiness, and document approval/version metadata.
+
 ## Sprint 15 — Shared evidence and testing workspace
 
 - Added unified mapped-work and remaining-work views.

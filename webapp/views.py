@@ -2038,12 +2038,12 @@ def report_center(request: HttpRequest, org_slug: str, assessment_id: int) -> Ht
     })
 
 
-def _generated_response(assessment, organization, user, kind, filename, content, readiness):
+def _generated_response(assessment, organization, user, kind, filename, content, readiness, framework=None):
     from .reporting import digest
     record = GeneratedDocument.objects.create(
         assessment=assessment, kind=kind, filename=filename, version="1.0",
         readiness=readiness, content_sha256=digest(content), size_bytes=len(content),
-        generated_by=user,
+        generated_by=user, framework=framework,
     )
     AuditEvent.objects.create(
         organization=organization, actor=user, action="document.generated",
@@ -2055,6 +2055,9 @@ def _generated_response(assessment, organization, user, kind, filename, content,
         GeneratedDocument.Kind.SSP: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         GeneratedDocument.Kind.REMEDIATION: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         GeneratedDocument.Kind.PACKAGE: "application/zip",
+        GeneratedDocument.Kind.FRAMEWORK_REPORT: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        GeneratedDocument.Kind.CONSOLIDATED_REPORT: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        GeneratedDocument.Kind.TRACEABILITY: "text/csv",
     }[kind])
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
@@ -2067,7 +2070,8 @@ def report_download(
     organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
     from .reporting import (
         ReportNotReady, assessment_readiness, build_assessment_workbook,
-        build_package, build_word_ssp,
+        build_package, build_word_ssp, build_multi_framework_report,
+        build_traceability_csv, multi_framework_readiness,
     )
     from .remediation_export import build_remediation_workbook
     normalized = kind.upper()
@@ -2079,6 +2083,7 @@ def report_download(
         )
     )
     try:
+        report_framework = None
         if normalized == GeneratedDocument.Kind.WORKBOOK:
             content = build_assessment_workbook(assessment)
             filename = f"Omni-{assessment.id}-Assessment-Workbook.xlsx"
@@ -2089,6 +2094,22 @@ def report_download(
             workbook = build_assessment_workbook(assessment)
             content = build_word_ssp(assessment, workbook, request.user)
             filename = f"Omni-{assessment.id}-System-Security-Plan.docx"
+        elif normalized == GeneratedDocument.Kind.FRAMEWORK_REPORT:
+            report_framework = get_object_or_404(
+                assessment.frameworks, code=request.GET.get("framework", assessment.framework.code)
+            )
+            readiness = multi_framework_readiness(assessment)
+            if not readiness["ready"]: raise ReportNotReady(readiness["blockers"])
+            content = build_multi_framework_report(assessment, report_framework)
+            filename = f"Omni-{assessment.id}-{report_framework.code}-Assessment-Report.docx"
+        elif normalized == GeneratedDocument.Kind.CONSOLIDATED_REPORT:
+            readiness = multi_framework_readiness(assessment)
+            if not readiness["ready"]: raise ReportNotReady(readiness["blockers"])
+            content = build_multi_framework_report(assessment)
+            filename = f"Omni-{assessment.id}-Consolidated-Assessment-Report.docx"
+        elif normalized == GeneratedDocument.Kind.TRACEABILITY:
+            content = build_traceability_csv(assessment)
+            filename = f"Omni-{assessment.id}-Traceability-Matrix.csv"
         else:
             content, readiness = build_package(assessment, request.user)
             filename = f"Omni-{assessment.id}-Complete-Assessment-Package.zip"
@@ -2099,7 +2120,7 @@ def report_download(
             messages.error(request, f"{len(error.issues) - 10} additional blockers remain.")
         return redirect("report-center", org_slug=org_slug, assessment_id=assessment.id)
     return _generated_response(
-        assessment, organization, request.user, normalized, filename, content, readiness
+        assessment, organization, request.user, normalized, filename, content, readiness, report_framework
     )
 
 

@@ -12,6 +12,7 @@ from pathlib import Path
 from django.conf import settings
 from django.utils import timezone
 from openpyxl import load_workbook
+from docx import Document
 
 from src.ssp_export import SSPExportMetadata, export_ssp
 from src.workbook import WorkbookBuilder
@@ -71,6 +72,65 @@ def assessment_readiness(assessment, *, require_template=False) -> dict:
         "assessed_controls": assessed,
         "completion_percent": round(assessed / total * 100, 2) if total else 0,
     }
+
+
+def multi_framework_readiness(assessment) -> dict:
+    report = assessment_readiness(assessment)
+    for artifact in assessment.evidence_artifacts.all():
+        if artifact.freshness in {"EXPIRED", "SUPERSEDED"}:
+            report["warnings"].append(f"{artifact.title} is {artifact.freshness.lower()}.")
+    for decision in assessment.reuse_decisions.filter(status="APPROVED", reuse_evidence=True):
+        if not decision.target_result.evidence_applicability.exists():
+            report["blockers"].append(
+                f"Reused evidence for {decision.target_result.requirement.requirement_id} needs applicability review."
+            )
+    report["ready"] = not report["blockers"]
+    return report
+
+
+def build_traceability_csv(assessment) -> bytes:
+    output = io.StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow(["Framework", "Requirement", "Status", "Mapping basis", "Mapping path",
+                     "Evidence", "Evidence applicability", "Testing references", "Finding"])
+    decisions = {item.target_result_id: item for item in assessment.reuse_decisions.select_related("target_result")}
+    for result in assessment.control_results.select_related("requirement__framework").prefetch_related(
+        "evidence_artifacts__applicability_reviews", "objective_results__reused_tests"
+    ):
+        decision = decisions.get(result.pk)
+        evidence = "; ".join(result.evidence_artifacts.values_list("title", flat=True))
+        applicability = "; ".join(result.evidence_applicability.values_list("applicability", flat=True))
+        tests = sum(item.reused_tests.count() for item in result.objective_results.all())
+        writer.writerow([result.requirement.framework.code, result.requirement.requirement_id,
+                         result.status, decision.get_basis_display() if decision else "Original",
+                         " > ".join(decision.mapping_path) if decision else "", evidence,
+                         applicability, tests, result.assessor_notes_findings])
+    return output.getvalue().encode("utf-8-sig")
+
+
+def build_multi_framework_report(assessment, framework=None) -> bytes:
+    document = Document()
+    title = f"{framework.name} Assessment Report" if framework else "Consolidated Multi-Framework Assessment Report"
+    document.add_heading(title, 0)
+    document.add_paragraph(f"Organization: {assessment.system.organization.name}")
+    document.add_paragraph(f"System: {assessment.system.name}")
+    document.add_paragraph(f"Assessment: {assessment.name}")
+    selected = [framework] if framework else list(assessment.frameworks.all())
+    document.add_heading("Assessment scope and frameworks", level=1)
+    document.add_paragraph(assessment.system.scope or "Scope not recorded.")
+    document.add_paragraph(", ".join(f"{item.name} {item.version}" for item in selected))
+    for item in selected:
+        results = assessment.control_results.filter(requirement__framework=item).select_related("requirement")
+        document.add_heading(f"{item.name} {item.version}", level=1)
+        table = document.add_table(rows=1, cols=5); table.style = "Table Grid"
+        for cell, label in zip(table.rows[0].cells, ("Requirement", "Title", "Status", "Evidence", "Conclusion/Finding")):
+            cell.text = label
+        for result in results:
+            cells = table.add_row().cells
+            values = (result.requirement.requirement_id, result.requirement.title, result.status,
+                      str(result.evidence_artifacts.count()), result.assessor_notes_findings)
+            for cell, value in zip(cells, values): cell.text = str(value)
+    stream = io.BytesIO(); document.save(stream); return stream.getvalue()
 
 
 def _display_member(membership) -> str:
