@@ -189,6 +189,17 @@ class Framework(models.Model):
     active = models.BooleanField(default=True)
     source_filename = models.CharField(max_length=255, blank=True)
     source_sha256 = models.CharField(max_length=64, blank=True)
+    is_omni_control_framework = models.BooleanField(
+        default=False,
+        help_text="Designates Omni's native mapping hub. Only one catalog version may be designated.",
+    )
+
+    class Meta:
+        constraints = [models.UniqueConstraint(
+            fields=("is_omni_control_framework",),
+            condition=models.Q(is_omni_control_framework=True),
+            name="one_omni_control_framework_hub",
+        )]
 
     def __str__(self) -> str:
         return f"{self.name} {self.version}"
@@ -399,6 +410,56 @@ class AssessmentFramework(models.Model):
 
     def __str__(self) -> str:
         return f"{self.assessment}: {self.framework}"
+
+
+class AssessmentReuseDecision(models.Model):
+    class Basis(models.TextChoices):
+        DIRECT = "DIRECT", "Direct mapping"
+        OMNI_DERIVED = "OMNI_DERIVED", "Derived through Omni Control Framework"
+
+    class Status(models.TextChoices):
+        SUGGESTED = "SUGGESTED", "Suggested"
+        APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
+
+    assessment = models.ForeignKey(
+        Assessment, on_delete=models.CASCADE, related_name="reuse_decisions"
+    )
+    source_result = models.ForeignKey(
+        "ControlAssessment", on_delete=models.CASCADE, related_name="reuse_sources"
+    )
+    target_result = models.ForeignKey(
+        "ControlAssessment", on_delete=models.CASCADE, related_name="reuse_targets"
+    )
+    basis = models.CharField(max_length=20, choices=Basis.choices)
+    relationship = models.CharField(max_length=15, choices=RequirementMapping.Relationship.choices)
+    mapping_path = models.JSONField(default=list)
+    reuse_evidence = models.BooleanField(default=True)
+    reuse_testing = models.BooleanField(default=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.SUGGESTED)
+    rationale = models.TextField(blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="reviewed_assessment_reuse",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("status", "source_result__requirement__framework__code")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("assessment", "source_result", "target_result"),
+                name="unique_assessment_reuse_direction",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(source_result=models.F("target_result")),
+                name="assessment_reuse_not_self",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.source_result} → {self.target_result} ({self.get_status_display()})"
 
 
 class AssessmentAccess(models.Model):

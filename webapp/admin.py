@@ -3,6 +3,7 @@ from django.contrib import admin
 from .models import (
     Assessment,
     AssessmentAccess,
+    AssessmentReuseDecision,
     AssessmentObjective,
     AssessmentProcedure,
     AssessmentSample,
@@ -48,6 +49,7 @@ admin.site.register(
         RequirementMapping,
         Assessment,
         AssessmentAccess,
+        AssessmentReuseDecision,
         AssessmentObjective,
         AssessmentProcedure,
         AssessmentSample,

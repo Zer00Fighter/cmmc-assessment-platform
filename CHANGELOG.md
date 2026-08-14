@@ -1,5 +1,13 @@
 # Changelog
 
+## Sprint 13 — Multi-framework harmonization and assessment reuse
+
+- Designated the Omni Control Framework as a unique, native mapping hub.
+- Added direct and Omni-derived assessment mapping analysis.
+- Added governed evidence/testing reuse decisions with reviewer rationale and audit history.
+- Reused accepted evidence by reference without propagating compliance outcomes.
+- Added harmonization coverage metrics and a tenant-scoped assessment workspace.
+
 ## Sprint 12 — Comprehensive Controls Framework ingestion
 
 - Added governed CSV, Excel, and PDF framework ingestion with dry-run previews and explicit approval.

@@ -155,10 +155,15 @@ def approve_import(job: FrameworkImport, user) -> Framework:
     meta = job.normalized_data["framework"]
     if Framework.objects.filter(code__iexact=meta["code"]).exists():
         raise ValueError("That framework code already exists; Omni never overwrites a catalog version.")
+    if meta.get("is_omni_control_framework") and Framework.objects.filter(
+        is_omni_control_framework=True
+    ).exists():
+        raise ValueError("An Omni Control Framework mapping hub is already designated.")
     framework = Framework.objects.create(
         code=meta["code"], name=meta["name"], version=meta["version"],
         authority=meta.get("authority", ""), description=meta.get("description", ""),
         source_filename=job.source_filename, source_sha256=job.source_sha256,
+        is_omni_control_framework=bool(meta.get("is_omni_control_framework")),
     )
     pending_mappings = []
     for item in job.normalized_data["requirements"]:
@@ -204,7 +209,63 @@ def approve_import(job: FrameworkImport, user) -> Framework:
     job.approved_at = timezone.now()
     job.imported_framework = framework
     job.save(update_fields=("status", "approved_by", "approved_at", "imported_framework"))
+    resolve_catalog_mappings(user)
     return framework
+
+
+def _mapping_tokens(raw: str) -> list[str]:
+    return [token.strip() for token in re.split(r"[,;\n]+", raw or "") if token.strip()]
+
+
+def resolve_catalog_mappings(user) -> dict:
+    """Resolve retained import references after any catalog framework arrives."""
+    frameworks = list(Framework.objects.prefetch_related("requirements"))
+    by_label = {}
+    requirement_indexes = {}
+    for framework in frameworks:
+        by_label[_key(framework.code)] = framework
+        by_label[_key(framework.name)] = framework
+        requirement_indexes[framework.pk] = {
+            requirement.requirement_id.casefold(): requirement
+            for requirement in framework.requirements.all()
+        }
+    pending, unresolved = [], 0
+    jobs = FrameworkImport.objects.filter(
+        status=FrameworkImport.Status.IMPORTED, imported_framework__isnull=False
+    ).select_related("imported_framework")
+    for job in jobs:
+        source_index = requirement_indexes.get(job.imported_framework_id, {})
+        for item in job.normalized_data.get("requirements", []):
+            source = source_index.get(item.get("requirement_id", "").casefold())
+            if not source:
+                continue
+            references = list(item.get("mapping_refs", []))
+            if item.get("target_requirement"):
+                references.append({
+                    "target_framework": item.get("target_framework", ""),
+                    "target_requirement": item["target_requirement"],
+                })
+            for reference in references:
+                target_framework = by_label.get(_key(reference.get("target_framework", "")))
+                if not target_framework or target_framework.pk == source.framework_id:
+                    unresolved += 1
+                    continue
+                target_index = requirement_indexes[target_framework.pk]
+                resolved_here = False
+                for token in _mapping_tokens(reference.get("target_requirement", "")):
+                    target = target_index.get(token.casefold())
+                    if target:
+                        pending.append(RequirementMapping(
+                            source=source, target=target,
+                            relationship=RequirementMapping.Relationship.RELATED,
+                            source_reference=item.get("source_reference", job.source_filename),
+                            approved_by=user, approved_at=timezone.now(),
+                        ))
+                        resolved_here = True
+                unresolved += int(not resolved_here)
+    before = RequirementMapping.objects.count()
+    RequirementMapping.objects.bulk_create(pending, ignore_conflicts=True, batch_size=1000)
+    return {"created": RequirementMapping.objects.count() - before, "unresolved": unresolved}
 
 
 def mapping_coverage(framework: Framework) -> dict:

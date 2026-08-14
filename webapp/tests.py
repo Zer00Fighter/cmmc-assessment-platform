@@ -22,6 +22,7 @@ from .models import (
     Assessment,
     AssessmentAccess,
     AssessmentFramework,
+    AssessmentReuseDecision,
     AssessmentObjective,
     AssessmentProcedure,
     AssessmentSample,
@@ -49,7 +50,8 @@ from .models import (
     WorkflowHistory,
     UserProfile,
 )
-from .framework_import import parse_upload
+from .framework_import import parse_upload, resolve_catalog_mappings
+from .harmonization import refresh_harmonization, review_reuse
 
 
 class SprintOneWorkflowTests(TestCase):
@@ -1559,3 +1561,132 @@ class SprintTwelveFrameworkImportTests(TestCase):
         self.assertEqual(source_format, FrameworkImport.SourceFormat.PDF)
         self.assertFalse(report["valid"])
         self.assertIn("OCR_REQUIRED", {issue["code"] for issue in report["issues"]})
+
+
+class SprintThirteenHarmonizationTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.admin = user_model.objects.create_user("harmonizer", password="test-password")
+        self.outsider = user_model.objects.create_user("harmonizer-outsider", password="test-password")
+        self.organization = Organization.objects.create(name="Synthetic Harmonization", slug="synthetic-harmonization")
+        self.other = Organization.objects.create(name="Other Synthetic", slug="other-synthetic")
+        Membership.objects.create(user=self.admin, organization=self.organization, role=Membership.Role.ADMIN)
+        Membership.objects.create(user=self.outsider, organization=self.other, role=Membership.Role.ADMIN)
+        self.system = System.objects.create(organization=self.organization, name="Synthetic system")
+        self.hub = Framework.objects.create(
+            code="OMNI-CF", name="Omni Control Framework", version="2026.2",
+            is_omni_control_framework=True,
+        )
+        self.framework_a = Framework.objects.create(code="FRAME-A", name="Framework A", version="1")
+        self.framework_b = Framework.objects.create(code="FRAME-B", name="Framework B", version="1")
+        self.hub_requirement = Requirement.objects.create(
+            framework=self.hub, requirement_id="OMNI-1", domain="Governance",
+            title="Policy governance", statement="Maintain policy governance.",
+        )
+        self.requirement_a = Requirement.objects.create(
+            framework=self.framework_a, requirement_id="A-1", domain="Governance",
+            title="Policy A", statement="Maintain policy A.",
+        )
+        self.requirement_b = Requirement.objects.create(
+            framework=self.framework_b, requirement_id="B-1", domain="Governance",
+            title="Policy B", statement="Maintain policy B.",
+        )
+        RequirementMapping.objects.create(
+            source=self.hub_requirement, target=self.requirement_a,
+            relationship=RequirementMapping.Relationship.EQUIVALENT,
+        )
+        RequirementMapping.objects.create(
+            source=self.hub_requirement, target=self.requirement_b,
+            relationship=RequirementMapping.Relationship.PARTIAL,
+        )
+        self.assessment = Assessment.objects.create(
+            system=self.system, framework=self.framework_a, name="Synthetic multi-framework",
+            created_by=self.admin,
+        )
+        AssessmentFramework.objects.create(
+            assessment=self.assessment, framework=self.framework_a, is_primary=True,
+            added_by=self.admin,
+        )
+        AssessmentFramework.objects.create(
+            assessment=self.assessment, framework=self.framework_b, added_by=self.admin,
+        )
+        self.result_a = ControlAssessment.objects.create(
+            assessment=self.assessment, requirement=self.requirement_a,
+            status=ControlAssessment.Status.MET, updated_by=self.admin,
+        )
+        self.result_b = ControlAssessment.objects.create(
+            assessment=self.assessment, requirement=self.requirement_b,
+        )
+
+    def test_omni_hub_derives_reviewable_relationship_without_propagating_result(self):
+        summary = refresh_harmonization(self.assessment)
+        self.assertEqual(summary["created"], 1)
+        decision = AssessmentReuseDecision.objects.get()
+        self.assertEqual(decision.basis, AssessmentReuseDecision.Basis.OMNI_DERIVED)
+        self.assertEqual(decision.relationship, RequirementMapping.Relationship.PARTIAL)
+        self.assertEqual(decision.mapping_path, ["A-1", "OMNI-1", "B-1"])
+        self.assertEqual(decision.status, AssessmentReuseDecision.Status.SUGGESTED)
+        self.result_b.refresh_from_db()
+        self.assertEqual(self.result_b.status, ControlAssessment.Status.NOT_ASSESSED)
+
+    def test_approval_reuses_only_accepted_evidence_and_never_control_outcome(self):
+        accepted = EvidenceArtifact.objects.create(
+            organization=self.organization, assessment=self.assessment, title="Accepted policy",
+            review_status=EvidenceArtifact.ReviewStatus.ACCEPTED, uploaded_by=self.admin,
+        )
+        rejected = EvidenceArtifact.objects.create(
+            organization=self.organization, assessment=self.assessment, title="Rejected draft",
+            review_status=EvidenceArtifact.ReviewStatus.REJECTED, uploaded_by=self.admin,
+        )
+        accepted.controls.add(self.result_a)
+        rejected.controls.add(self.result_a)
+        refresh_harmonization(self.assessment)
+        decision = AssessmentReuseDecision.objects.get()
+        linked = review_reuse(decision, self.admin, True)
+        self.assertEqual(linked, 1)
+        self.assertTrue(accepted.controls.filter(pk=self.result_b.pk).exists())
+        self.assertFalse(rejected.controls.filter(pk=self.result_b.pk).exists())
+        self.result_b.refresh_from_db()
+        self.assertEqual(self.result_b.status, ControlAssessment.Status.NOT_ASSESSED)
+
+    def test_harmonization_page_is_tenant_scoped_and_records_review_audit(self):
+        refresh_harmonization(self.assessment)
+        decision = AssessmentReuseDecision.objects.get()
+        self.client.login(username="harmonizer-outsider", password="test-password")
+        url = reverse("assessment-harmonization", args=(self.organization.slug, self.assessment.pk))
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.login(username="harmonizer", password="test-password")
+        response = self.client.post(url, {
+            "action": "approve", "decision_id": decision.pk,
+            "reuse_evidence": "on", "reuse_testing": "on", "rationale": "Validated overlap.",
+        })
+        self.assertRedirects(response, url)
+        decision.refresh_from_db()
+        self.assertEqual(decision.status, AssessmentReuseDecision.Status.APPROVED)
+        self.assertTrue(AuditEvent.objects.filter(action="harmonization.approved").exists())
+
+    def test_retained_omni_mapping_resolves_after_external_framework_exists(self):
+        FrameworkImport.objects.create(
+            source_file=SimpleUploadedFile("omni-map.csv", b"synthetic"),
+            source_filename="omni-map.csv", source_format=FrameworkImport.SourceFormat.CSV,
+            source_sha256="0" * 64, status=FrameworkImport.Status.IMPORTED,
+            normalized_data={"framework": {"code": self.hub.code}, "requirements": [{
+                "requirement_id": self.hub_requirement.requirement_id,
+                "source_reference": "synthetic matrix row 2",
+                "mapping_refs": [{
+                    "target_framework": self.framework_b.name,
+                    "target_requirement": self.requirement_b.requirement_id,
+                }],
+            }]},
+            validation_report={"valid": True}, created_by=self.admin,
+            approved_by=self.admin, approved_at=timezone.now(), imported_framework=self.hub,
+        )
+        RequirementMapping.objects.filter(
+            source=self.hub_requirement, target=self.requirement_b
+        ).delete()
+        result = resolve_catalog_mappings(self.admin)
+        self.assertEqual(result["created"], 1)
+        mapping = RequirementMapping.objects.get(
+            source=self.hub_requirement, target=self.requirement_b
+        )
+        self.assertEqual(mapping.source_reference, "synthetic matrix row 2")

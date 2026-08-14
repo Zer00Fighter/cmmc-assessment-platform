@@ -47,11 +47,13 @@ from .forms import (
     SystemForm,
     TestExecutionForm,
     FrameworkImportForm,
+    AssessmentReuseDecisionForm,
 )
 from .models import (
     Assessment,
     AssessmentAccess,
     AssessmentFramework,
+    AssessmentReuseDecision,
     AssessmentProcedure,
     AssessmentSample,
     AssessmentTeamMember,
@@ -79,6 +81,7 @@ from .models import (
     UserProfile,
 )
 from .framework_import import approve_import, parse_upload
+from .harmonization import harmonization_metrics, refresh_harmonization, review_reuse
 from .notifications import assessment_url, notify, notify_assessment_team, organization_users
 
 
@@ -307,7 +310,7 @@ def framework_import_upload(request: HttpRequest) -> HttpResponse:
     if request.method == "POST" and form.is_valid():
         upload = form.cleaned_data["source_file"]
         metadata = {key: form.cleaned_data.get(key, "") for key in (
-            "code", "name", "version", "authority", "description"
+            "code", "name", "version", "authority", "description", "is_omni_control_framework"
         )}
         try:
             normalized, report, source_format, digest = parse_upload(upload, metadata)
@@ -1108,6 +1111,62 @@ def assessment_execution(request: HttpRequest, org_slug: str, assessment_id: int
         ).distinct(),
         "filters": {"method": method, "framework": framework, "assessor": assessor},
         "can_edit": _can_edit(request.user, organization) and not assessment.locked,
+    })
+
+
+@login_required
+def assessment_harmonization(
+    request: HttpRequest, org_slug: str, assessment_id: int
+) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    can_edit = _can_edit(request.user, organization) and not assessment.locked
+    if request.method == "POST":
+        if not can_edit:
+            raise Http404
+        action = request.POST.get("action")
+        if action == "refresh":
+            result = refresh_harmonization(assessment)
+            AuditEvent.objects.create(
+                organization=organization, actor=request.user,
+                action="harmonization.refreshed", object_type="Assessment",
+                object_id=str(assessment.pk), detail=result,
+            )
+            messages.success(
+                request, f"Mapping analysis complete: {result['candidates']} candidates, "
+                f"{result['created']} new suggestions.",
+            )
+        elif action in {"approve", "reject"}:
+            decision = get_object_or_404(
+                AssessmentReuseDecision.objects.select_related("source_result", "target_result"),
+                pk=request.POST.get("decision_id"), assessment=assessment,
+            )
+            form = AssessmentReuseDecisionForm(request.POST, instance=decision)
+            if form.is_valid():
+                decision = form.save()
+                linked = review_reuse(decision, request.user, action == "approve")
+                AuditEvent.objects.create(
+                    organization=organization, actor=request.user,
+                    action=("harmonization.approved" if action == "approve" else "harmonization.rejected"),
+                    object_id=str(decision.pk), detail={
+                        "source_result": decision.source_result_id,
+                        "target_result": decision.target_result_id,
+                        "accepted_evidence_linked": linked,
+                        "compliance_result_propagated": False,
+                    },
+                )
+                messages.success(
+                    request, f"Reuse {action}d. {linked} accepted evidence artifact(s) linked; "
+                    "no compliance result was propagated.",
+                )
+        return redirect("assessment-harmonization", org_slug=org_slug, assessment_id=assessment.pk)
+    decisions = assessment.reuse_decisions.select_related(
+        "source_result__requirement__framework", "target_result__requirement__framework",
+        "reviewed_by",
+    ).prefetch_related("source_result__evidence_artifacts", "target_result__evidence_artifacts")
+    return render(request, "webapp/assessment_harmonization.html", {
+        "organization": organization, "assessment": assessment, "decisions": decisions,
+        "metrics": harmonization_metrics(assessment), "can_edit": can_edit,
+        "omni_hub": Framework.objects.filter(is_omni_control_framework=True).first(),
     })
 
 

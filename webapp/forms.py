@@ -9,7 +9,7 @@ from django.utils.text import slugify
 from src.evidence.evidence_knowledge import EVIDENCE_KNOWLEDGE
 
 from .models import (
-    Assessment, AssessmentAccess, AssessmentFramework, AssessmentProcedure, AssessmentSample, AssessmentTeamMember,
+    Assessment, AssessmentAccess, AssessmentFramework, AssessmentProcedure, AssessmentReuseDecision, AssessmentSample, AssessmentTeamMember,
     ControlAssessment, EvidenceArtifact, EvidenceRequest, Framework,
     InterviewSession, Membership, ObjectiveAssessment, Organization,
     NotificationPreference,
@@ -50,6 +50,11 @@ class FrameworkImportForm(forms.Form):
     version = forms.CharField(max_length=50)
     authority = forms.CharField(max_length=200, required=False)
     description = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), required=False)
+    is_omni_control_framework = forms.BooleanField(
+        required=False,
+        label="Designate as the Omni Control Framework mapping hub",
+        help_text="Use only for Omni's native framework, not for an imported external authority.",
+    )
 
     def clean_source_file(self):
         upload = self.cleaned_data["source_file"]
@@ -59,6 +64,13 @@ class FrameworkImportForm(forms.Form):
         if upload.size > 30 * 1024 * 1024:
             raise forms.ValidationError("Framework source files must be 30 MB or smaller.")
         return upload
+
+
+class AssessmentReuseDecisionForm(forms.ModelForm):
+    class Meta:
+        model = AssessmentReuseDecision
+        fields = ("reuse_evidence", "reuse_testing", "rationale")
+        widgets = {"rationale": forms.Textarea(attrs={"rows": 3})}
 
 
 class OmniAuthenticationForm(AuthenticationForm):
