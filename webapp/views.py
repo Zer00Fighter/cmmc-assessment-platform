@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+from io import StringIO
 from pathlib import Path
 
 from django.conf import settings
@@ -426,6 +428,9 @@ def assessment_dashboard(
         (item for item in selected_frameworks if item.code == framework_code), None
     )
     results = all_results.filter(requirement__framework=active_framework) if active_framework else all_results
+    domain_filter = request.GET.get("domain", "").strip()
+    if domain_filter:
+        results = results.filter(requirement__domain=domain_filter)
     counts = {
         value: results.filter(status=value).count()
         for value in ControlAssessment.Status.values
@@ -461,6 +466,88 @@ def assessment_dashboard(
     }
     evidence_total = sum(evidence_counts.values())
     evidence_ready = evidence_counts[EvidenceRequest.Status.ACCEPTED]
+    objective_results = ObjectiveAssessment.objects.filter(
+        control_result__assessment=assessment
+    )
+    if active_framework:
+        objective_results = objective_results.filter(
+            control_result__requirement__framework=active_framework
+        )
+    if domain_filter:
+        objective_results = objective_results.filter(
+            control_result__requirement__domain=domain_filter
+        )
+    objective_counts = {
+        value: objective_results.filter(status=value).count()
+        for value in ObjectiveAssessment.Status.values
+    }
+    objective_total = sum(objective_counts.values())
+    objective_complete = objective_total - objective_counts[ObjectiveAssessment.Status.NOT_ASSESSED]
+    domain_metrics = list(
+        results.values("requirement__domain")
+        .annotate(
+            total=Count("id"),
+            met=Count("id", filter=Q(status=ControlAssessment.Status.MET)),
+            not_met=Count("id", filter=Q(status=ControlAssessment.Status.NOT_MET)),
+            unassessed=Count("id", filter=Q(status=ControlAssessment.Status.NOT_ASSESSED)),
+            deduction=Sum("calculated_deduction"),
+        )
+        .order_by("requirement__domain")
+    )
+    for item in domain_metrics:
+        item["completion"] = round(
+            (item["total"] - item["unassessed"]) / item["total"] * 100, 1
+        ) if item["total"] else 0
+    all_domains = list(
+        all_results.values_list("requirement__domain", flat=True).distinct().order_by("requirement__domain")
+    )
+    today = timezone.localdate()
+    open_evidence = assessment.evidence_requests.exclude(status=EvidenceRequest.Status.ACCEPTED)
+    evidence_overdue = open_evidence.filter(due_date__lt=today).count()
+    remediation_active = assessment.remediation_plans.exclude(
+        status__in=(RemediationPlan.Status.CLOSED, RemediationPlan.Status.RISK_ACCEPTED)
+    )
+    high_risk = remediation_active.filter(
+        Q(priority__in=(RemediationPlan.Priority.HIGH, RemediationPlan.Priority.CRITICAL))
+        | Q(severity__in=(RemediationPlan.Priority.HIGH, RemediationPlan.Priority.CRITICAL))
+    ).count()
+    owner_workload = list(
+        results.exclude(primary_owner=None)
+        .values("primary_owner__user__username", "primary_owner__user__first_name", "primary_owner__user__last_name")
+        .annotate(
+            assigned=Count("id"),
+            completed=Count("id", filter=~Q(status=ControlAssessment.Status.NOT_ASSESSED)),
+            findings=Count("id", filter=Q(status=ControlAssessment.Status.NOT_MET)),
+        )
+        .order_by("primary_owner__user__username")
+    )
+    for owner in owner_workload:
+        owner["name"] = (
+            f'{owner["primary_owner__user__first_name"]} {owner["primary_owner__user__last_name"]}'.strip()
+            or owner["primary_owner__user__username"]
+        )
+        owner["completion"] = round(owner["completed"] / owner["assigned"] * 100, 1)
+    blockers = []
+    if objective_counts[ObjectiveAssessment.Status.NOT_ASSESSED]:
+        blockers.append(f'{objective_counts[ObjectiveAssessment.Status.NOT_ASSESSED]} objectives remain unassessed')
+    if assessment.quality_review_status != "APPROVED":
+        blockers.append(f'Quality review is {assessment.get_quality_review_status_display().lower()}')
+    if evidence_overdue:
+        blockers.append(f'{evidence_overdue} evidence requests are overdue')
+    readiness = round(max(0, 100 - (len(blockers) * 20)), 0)
+    timeline = [
+        {"label": "Engagement starts", "date": assessment.engagement_start},
+        {"label": "Engagement ends", "date": assessment.engagement_end},
+    ]
+    timeline.extend(
+        {"label": f"Evidence: {item.title}", "date": item.due_date}
+        for item in open_evidence.filter(due_date__isnull=False).order_by("due_date")[:5]
+    )
+    timeline.extend(
+        {"label": f"Remediation: {item.remediation_id}", "date": item.planned_completion}
+        for item in remediation_active.filter(planned_completion__isnull=False).order_by("planned_completion")[:5]
+    )
+    timeline = sorted((item for item in timeline if item["date"]), key=lambda item: item["date"])[:8]
     return render(
         request,
         "webapp/assessment_dashboard.html",
@@ -472,6 +559,7 @@ def assessment_dashboard(
             "met_count": counts[ControlAssessment.Status.MET],
             "not_met_count": counts[ControlAssessment.Status.NOT_MET],
             "not_assessed_count": counts[ControlAssessment.Status.NOT_ASSESSED],
+            "not_applicable_count": counts[ControlAssessment.Status.NOT_APPLICABLE],
             "score": primary_metric["score"] if primary_metric else None,
             "score_label": assessment.framework.get_scoring_method_display(),
             "completion": round(assessed / total * 100, 1) if total else 0,
@@ -490,8 +578,54 @@ def assessment_dashboard(
             "remediation_overdue": assessment.remediation_plans.filter(
                 planned_completion__lt=timezone.localdate()
             ).exclude(status__in=(RemediationPlan.Status.CLOSED, RemediationPlan.Status.RISK_ACCEPTED)).count(),
+            "objective_counts": objective_counts,
+            "objective_total": objective_total,
+            "objective_completion": round(objective_complete / objective_total * 100, 1)
+            if objective_total else 0,
+            "domain_metrics": domain_metrics,
+            "all_domains": all_domains,
+            "domain_filter": domain_filter,
+            "evidence_overdue": evidence_overdue,
+            "high_risk_remediation": high_risk,
+            "owner_workload": owner_workload,
+            "readiness_score": readiness,
+            "readiness_blockers": blockers,
+            "timeline": timeline,
         },
     )
+
+
+@login_required
+def dashboard_export(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    results = assessment.control_results.select_related("requirement__framework", "primary_owner__user")
+    output = StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow(["Omni Executive Assessment Snapshot"])
+    writer.writerow(["Organization", organization.name])
+    writer.writerow(["System", assessment.system.name])
+    writer.writerow(["Assessment", assessment.name])
+    writer.writerow(["Status", assessment.get_status_display()])
+    writer.writerow(["Quality Review", assessment.get_quality_review_status_display()])
+    writer.writerow([])
+    writer.writerow(["Framework", "Requirement", "Domain", "Status", "Deduction", "Owner", "Evidence"])
+    for result in results.order_by("requirement__framework__code", "requirement__requirement_id"):
+        owner = ""
+        if result.primary_owner:
+            owner = result.primary_owner.user.get_full_name() or result.primary_owner.user.username
+        writer.writerow([
+            result.requirement.framework.code, result.requirement.requirement_id,
+            result.requirement.domain, result.status, result.calculated_deduction,
+            owner, result.evidence_artifacts.count(),
+        ])
+    AuditEvent.objects.create(
+        organization=organization, actor=request.user, action="dashboard.exported",
+        object_type="Assessment", object_id=str(assessment.id),
+        detail={"format": "CSV", "rows": results.count()},
+    )
+    response = HttpResponse(output.getvalue(), content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="omni-{assessment.id}-executive-dashboard.csv"'
+    return response
 
 
 def _assessment_for(user, org_slug: str, assessment_id: int):

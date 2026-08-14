@@ -893,3 +893,97 @@ class SprintSixExecutionTests(TestCase):
         self.assessment.refresh_from_db()
         self.assertFalse(self.assessment.locked)
         self.assertEqual(self.assessment.reopen_reason, "New evidence requires reassessment.")
+
+
+class SprintSevenDashboardTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.user = user_model.objects.create_user("executive", password="test-password")
+        self.outsider = user_model.objects.create_user("outside-exec", password="test-password")
+        self.organization = Organization.objects.create(name="Synthetic Analytics", slug="analytics")
+        other = Organization.objects.create(name="Other Analytics", slug="other-analytics")
+        self.member = Membership.objects.create(
+            user=self.user, organization=self.organization, role=Membership.Role.ASSESSOR
+        )
+        Membership.objects.create(user=self.outsider, organization=other, role=Membership.Role.VIEWER)
+        system = System.objects.create(organization=self.organization, name="Analytics System")
+        self.framework = Framework.objects.create(
+            code="AN-FW", name="Analytics Framework", version="1",
+            scoring_method=Framework.ScoringMethod.DEDUCTION, maximum_score=100,
+        )
+        met_requirement = Requirement.objects.create(
+            framework=self.framework, requirement_id="AC-1", domain="AC",
+            title="Access", statement="Control access.", full_deduction=5,
+        )
+        gap_requirement = Requirement.objects.create(
+            framework=self.framework, requirement_id="IR-1", domain="IR",
+            title="Respond", statement="Respond to incidents.", full_deduction=10,
+        )
+        self.assessment = Assessment.objects.create(
+            system=system, framework=self.framework, name="Executive Assessment",
+            created_by=self.user, status=Assessment.Status.IN_PROGRESS,
+            quality_review_status="IN_REVIEW",
+        )
+        AssessmentFramework.objects.create(
+            assessment=self.assessment, framework=self.framework, is_primary=True,
+            added_by=self.user,
+        )
+        met = ControlAssessment.objects.create(
+            assessment=self.assessment, requirement=met_requirement,
+            status=ControlAssessment.Status.MET,
+            implementation_state=ControlAssessment.Implementation.FULL,
+            primary_owner=self.member,
+        )
+        gap = ControlAssessment.objects.create(
+            assessment=self.assessment, requirement=gap_requirement,
+            status=ControlAssessment.Status.NOT_MET,
+            implementation_state=ControlAssessment.Implementation.NONE,
+            primary_owner=self.member,
+        )
+        objective = AssessmentObjective.objects.create(
+            requirement=met_requirement, objective_id="a", text="Verify access"
+        )
+        ObjectiveAssessment.objects.create(
+            control_result=met, objective=objective, status=ObjectiveAssessment.Status.MET,
+            assessed_by=self.user,
+        )
+        EvidenceRequest.objects.create(
+            assessment=self.assessment, title="Overdue evidence",
+            due_date=date.today() - timedelta(days=1), created_by=self.user,
+        )
+        RemediationPlan.objects.create(
+            assessment=self.assessment, remediation_id="RAP-001", title="Close incident gap",
+            weakness_description="Synthetic finding", created_by=self.user,
+            date_identified=date.today(), planned_completion=date.today() - timedelta(days=1),
+            priority=RemediationPlan.Priority.HIGH,
+        ).controls.add(gap)
+
+    def test_dashboard_shows_executive_analytics_and_domain_filter(self):
+        self.client.login(username="executive", password="test-password")
+        response = self.client.get(reverse(
+            "assessment-dashboard", args=("analytics", self.assessment.id)
+        ))
+        self.assertContains(response, "Executive assessment dashboard")
+        self.assertContains(response, "Objective completion")
+        self.assertContains(response, "1 overdue")
+        self.assertContains(response, "Control-owner workload")
+        filtered = self.client.get(reverse(
+            "assessment-dashboard", args=("analytics", self.assessment.id)
+        ), {"domain": "AC"})
+        self.assertContains(filtered, "Access")
+        self.assertNotContains(filtered, "Respond")
+
+    def test_csv_snapshot_is_tenant_scoped_and_audited(self):
+        url = reverse("dashboard-export", args=("analytics", self.assessment.id))
+        self.client.login(username="outside-exec", password="test-password")
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.login(username="executive", password="test-password")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        content = response.content.decode("utf-8")
+        self.assertIn("Omni Executive Assessment Snapshot", content)
+        self.assertIn("AN-FW,AC-1,AC,MET", content)
+        self.assertTrue(AuditEvent.objects.filter(
+            organization=self.organization, action="dashboard.exported"
+        ).exists())
