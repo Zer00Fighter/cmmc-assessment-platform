@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<nav class="crumb"><a href="{% url 'assessment-dashboard' organization.slug assessment.id %}">{{ assessment.name }}</a> / <a href="{% url 'risk-register-list' organization.slug assessment.id %}">Risks</a> / {{ title }}</nav>
+<div class="page-head"><div><p class="eyebrow">Risk evaluation and treatment</p><h1>{{ title }}</h1><p class="muted">Likelihood and impact use a 1–5 scale. Inherent and residual scores are calculated automatically.</p></div></div>
+<section class="form-card wide"><form method="post" class="stack">{% csrf_token %}{{ form.as_p }}<button class="primary" type="submit">{{ submit_label }}</button></form></section>
+{% endblock %}

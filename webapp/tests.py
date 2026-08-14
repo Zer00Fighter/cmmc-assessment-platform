@@ -56,6 +56,8 @@ from .models import (
     RequirementMapping,
     RequirementRiskMapping,
     RiskCatalogEntry,
+    RiskRegisterEntry,
+    RiskRegisterHistory,
     System,
     WorkflowHistory,
     UserProfile,
@@ -207,6 +209,116 @@ class SprintSeventeenPointEightRiskCatalogTests(TestCase):
         self.assertEqual(self.client.get(reverse("risk-catalog-registry")).status_code, 404)
         self.client.force_login(self.admin)
         self.assertEqual(self.client.get(reverse("risk-catalog-registry")).status_code, 200)
+
+
+class SprintEighteenRiskRegisterTests(TestCase):
+    def setUp(self):
+        users = get_user_model()
+        self.admin = users.objects.create_user("risk-owner-admin", password="test-password")
+        self.assessor = users.objects.create_user("risk-assessor", password="test-password")
+        self.outsider = users.objects.create_user("risk-outsider", password="test-password")
+        self.organization = Organization.objects.create(name="Risk Organization", slug="risk-org")
+        other = Organization.objects.create(name="Other Risk Organization", slug="other-risk-org")
+        self.admin_membership = Membership.objects.create(
+            user=self.admin, organization=self.organization, role=Membership.Role.ADMIN
+        )
+        self.assessor_membership = Membership.objects.create(
+            user=self.assessor, organization=self.organization, role=Membership.Role.ASSESSOR
+        )
+        Membership.objects.create(user=self.outsider, organization=other, role=Membership.Role.VIEWER)
+        system = System.objects.create(organization=self.organization, name="Risk System")
+        framework = Framework.objects.create(code="RISK-18", name="Risk Framework", version="1")
+        requirement = Requirement.objects.create(
+            framework=framework, requirement_id="AC-18", domain="Access Control",
+            title="Access control", statement="Restrict system access.",
+        )
+        self.assessment = Assessment.objects.create(
+            system=system, framework=framework, name="Sprint 18 Assessment", created_by=self.assessor
+        )
+        AssessmentFramework.objects.create(
+            assessment=self.assessment, framework=framework, is_primary=True, added_by=self.assessor
+        )
+        self.control = ControlAssessment.objects.create(
+            assessment=self.assessment, requirement=requirement,
+            status=ControlAssessment.Status.NOT_MET,
+            assessor_notes_findings="Access is not sufficiently restricted.",
+        )
+
+    def _risk_payload(self, **overrides):
+        payload = {
+            "catalog_risk": "", "title": "Unauthorized access risk",
+            "description": "Threat actors may gain unauthorized access.",
+            "category": "Access Control", "controls": [str(self.control.id)],
+            "remediation_plans": [], "owner": str(self.assessor_membership.id),
+            "status": RiskRegisterEntry.Status.IDENTIFIED, "likelihood": "4", "impact": "5",
+            "treatment": RiskRegisterEntry.Treatment.MITIGATE,
+            "treatment_plan": "Strengthen access restrictions and validate effectiveness.",
+            "target_date": "2026-12-31", "residual_likelihood": "2", "residual_impact": "3",
+            "acceptance_rationale": "", "acceptance_expires": "", "next_review_date": "2026-10-01",
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_finding_creates_scored_risk_with_history_and_dashboard_matrix(self):
+        self.client.login(username="risk-assessor", password="test-password")
+        create_url = reverse("risk-register-create", args=(self.organization.slug, self.assessment.id))
+        preview = self.client.get(create_url, {"control": self.control.id})
+        self.assertContains(preview, "Access is not sufficiently restricted")
+        response = self.client.post(create_url, self._risk_payload())
+        risk = RiskRegisterEntry.objects.get()
+        self.assertRedirects(response, reverse(
+            "risk-register-detail", args=(self.organization.slug, self.assessment.id, risk.id)
+        ))
+        self.assertEqual(risk.risk_id, "RISK-0001")
+        self.assertEqual(risk.inherent_score, 20)
+        self.assertEqual(risk.residual_score, 6)
+        self.assertEqual(risk.controls.get(), self.control)
+        self.assertTrue(RiskRegisterHistory.objects.filter(risk=risk, action="CREATED").exists())
+        dashboard = self.client.get(reverse(
+            "assessment-dashboard", args=(self.organization.slug, self.assessment.id)
+        ))
+        self.assertContains(dashboard, "Likelihood × impact heatmap")
+        self.assertContains(dashboard, "1 critical")
+
+    def test_only_admin_can_accept_risk_and_acceptance_is_audited(self):
+        risk = RiskRegisterEntry.objects.create(
+            organization=self.organization, system=self.assessment.system, assessment=self.assessment,
+            risk_id="RISK-0001", title="Acceptance candidate", description="Candidate risk.",
+            category="Governance", created_by=self.assessor,
+        )
+        edit_url = reverse("risk-register-edit", args=(self.organization.slug, self.assessment.id, risk.id))
+        acceptance = self._risk_payload(
+            title=risk.title, description=risk.description, category=risk.category,
+            treatment=RiskRegisterEntry.Treatment.ACCEPT,
+            treatment_plan="Accept temporarily while replacement is funded.",
+            acceptance_rationale="Exposure is within approved tolerance temporarily.",
+            acceptance_expires="2027-01-31",
+        )
+        self.client.login(username="risk-assessor", password="test-password")
+        self.assertEqual(self.client.post(edit_url, acceptance).status_code, 200)
+        risk.refresh_from_db(); self.assertNotEqual(risk.status, RiskRegisterEntry.Status.ACCEPTED)
+        self.client.login(username="risk-owner-admin", password="test-password")
+        self.assertRedirects(self.client.post(edit_url, acceptance), reverse(
+            "risk-register-detail", args=(self.organization.slug, self.assessment.id, risk.id)
+        ))
+        risk.refresh_from_db()
+        self.assertEqual(risk.status, RiskRegisterEntry.Status.ACCEPTED)
+        self.assertEqual(risk.accepted_by, self.admin)
+        self.assertTrue(RiskRegisterHistory.objects.filter(risk=risk, action="UPDATED").exists())
+
+    def test_register_and_export_are_tenant_scoped(self):
+        list_url = reverse("risk-register-list", args=(self.organization.slug, self.assessment.id))
+        export_url = reverse("risk-register-export", args=(self.organization.slug, self.assessment.id))
+        self.client.login(username="risk-outsider", password="test-password")
+        self.assertEqual(self.client.get(list_url).status_code, 404)
+        self.assertEqual(self.client.get(export_url).status_code, 404)
+        self.client.login(username="risk-assessor", password="test-password")
+        response = self.client.get(export_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Risk ID,Title,Category", response.content.decode("utf-8"))
+        self.assertTrue(AuditEvent.objects.filter(
+            organization=self.organization, action="risk.exported"
+        ).exists())
 
 
 class SprintSeventeenPointSixAuthoritativeSourcesTests(TestCase):

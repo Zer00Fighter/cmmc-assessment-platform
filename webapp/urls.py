@@ -110,6 +110,11 @@ urlpatterns = [
         "organizations/<slug:org_slug>/assessments/<int:assessment_id>/remediation/",
         views.remediation_list, name="remediation-list",
     ),
+    path("organizations/<slug:org_slug>/assessments/<int:assessment_id>/risks/", views.risk_register_list, name="risk-register-list"),
+    path("organizations/<slug:org_slug>/assessments/<int:assessment_id>/risks/new/", views.risk_register_create, name="risk-register-create"),
+    path("organizations/<slug:org_slug>/assessments/<int:assessment_id>/risks/export/", views.risk_register_export, name="risk-register-export"),
+    path("organizations/<slug:org_slug>/assessments/<int:assessment_id>/risks/<int:risk_id>/", views.risk_register_detail, name="risk-register-detail"),
+    path("organizations/<slug:org_slug>/assessments/<int:assessment_id>/risks/<int:risk_id>/edit/", views.risk_register_edit, name="risk-register-edit"),
     path(
         "organizations/<slug:org_slug>/assessments/<int:assessment_id>/remediation/new/",
         views.remediation_create, name="remediation-create",

@@ -1199,6 +1199,116 @@ class RemediationPlan(models.Model):
         return severity[self.severity] * likelihood[self.likelihood]
 
 
+class RiskRegisterEntry(models.Model):
+    class Status(models.TextChoices):
+        IDENTIFIED = "IDENTIFIED", "Identified"
+        ANALYZING = "ANALYZING", "Analyzing"
+        TREATING = "TREATING", "Treatment in progress"
+        MONITORING = "MONITORING", "Monitoring"
+        ACCEPTED = "ACCEPTED", "Accepted"
+        CLOSED = "CLOSED", "Closed"
+
+    class Treatment(models.TextChoices):
+        UNDECIDED = "UNDECIDED", "Undecided"
+        MITIGATE = "MITIGATE", "Mitigate"
+        ACCEPT = "ACCEPT", "Accept"
+        AVOID = "AVOID", "Avoid"
+        TRANSFER = "TRANSFER", "Transfer"
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="risk_register"
+    )
+    system = models.ForeignKey(
+        System, null=True, blank=True, on_delete=models.CASCADE, related_name="risks"
+    )
+    assessment = models.ForeignKey(
+        Assessment, null=True, blank=True, on_delete=models.SET_NULL, related_name="risks"
+    )
+    catalog_risk = models.ForeignKey(
+        RiskCatalogEntry, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="register_entries",
+    )
+    risk_id = models.CharField(max_length=30)
+    title = models.CharField(max_length=300)
+    description = models.TextField()
+    category = models.CharField(max_length=100)
+    source = models.CharField(max_length=30, default="MANUAL")
+    controls = models.ManyToManyField(ControlAssessment, related_name="risks", blank=True)
+    remediation_plans = models.ManyToManyField(RemediationPlan, related_name="risks", blank=True)
+    owner = models.ForeignKey(
+        Membership, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="owned_risks",
+    )
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.IDENTIFIED)
+    likelihood = models.PositiveSmallIntegerField(default=3)
+    impact = models.PositiveSmallIntegerField(default=3)
+    inherent_score = models.PositiveSmallIntegerField(default=9)
+    treatment = models.CharField(
+        max_length=12, choices=Treatment.choices, default=Treatment.UNDECIDED
+    )
+    treatment_plan = models.TextField(blank=True)
+    target_date = models.DateField(null=True, blank=True)
+    residual_likelihood = models.PositiveSmallIntegerField(null=True, blank=True)
+    residual_impact = models.PositiveSmallIntegerField(null=True, blank=True)
+    residual_score = models.PositiveSmallIntegerField(null=True, blank=True)
+    acceptance_rationale = models.TextField(blank=True)
+    accepted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="accepted_risks",
+    )
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    acceptance_expires = models.DateField(null=True, blank=True)
+    next_review_date = models.DateField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_risks"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-inherent_score", "risk_id")
+        constraints = [
+            models.UniqueConstraint(fields=("organization", "risk_id"), name="unique_org_risk_id"),
+            models.CheckConstraint(condition=models.Q(likelihood__gte=1, likelihood__lte=5), name="risk_likelihood_1_5"),
+            models.CheckConstraint(condition=models.Q(impact__gte=1, impact__lte=5), name="risk_impact_1_5"),
+            models.CheckConstraint(condition=models.Q(residual_likelihood__isnull=True) | models.Q(residual_likelihood__gte=1, residual_likelihood__lte=5), name="residual_likelihood_1_5"),
+            models.CheckConstraint(condition=models.Q(residual_impact__isnull=True) | models.Q(residual_impact__gte=1, residual_impact__lte=5), name="residual_impact_1_5"),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.inherent_score = self.likelihood * self.impact
+        self.residual_score = (
+            self.residual_likelihood * self.residual_impact
+            if self.residual_likelihood is not None and self.residual_impact is not None
+            else None
+        )
+        super().save(*args, **kwargs)
+
+    @property
+    def rating(self):
+        if self.inherent_score >= 20:
+            return "Critical"
+        if self.inherent_score >= 12:
+            return "High"
+        if self.inherent_score >= 6:
+            return "Moderate"
+        return "Low"
+
+    def __str__(self):
+        return f"{self.risk_id} — {self.title}"
+
+
+class RiskRegisterHistory(models.Model):
+    risk = models.ForeignKey(RiskRegisterEntry, on_delete=models.CASCADE, related_name="history")
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    action = models.CharField(max_length=30)
+    snapshot = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+
 class RemediationMilestone(models.Model):
     class Status(models.TextChoices):
         NOT_STARTED = "NOT_STARTED", "Not started"

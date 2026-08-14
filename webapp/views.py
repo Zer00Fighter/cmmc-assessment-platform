@@ -52,6 +52,7 @@ from .forms import (
     EvidenceApplicabilityForm,
     MappingChangeRequestForm,
     RequirementRiskMappingForm,
+    RiskRegisterForm,
 )
 from .models import (
     Assessment,
@@ -87,6 +88,8 @@ from .models import (
     RequirementMapping,
     RequirementRiskMapping,
     RiskCatalogEntry,
+    RiskRegisterEntry,
+    RiskRegisterHistory,
     System,
     TestExecution,
     EvidenceReviewHistory,
@@ -1045,6 +1048,8 @@ def assessment_dashboard(
             f"{mapping.requirement.framework.code} {mapping.requirement.requirement_id}"
         )
     exposed_risks = list(exposed_by_id.values())
+    register_risks = assessment.risks.exclude(status=RiskRegisterEntry.Status.CLOSED)
+    risk_matrix = _risk_matrix(register_risks)
     return render(
         request,
         "webapp/assessment_dashboard.html",
@@ -1090,6 +1095,9 @@ def assessment_dashboard(
             "timeline": timeline,
             "risk_heatmap": risk_heatmap,
             "exposed_risks": exposed_risks,
+            "risk_matrix": risk_matrix,
+            "risk_total": register_risks.count(),
+            "risk_critical": register_risks.filter(inherent_score__gte=20).count(),
         },
     )
 
@@ -1136,6 +1144,41 @@ def _assessment_for(user, org_slug: str, assessment_id: int):
     if not _has_assessment_access(user, assessment):
         raise Http404
     return organization, assessment
+
+
+def _risk_snapshot(risk):
+    return {
+        "risk_id": risk.risk_id, "status": risk.status,
+        "likelihood": risk.likelihood, "impact": risk.impact,
+        "inherent_score": risk.inherent_score, "treatment": risk.treatment,
+        "residual_likelihood": risk.residual_likelihood,
+        "residual_impact": risk.residual_impact, "residual_score": risk.residual_score,
+        "owner_id": risk.owner_id, "target_date": str(risk.target_date or ""),
+        "acceptance_expires": str(risk.acceptance_expires or ""),
+    }
+
+
+def _next_risk_id(organization):
+    prefix = "RISK-"
+    values = organization.risk_register.filter(risk_id__startswith=prefix).values_list("risk_id", flat=True)
+    numbers = [int(value[len(prefix):]) for value in values if value[len(prefix):].isdigit()]
+    return f"{prefix}{max(numbers, default=0) + 1:04d}"
+
+
+def _risk_matrix(risks):
+    counts = {(likelihood, impact): 0 for likelihood in range(1, 6) for impact in range(1, 6)}
+    for likelihood, impact in risks.values_list("likelihood", "impact"):
+        counts[(likelihood, impact)] += 1
+    rows = []
+    for likelihood in range(5, 0, -1):
+        cells = []
+        for impact in range(1, 6):
+            score = likelihood * impact
+            severity = "critical" if score >= 20 else "high" if score >= 12 else "moderate" if score >= 6 else "low"
+            cells.append({"likelihood": likelihood, "impact": impact, "score": score,
+                          "count": counts[(likelihood, impact)], "severity": severity})
+        rows.append({"likelihood": likelihood, "cells": cells})
+    return rows
 
 
 def _require_unlocked(assessment: Assessment) -> None:
@@ -1949,6 +1992,147 @@ def _next_remediation_id(assessment: Assessment) -> str:
         except (TypeError, ValueError):
             continue
     return f"RAP-{max(numbers, default=0) + 1:04d}"
+
+
+@login_required
+def risk_register_list(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    risks = assessment.risks.select_related("catalog_risk", "owner__user").prefetch_related(
+        "controls__requirement", "remediation_plans"
+    )
+    status, category = request.GET.get("status", ""), request.GET.get("category", "")
+    if status:
+        risks = risks.filter(status=status)
+    if category:
+        risks = risks.filter(category=category)
+    all_risks = assessment.risks.all()
+    return render(request, "webapp/risk_register_list.html", {
+        "organization": organization, "assessment": assessment, "risks": risks,
+        "matrix": _risk_matrix(all_risks.exclude(status=RiskRegisterEntry.Status.CLOSED)),
+        "statuses": RiskRegisterEntry.Status.choices,
+        "categories": all_risks.values_list("category", flat=True).distinct().order_by("category"),
+        "filters": {"status": status, "category": category},
+        "metrics": {"total": all_risks.count(),
+                    "critical": all_risks.filter(inherent_score__gte=20).count(),
+                    "overdue": all_risks.filter(target_date__lt=timezone.localdate()).exclude(
+                        status__in=(RiskRegisterEntry.Status.CLOSED, RiskRegisterEntry.Status.ACCEPTED)).count(),
+                    "accepted": all_risks.filter(status=RiskRegisterEntry.Status.ACCEPTED).count()},
+        "can_edit": _can_edit(request.user, organization),
+    })
+
+
+@login_required
+@transaction.atomic
+def risk_register_create(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    if not _can_edit(request.user, organization):
+        raise Http404
+    _require_unlocked(assessment)
+    initial = {}
+    control_id = request.GET.get("control", "")
+    if control_id.isdigit():
+        result = get_object_or_404(assessment.control_results.select_related("requirement"), pk=control_id)
+        initial = {"title": f"Risk arising from {result.requirement.requirement_id}",
+                   "description": result.assessor_notes_findings or result.requirement.statement,
+                   "category": result.requirement.domain, "controls": [result]}
+    catalog_id = request.GET.get("catalog", "")
+    if catalog_id.isdigit():
+        catalog = get_object_or_404(RiskCatalogEntry, pk=catalog_id, active=True)
+        initial.update({"catalog_risk": catalog, "title": catalog.title,
+                        "description": catalog.description, "category": catalog.grouping})
+    form = RiskRegisterForm(request.POST or None, initial=initial, organization=organization,
+                            assessment=assessment, can_accept=_is_org_admin(request.user, organization))
+    if request.method == "POST" and form.is_valid():
+        risk = form.save(commit=False)
+        risk.organization, risk.system, risk.assessment = organization, assessment.system, assessment
+        risk.risk_id, risk.created_by = _next_risk_id(organization), request.user
+        risk.source = "CCF_CATALOG" if risk.catalog_risk_id else "ASSESSMENT"
+        if risk.treatment == RiskRegisterEntry.Treatment.ACCEPT:
+            risk.status, risk.accepted_by, risk.accepted_at = RiskRegisterEntry.Status.ACCEPTED, request.user, timezone.now()
+        risk.save(); form.save_m2m()
+        RiskRegisterHistory.objects.create(risk=risk, actor=request.user, action="CREATED", snapshot=_risk_snapshot(risk))
+        AuditEvent.objects.create(organization=organization, actor=request.user, action="risk.created",
+                                  object_type="RiskRegisterEntry", object_id=str(risk.id),
+                                  detail={"risk_id": risk.risk_id, "score": risk.inherent_score})
+        messages.success(request, f"{risk.risk_id} added to the risk register.")
+        return redirect("risk-register-detail", org_slug=org_slug, assessment_id=assessment.id, risk_id=risk.id)
+    return render(request, "webapp/risk_register_form.html", {
+        "organization": organization, "assessment": assessment, "form": form,
+        "title": "New risk", "submit_label": "Add risk to register",
+    })
+
+
+@login_required
+def risk_register_detail(request: HttpRequest, org_slug: str, assessment_id: int, risk_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    risk = get_object_or_404(
+        RiskRegisterEntry.objects.select_related("catalog_risk", "owner__user", "accepted_by").prefetch_related(
+            "controls__requirement__framework", "remediation_plans", "history__actor"
+        ), pk=risk_id, assessment=assessment, organization=organization,
+    )
+    return render(request, "webapp/risk_register_detail.html", {
+        "organization": organization, "assessment": assessment, "risk": risk,
+        "can_edit": _can_edit(request.user, organization) and not assessment.locked,
+    })
+
+
+@login_required
+@transaction.atomic
+def risk_register_edit(request: HttpRequest, org_slug: str, assessment_id: int, risk_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    risk = get_object_or_404(RiskRegisterEntry, pk=risk_id, assessment=assessment, organization=organization)
+    if not _can_edit(request.user, organization):
+        raise Http404
+    _require_unlocked(assessment)
+    previous = _risk_snapshot(risk)
+    can_accept = _is_org_admin(request.user, organization)
+    form = RiskRegisterForm(request.POST or None, instance=risk, organization=organization,
+                            assessment=assessment, can_accept=can_accept)
+    if request.method == "POST" and form.is_valid():
+        risk = form.save(commit=False)
+        if risk.treatment == RiskRegisterEntry.Treatment.ACCEPT:
+            risk.status, risk.accepted_by = RiskRegisterEntry.Status.ACCEPTED, request.user
+            risk.accepted_at = risk.accepted_at or timezone.now()
+        elif risk.status != RiskRegisterEntry.Status.ACCEPTED:
+            risk.accepted_by = None; risk.accepted_at = None
+        risk.save(); form.save_m2m()
+        RiskRegisterHistory.objects.create(risk=risk, actor=request.user, action="UPDATED",
+                                           snapshot={"previous": previous, "current": _risk_snapshot(risk)})
+        AuditEvent.objects.create(organization=organization, actor=request.user, action="risk.updated",
+                                  object_type="RiskRegisterEntry", object_id=str(risk.id),
+                                  detail={"risk_id": risk.risk_id, "previous": previous,
+                                          "current": _risk_snapshot(risk)})
+        messages.success(request, f"{risk.risk_id} updated.")
+        return redirect("risk-register-detail", org_slug=org_slug, assessment_id=assessment.id, risk_id=risk.id)
+    return render(request, "webapp/risk_register_form.html", {
+        "organization": organization, "assessment": assessment, "form": form,
+        "risk": risk, "title": f"Edit {risk.risk_id}", "submit_label": "Save risk",
+    })
+
+
+@login_required
+def risk_register_export(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    output = StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow(["Risk ID", "Title", "Category", "Status", "Owner", "Likelihood", "Impact",
+                     "Inherent Score", "Treatment", "Residual Likelihood", "Residual Impact",
+                     "Residual Score", "Target Date", "Next Review", "Controls", "Remediation Plans"])
+    for risk in assessment.risks.select_related("owner__user").prefetch_related(
+        "controls__requirement__framework", "remediation_plans"
+    ):
+        owner = (risk.owner.user.get_full_name() or risk.owner.user.username) if risk.owner else ""
+        controls = "; ".join(f"{x.requirement.framework.code} {x.requirement.requirement_id}" for x in risk.controls.all())
+        plans = "; ".join(x.remediation_id for x in risk.remediation_plans.all())
+        writer.writerow([risk.risk_id, risk.title, risk.category, risk.get_status_display(), owner,
+                         risk.likelihood, risk.impact, risk.inherent_score, risk.get_treatment_display(),
+                         risk.residual_likelihood or "", risk.residual_impact or "", risk.residual_score or "",
+                         risk.target_date or "", risk.next_review_date or "", controls, plans])
+    AuditEvent.objects.create(organization=organization, actor=request.user, action="risk.exported",
+                              object_type="Assessment", object_id=str(assessment.id), detail={"format": "CSV"})
+    response = HttpResponse(output.getvalue(), content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="omni-{assessment.id}-risk-register.csv"'
+    return response
 
 
 @login_required

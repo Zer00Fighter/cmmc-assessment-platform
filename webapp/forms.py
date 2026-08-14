@@ -17,7 +17,7 @@ from .models import (
     OrganizationInvitation, UserProfile,
     LoginAttempt,
     RemediationMilestone, RemediationPlan, RequirementMapping, RequirementRiskMapping,
-    MappingChangeRequest, System, TestExecution,
+    MappingChangeRequest, RiskRegisterEntry, System, TestExecution,
 )
 
 
@@ -450,6 +450,63 @@ class RemediationPlanForm(forms.ModelForm):
             self.add_error("planned_completion", "Cannot precede the identification date.")
         if identified and actual and actual < identified:
             self.add_error("actual_completion", "Cannot precede the identification date.")
+        return cleaned
+
+
+class RiskRegisterForm(forms.ModelForm):
+    SCALE = [(value, label) for value, label in (
+        (1, "1 — Rare / Negligible"), (2, "2 — Unlikely / Minor"),
+        (3, "3 — Possible / Moderate"), (4, "4 — Likely / Major"),
+        (5, "5 — Almost certain / Severe"),
+    )]
+
+    class Meta:
+        model = RiskRegisterEntry
+        fields = (
+            "catalog_risk", "title", "description", "category", "controls",
+            "remediation_plans", "owner", "status", "likelihood", "impact",
+            "treatment", "treatment_plan", "target_date", "residual_likelihood",
+            "residual_impact", "acceptance_rationale", "acceptance_expires",
+            "next_review_date",
+        )
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 4}),
+            "controls": forms.CheckboxSelectMultiple(),
+            "remediation_plans": forms.CheckboxSelectMultiple(),
+            "treatment_plan": forms.Textarea(attrs={"rows": 4}),
+            "acceptance_rationale": forms.Textarea(attrs={"rows": 3}),
+            "target_date": forms.DateInput(attrs={"type": "date"}),
+            "acceptance_expires": forms.DateInput(attrs={"type": "date"}),
+            "next_review_date": forms.DateInput(attrs={"type": "date"}),
+        }
+
+    def __init__(self, *args, organization, assessment, can_accept=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name in ("likelihood", "impact", "residual_likelihood", "residual_impact"):
+            self.fields[name].widget = forms.Select(choices=[("", "—")] + self.SCALE)
+        self.fields["likelihood"].widget.choices = self.SCALE
+        self.fields["impact"].widget.choices = self.SCALE
+        self.fields["owner"].queryset = organization.memberships.filter(active=True).select_related("user")
+        self.fields["controls"].queryset = assessment.control_results.select_related("requirement")
+        self.fields["remediation_plans"].queryset = assessment.remediation_plans.all()
+        self.can_accept = can_accept
+
+    def clean(self):
+        cleaned = super().clean()
+        residual_likelihood = cleaned.get("residual_likelihood")
+        residual_impact = cleaned.get("residual_impact")
+        if (residual_likelihood is None) != (residual_impact is None):
+            self.add_error("residual_impact", "Enter both residual likelihood and impact, or leave both blank.")
+        treatment = cleaned.get("treatment")
+        if treatment != RiskRegisterEntry.Treatment.UNDECIDED and not (cleaned.get("treatment_plan") or "").strip():
+            self.add_error("treatment_plan", "Describe how this treatment decision will be implemented.")
+        if treatment == RiskRegisterEntry.Treatment.ACCEPT:
+            if not self.can_accept:
+                self.add_error("treatment", "Only an organization administrator may accept risk.")
+            if not (cleaned.get("acceptance_rationale") or "").strip():
+                self.add_error("acceptance_rationale", "Risk acceptance requires a rationale.")
+            if not cleaned.get("acceptance_expires"):
+                self.add_error("acceptance_expires", "Risk acceptance requires an expiration date.")
         return cleaned
 
 

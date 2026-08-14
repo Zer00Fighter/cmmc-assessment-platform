@@ -1,5 +1,13 @@
 # Changelog
 
+## Sprint 18 — Operational risk management
+
+- Added organization-scoped assessment risk registers with control, catalog, owner, and remediation links.
+- Added inherent and residual likelihood/impact scoring and true 5×5 risk heatmaps.
+- Added mitigate, accept, avoid, and transfer treatment workflows.
+- Added administrator-approved, expiring risk acceptance with immutable history.
+- Added tenant-scoped risk-register workspace, details, filters, and CSV export.
+
 ## Sprint 17.8 — CCF risk catalog and governed control relationships
 
 - Added source-traceable canonical CCF risk definitions and private import tooling.
