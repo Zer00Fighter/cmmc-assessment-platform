@@ -7,7 +7,8 @@ from django.core.mail import send_mail
 from django.urls import reverse
 
 from .models import (
-    AuditEvent, Membership, Notification, NotificationPreference, WorkflowHistory,
+    AssessmentTeamMember, AuditEvent, Membership, Notification, NotificationPolicy,
+    NotificationPreference, WorkflowHistory,
 )
 
 
@@ -26,8 +27,14 @@ def notify(
     *, recipients: Iterable, organization, assessment, category: str, title: str,
     message: str, action_url: str = "", actor=None, object_type: str = "",
     object_id: str = "", event: str = "notification.created", previous_status: str = "",
-    new_status: str = "", comment: str = "",
+    new_status: str = "", comment: str = "", mandatory: bool = False,
 ):
+    policy, _ = NotificationPolicy.objects.get_or_create(organization=organization)
+    if not mandatory and (
+        not policy.notifications_enabled
+        or (assessment and not assessment.notifications_enabled)
+    ):
+        return []
     unique = {user.pk: user for user in recipients if user and user.pk}
     delivered = []
     for user in unique.values():
@@ -46,11 +53,13 @@ def notify(
             category=category, title=title, message=message, action_url=action_url,
             object_type=object_type, object_id=str(object_id),
         )
-        if (
+        email_allowed = (
             settings.OMNI_EMAIL_ENABLED
-            and preference.delivery == NotificationPreference.Delivery.EMAIL
+            and policy.email_enabled
+            and (not assessment or assessment.email_notifications_enabled)
             and user.email
-        ):
+        )
+        if email_allowed and preference.delivery == NotificationPreference.Delivery.EMAIL:
             try:
                 link = f"{settings.OMNI_BASE_URL}{action_url}" if action_url else settings.OMNI_BASE_URL
                 send_mail(
@@ -64,6 +73,11 @@ def notify(
                 item.email_status = Notification.EmailStatus.FAILED
                 item.email_error = str(error)[:500]
             item.save(update_fields=("email_status", "email_error"))
+        elif email_allowed and preference.delivery in (
+            NotificationPreference.Delivery.DAILY, NotificationPreference.Delivery.WEEKLY
+        ):
+            item.email_status = Notification.EmailStatus.QUEUED
+            item.save(update_fields=("email_status",))
         delivered.append(user.username)
     if actor and assessment:
         WorkflowHistory.objects.create(
@@ -79,6 +93,31 @@ def notify(
                     "notification_recipients": delivered},
         )
     return delivered
+
+
+def escalation_users(assessment, owner=None):
+    policy, _ = NotificationPolicy.objects.get_or_create(
+        organization=assessment.system.organization
+    )
+    users = [owner] if owner else []
+    if policy.escalation_recipients in (
+        NotificationPolicy.Escalation.LEAD, NotificationPolicy.Escalation.CLIENT
+    ):
+        users.extend(
+            item.membership.user for item in assessment.team_members.filter(
+                role=AssessmentTeamMember.Role.LEAD
+            ).select_related("membership__user")
+        )
+    return list({user.pk: user for user in users if user}.values())
+
+
+def client_escalation_email(assessment) -> str:
+    policy, _ = NotificationPolicy.objects.get_or_create(
+        organization=assessment.system.organization
+    )
+    if policy.escalation_recipients != NotificationPolicy.Escalation.CLIENT:
+        return ""
+    return assessment.system.system_owner_email.strip()
 
 
 def notify_assessment_team(assessment, **kwargs):

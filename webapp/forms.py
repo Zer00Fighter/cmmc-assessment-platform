@@ -10,6 +10,7 @@ from .models import (
     ControlAssessment, EvidenceArtifact, EvidenceRequest, Framework,
     InterviewSession, Membership, ObjectiveAssessment, Organization,
     NotificationPreference,
+    NotificationPolicy,
     RemediationMilestone, RemediationPlan, System, TestExecution,
 )
 
@@ -106,7 +107,7 @@ class EvidenceRequestForm(forms.ModelForm):
         model = EvidenceRequest
         fields = (
             "catalog_object", "title", "description", "status", "owner",
-            "due_date", "controls",
+            "due_date", "notify_owner", "controls",
         )
         widgets = {
             "description": forms.Textarea(attrs={"rows": 4}),
@@ -211,7 +212,7 @@ class RemediationPlanForm(forms.ModelForm):
             "actual_completion", "risk_acceptance_requested",
             "risk_acceptance_rationale", "risk_accepted_by",
             "risk_acceptance_expires", "closure_evidence", "validation_status",
-            "validation_notes",
+            "validation_notes", "notify_owner",
         )
         widgets = {
             "controls": forms.CheckboxSelectMultiple(),
@@ -285,7 +286,7 @@ class RemediationPlanForm(forms.ModelForm):
 class RemediationMilestoneForm(forms.ModelForm):
     class Meta:
         model = RemediationMilestone
-        fields = ("title", "description", "owner", "due_date", "completed_date", "status", "sequence")
+        fields = ("title", "description", "owner", "due_date", "completed_date", "status", "sequence", "notify_owner")
         widgets = {
             "description": forms.Textarea(attrs={"rows": 3}),
             "due_date": forms.DateInput(attrs={"type": "date"}),
@@ -344,6 +345,7 @@ class AssessmentPlanForm(forms.ModelForm):
         fields = (
             "engagement_start", "engagement_end", "scope_boundaries",
             "assessment_locations", "sampling_methodology",
+            "notifications_enabled", "email_notifications_enabled",
         )
         widgets = {
             "engagement_start": forms.DateInput(attrs={"type": "date"}),
@@ -492,6 +494,25 @@ class NotificationPreferenceForm(forms.ModelForm):
             "delivery", "assignments", "evidence", "remediation",
             "quality_review", "due_dates",
         )
+
+
+class NotificationPolicyForm(forms.ModelForm):
+    class Meta:
+        model = NotificationPolicy
+        fields = (
+            "notifications_enabled", "email_enabled", "first_reminder_days",
+            "second_reminder_days", "notify_on_due_date", "overdue_escalation_days",
+            "repeat_overdue_days", "escalation_recipients",
+        )
+
+    def clean(self):
+        cleaned = super().clean()
+        first, second = cleaned.get("first_reminder_days"), cleaned.get("second_reminder_days")
+        if first is not None and second is not None and second > first:
+            self.add_error("second_reminder_days", "Must be on or after the first reminder window.")
+        if cleaned.get("repeat_overdue_days") == 0:
+            self.add_error("repeat_overdue_days", "Use at least one day between overdue reminders.")
+        return cleaned
 
 
 class ControlAssessmentForm(forms.ModelForm):

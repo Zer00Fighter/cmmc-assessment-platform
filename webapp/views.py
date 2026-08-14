@@ -8,6 +8,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import Count, Q, Sum
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse
@@ -29,6 +30,7 @@ from .forms import (
     InterviewSessionForm,
     ObjectiveAssessmentForm,
     NotificationPreferenceForm,
+    NotificationPolicyForm,
     QualityReviewForm,
     ReopenAssessmentForm,
     RemediationMilestoneForm,
@@ -51,6 +53,7 @@ from .models import (
     Membership,
     Notification,
     NotificationPreference,
+    NotificationPolicy,
     InterviewSession,
     ObjectiveAssessment,
     Organization,
@@ -163,6 +166,50 @@ def notification_preferences(request: HttpRequest) -> HttpResponse:
         messages.success(request, "Notification preferences saved.")
         return redirect("notification-preferences")
     return render(request, "webapp/notification_preferences.html", {"form": form})
+
+
+@login_required
+def notification_policy(request: HttpRequest, org_slug: str) -> HttpResponse:
+    organization = _organization_for(request.user, org_slug)
+    if not _is_org_admin(request.user, organization):
+        raise Http404
+    policy, _ = NotificationPolicy.objects.get_or_create(organization=organization)
+    form = NotificationPolicyForm(request.POST or None, instance=policy)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        AuditEvent.objects.create(
+            organization=organization, actor=request.user, action="notification_policy.updated",
+            object_type="NotificationPolicy", object_id=str(policy.id), detail={},
+        )
+        messages.success(request, "Notification governance settings saved.")
+        return redirect("notification-policy", org_slug=org_slug)
+    return render(request, "webapp/notification_policy.html", {
+        "organization": organization, "form": form, "email_configured": settings.OMNI_EMAIL_ENABLED,
+    })
+
+
+@login_required
+def notification_test_email(request: HttpRequest, org_slug: str) -> HttpResponse:
+    if request.method != "POST":
+        raise Http404
+    organization = _organization_for(request.user, org_slug)
+    if not _is_org_admin(request.user, organization):
+        raise Http404
+    if not settings.OMNI_EMAIL_ENABLED or not request.user.email:
+        messages.error(request, "Email is not enabled or your Omni account has no email address.")
+    else:
+        delivered = send_mail(
+            "Omni notification test",
+            "Omni notification delivery is configured successfully. No client or assessment data is included.",
+            settings.DEFAULT_FROM_EMAIL, [request.user.email], fail_silently=True,
+        )
+        AuditEvent.objects.create(
+            organization=organization, actor=request.user, action="notification.test_email",
+            object_type="NotificationPolicy", object_id=str(organization.id),
+            detail={"delivered": bool(delivered)},
+        )
+        messages.success(request, "Test email sent." if delivered else "Test email delivery failed.")
+    return redirect("notification-policy", org_slug=org_slug)
 
 
 @login_required
@@ -909,7 +956,7 @@ def assessment_signoff(request: HttpRequest, org_slug: str, assessment_id: int) 
             action_url=assessment_url(assessment), actor=request.user,
             object_type="Assessment", object_id=assessment.id,
             event="assessment.signoff_notified", previous_status=Assessment.Status.IN_PROGRESS,
-            new_status=Assessment.Status.COMPLETE,
+            new_status=Assessment.Status.COMPLETE, mandatory=True,
         )
         messages.success(request, "Assessment signed off and locked.")
     return redirect("quality-review", org_slug=org_slug, assessment_id=assessment.id)
@@ -940,6 +987,7 @@ def assessment_reopen(request: HttpRequest, org_slug: str, assessment_id: int) -
             object_type="Assessment", object_id=assessment.id,
             event="assessment.reopen_notified", previous_status=Assessment.Status.COMPLETE,
             new_status=Assessment.Status.IN_PROGRESS, comment=form.cleaned_data["reason"],
+            mandatory=True,
         )
         messages.success(request, "Assessment reopened with an audit record.")
         return redirect("assessment-dashboard", org_slug=org_slug, assessment_id=assessment.id)
@@ -1093,7 +1141,7 @@ def evidence_request_create(
             object_type="EvidenceRequest", object_id=str(evidence_request.id),
             detail={"title": evidence_request.title, "controls": evidence_request.controls.count()},
         )
-        if evidence_request.owner:
+        if evidence_request.owner and evidence_request.notify_owner:
             notify(
                 recipients=[evidence_request.owner.user], organization=organization,
                 assessment=assessment, category=Notification.Category.ASSIGNMENT,
@@ -1372,7 +1420,7 @@ def remediation_create(request: HttpRequest, org_slug: str, assessment_id: int) 
             object_type="RemediationPlan", object_id=str(plan.id),
             detail={"remediation_id": plan.remediation_id, "controls": plan.controls.count()},
         )
-        if plan.owner:
+        if plan.owner and plan.notify_owner:
             notify(
                 recipients=[plan.owner.user], organization=organization, assessment=assessment,
                 category=Notification.Category.ASSIGNMENT,
@@ -1483,7 +1531,7 @@ def remediation_milestone_create(
             object_type="RemediationMilestone", object_id=str(milestone.id),
             detail={"remediation_id": plan.remediation_id, "title": milestone.title},
         )
-        if milestone.owner:
+        if milestone.owner and milestone.notify_owner:
             notify(
                 recipients=[milestone.owner.user], organization=organization,
                 assessment=assessment, category=Notification.Category.ASSIGNMENT,

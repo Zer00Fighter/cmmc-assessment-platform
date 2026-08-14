@@ -29,6 +29,7 @@ from .models import (
     GeneratedDocument,
     Membership,
     Notification,
+    NotificationPolicy,
     NotificationPreference,
     ObjectiveAssessment,
     Organization,
@@ -1039,7 +1040,8 @@ class SprintEightWorkflowTests(TestCase):
         ), {
             "title": "Access policy", "description": "Provide the policy",
             "status": EvidenceRequest.Status.REQUESTED, "owner": self.owner_member.id,
-            "due_date": date.today() + timedelta(days=7), "controls": [self.control.id],
+            "due_date": date.today() + timedelta(days=7), "notify_owner": "on",
+            "controls": [self.control.id],
         })
         self.assertRedirects(response, reverse(
             "evidence-list", args=("workflow", self.assessment.id)
@@ -1090,3 +1092,112 @@ class SprintEightWorkflowTests(TestCase):
         self.assertEqual(Notification.objects.filter(
             recipient=self.owner, category=Notification.Category.DEADLINE
         ).count(), 1)
+
+
+class SprintEightOneGovernanceTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.admin = user_model.objects.create_user(
+            "policy-admin", email="admin@example.test", password="test-password"
+        )
+        self.owner = user_model.objects.create_user(
+            "policy-owner", email="owner@example.test", password="test-password"
+        )
+        self.lead = user_model.objects.create_user(
+            "policy-lead", email="lead@example.test", password="test-password"
+        )
+        self.organization = Organization.objects.create(name="Policy Test", slug="policy")
+        Membership.objects.create(
+            user=self.admin, organization=self.organization, role=Membership.Role.ADMIN
+        )
+        self.owner_member = Membership.objects.create(
+            user=self.owner, organization=self.organization, role=Membership.Role.CLIENT
+        )
+        lead_member = Membership.objects.create(
+            user=self.lead, organization=self.organization, role=Membership.Role.ASSESSOR
+        )
+        system = System.objects.create(
+            organization=self.organization, name="Policy System",
+            system_owner_name="Client Owner", system_owner_email="client-owner@example.test",
+        )
+        framework = Framework.objects.create(code="POL", name="Policy", version="1")
+        requirement = Requirement.objects.create(
+            framework=framework, requirement_id="POL-1", domain="POL",
+            title="Policy", statement="Apply policy."
+        )
+        self.assessment = Assessment.objects.create(
+            system=system, framework=framework, name="Policy Assessment", created_by=self.admin
+        )
+        self.control = ControlAssessment.objects.create(
+            assessment=self.assessment, requirement=requirement
+        )
+        AssessmentTeamMember.objects.create(
+            assessment=self.assessment, membership=lead_member,
+            role=AssessmentTeamMember.Role.LEAD,
+        )
+
+    def test_per_action_toggle_suppresses_assignment_notification(self):
+        self.client.login(username="policy-admin", password="test-password")
+        self.client.post(reverse(
+            "evidence-request-create", args=("policy", self.assessment.id)
+        ), {
+            "title": "Silent request", "status": EvidenceRequest.Status.REQUESTED,
+            "owner": self.owner_member.id, "due_date": date.today() + timedelta(days=7),
+            "controls": [self.control.id],
+        })
+        self.assertFalse(Notification.objects.filter(recipient=self.owner).exists())
+
+    @override_settings(
+        OMNI_EMAIL_ENABLED=True,
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        DEFAULT_FROM_EMAIL="Omni <omni@example.test>",
+    )
+    def test_daily_digest_queues_then_sends(self):
+        NotificationPreference.objects.create(
+            user=self.owner, delivery=NotificationPreference.Delivery.DAILY
+        )
+        from .notifications import notify
+        notify(
+            recipients=[self.owner], organization=self.organization,
+            assessment=self.assessment, category=Notification.Category.ASSIGNMENT,
+            title="Digest assignment", message="Open Omni", actor=self.admin,
+        )
+        notice = Notification.objects.get(recipient=self.owner)
+        self.assertEqual(notice.email_status, Notification.EmailStatus.QUEUED)
+        call_command("send_notification_digests")
+        notice.refresh_from_db()
+        self.assertEqual(notice.email_status, Notification.EmailStatus.SENT)
+        self.assertEqual(len(mail.outbox), 1)
+
+    @override_settings(
+        OMNI_EMAIL_ENABLED=True,
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        DEFAULT_FROM_EMAIL="Omni <omni@example.test>",
+    )
+    def test_overdue_escalates_to_owner_lead_and_system_owner(self):
+        NotificationPolicy.objects.create(
+            organization=self.organization,
+            escalation_recipients=NotificationPolicy.Escalation.CLIENT,
+        )
+        EvidenceRequest.objects.create(
+            assessment=self.assessment, title="Escalated request", owner=self.owner_member,
+            due_date=date.today() - timedelta(days=1), created_by=self.admin,
+        )
+        call_command("send_workflow_reminders")
+        recipients = set(Notification.objects.values_list("recipient__username", flat=True))
+        self.assertEqual(recipients, {"policy-owner", "policy-lead"})
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["client-owner@example.test"])
+
+    def test_org_admin_can_update_notification_policy(self):
+        self.client.login(username="policy-admin", password="test-password")
+        response = self.client.post(reverse("notification-policy", args=("policy",)), {
+            "first_reminder_days": 10, "second_reminder_days": 5,
+            "notify_on_due_date": "on", "overdue_escalation_days": 2,
+            "repeat_overdue_days": 14,
+            "escalation_recipients": NotificationPolicy.Escalation.CLIENT,
+        })
+        self.assertRedirects(response, reverse("notification-policy", args=("policy",)))
+        policy = self.organization.notification_policy
+        self.assertEqual(policy.repeat_overdue_days, 14)
+        self.assertFalse(policy.notifications_enabled)

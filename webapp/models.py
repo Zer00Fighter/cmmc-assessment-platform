@@ -33,6 +33,30 @@ class Organization(models.Model):
         return self.name
 
 
+class NotificationPolicy(models.Model):
+    class Escalation(models.TextChoices):
+        OWNER = "OWNER", "Owner only"
+        LEAD = "LEAD", "Owner and lead assessor"
+        CLIENT = "CLIENT", "Owner, lead assessor, and System Owner"
+
+    organization = models.OneToOneField(
+        Organization, on_delete=models.CASCADE, related_name="notification_policy"
+    )
+    notifications_enabled = models.BooleanField(default=True)
+    email_enabled = models.BooleanField(default=True)
+    first_reminder_days = models.PositiveSmallIntegerField(default=7)
+    second_reminder_days = models.PositiveSmallIntegerField(default=3)
+    notify_on_due_date = models.BooleanField(default=True)
+    overdue_escalation_days = models.PositiveSmallIntegerField(default=1)
+    repeat_overdue_days = models.PositiveSmallIntegerField(default=7)
+    escalation_recipients = models.CharField(
+        max_length=10, choices=Escalation.choices, default=Escalation.LEAD
+    )
+
+    def __str__(self) -> str:
+        return f"Notification policy for {self.organization}"
+
+
 class Membership(models.Model):
     class Role(models.TextChoices):
         ADMIN = "ADMIN", "Administrator"
@@ -221,6 +245,8 @@ class Assessment(models.Model):
     )
     reopened_at = models.DateTimeField(null=True, blank=True)
     reopen_reason = models.TextField(blank=True)
+    notifications_enabled = models.BooleanField(default=True)
+    email_notifications_enabled = models.BooleanField(default=True)
 
     class Meta:
         ordering = ("-updated_at",)
@@ -554,6 +580,7 @@ class EvidenceRequest(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    notify_owner = models.BooleanField(default=True)
 
     class Meta:
         ordering = ("status", "due_date", "title")
@@ -702,6 +729,7 @@ class RemediationPlan(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    notify_owner = models.BooleanField(default=True)
 
     class Meta:
         ordering = ("status", "-priority", "planned_completion", "remediation_id")
@@ -744,6 +772,7 @@ class RemediationMilestone(models.Model):
         max_length=15, choices=Status.choices, default=Status.NOT_STARTED
     )
     sequence = models.PositiveSmallIntegerField(default=1)
+    notify_owner = models.BooleanField(default=True)
 
     class Meta:
         ordering = ("sequence", "due_date", "id")
@@ -803,7 +832,9 @@ class AuditEvent(models.Model):
 class NotificationPreference(models.Model):
     class Delivery(models.TextChoices):
         IN_APP = "IN_APP", "In-app only"
-        EMAIL = "EMAIL", "In-app and email"
+        EMAIL = "EMAIL", "In-app and immediate email"
+        DAILY = "DAILY", "In-app and daily email digest"
+        WEEKLY = "WEEKLY", "In-app and weekly email digest"
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
@@ -831,6 +862,7 @@ class Notification(models.Model):
 
     class EmailStatus(models.TextChoices):
         NOT_REQUESTED = "NOT_REQUESTED", "Not requested"
+        QUEUED = "QUEUED", "Queued for digest"
         SENT = "SENT", "Sent"
         FAILED = "FAILED", "Failed"
 

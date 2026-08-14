@@ -17,6 +17,7 @@ from .models import (
     InterviewSession,
     Notification,
     NotificationPreference,
+    NotificationPolicy,
     ObjectiveAssessment,
     Organization,
     Requirement,
@@ -53,6 +54,7 @@ admin.site.register(
         EvidenceReviewHistory,
         Notification,
         NotificationPreference,
+        NotificationPolicy,
         WorkflowHistory,
         AuditEvent,
     )
