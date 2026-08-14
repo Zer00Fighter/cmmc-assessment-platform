@@ -54,6 +54,7 @@ from .forms import (
 )
 from .models import (
     Assessment,
+    AuthoritativeDocument,
     AssessmentAccess,
     AssessmentFramework,
     AssessmentReuseDecision,
@@ -1622,6 +1623,23 @@ def omni_evidence_catalog(request: HttpRequest) -> HttpResponse:
                     "review": OmniEvidenceSourceRequest.objects.filter(resolution="REVIEW").count(),
                     "candidates": OmniEvidenceSourceRequest.objects.filter(resolution="NEW_CANDIDATE").count(),
                     "controls": len({control for source in all_sources for control in source.omni_control_ids})}})
+
+
+@login_required
+def authoritative_source_registry(request: HttpRequest) -> HttpResponse:
+    if not request.user.is_superuser: raise Http404
+    documents = AuthoritativeDocument.objects.select_related("authority", "superseded_by")
+    quality, locale = request.GET.get("quality", ""), request.GET.get("locale", "")
+    if quality: documents = documents.filter(quality=quality)
+    if locale: documents = documents.filter(locale=locale)
+    all_documents = AuthoritativeDocument.objects.all()
+    return render(request, "webapp/authoritative_source_registry.html", {
+        "documents": documents[:300], "locales": all_documents.values_list("locale", flat=True).distinct().order_by("locale"),
+        "filters": {"quality": quality, "locale": locale},
+        "metrics": {"documents": all_documents.count(),
+                    "authorities": all_documents.values("authority_id").distinct().count(),
+                    "valid": all_documents.filter(quality="VALID").count(),
+                    "issues": all_documents.exclude(quality="VALID").count()}})
 
 
 @login_required

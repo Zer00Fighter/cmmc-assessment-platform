@@ -17,7 +17,7 @@ from docx import Document
 from src.ssp_export import SSPExportMetadata, export_ssp
 from src.workbook import WorkbookBuilder
 
-from .models import ControlAssessment, EvidenceArtifact, ObjectiveAssessment, RemediationPlan
+from .models import AuthoritativeDocument, ControlAssessment, EvidenceArtifact, ObjectiveAssessment, RemediationPlan
 from .remediation_export import build_remediation_workbook
 
 
@@ -130,6 +130,13 @@ def build_multi_framework_report(assessment, framework=None) -> bytes:
             values = (result.requirement.requirement_id, result.requirement.title, result.status,
                       str(result.evidence_artifacts.count()), result.assessor_notes_findings)
             for cell, value in zip(cells, values): cell.text = str(value)
+        sources = AuthoritativeDocument.objects.filter(
+            authority__canonical_name__iexact=item.name, active=True
+        )
+        if sources:
+            document.add_heading(f"{item.code} authoritative sources", level=2)
+            for source in sources:
+                document.add_paragraph(f"{source.formal_name} — {source.official_url or 'Source URL pending'}")
     stream = io.BytesIO(); document.save(stream); return stream.getvalue()
 
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## Sprint 17.6 — Authoritative Source Registry
+
+- Added private authoritative-source import, provenance, quality classification, and authority linking.
+- Added source registry UI and framework-report citation support.
+
 ## Sprint 17.5 — Omni Evidence Catalog integration
 
 - Added source-faithful private Omni evidence-list import and validation.

@@ -16,7 +16,7 @@ from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
 
 from .models import (
     Assessment,
@@ -28,6 +28,7 @@ from .models import (
     AssessmentSample,
     AssessmentTeamMember,
     AuditEvent,
+    AuthoritativeDocument,
     ControlAssessment,
     EvidenceArtifact,
     EvidenceApplicability,
@@ -61,6 +62,56 @@ from .framework_import import materialize_mapping_references, parse_upload, reso
 from .harmonization import refresh_harmonization, review_reuse
 from .mapping_governance import review_change
 from .omni_evidence_catalog import import_catalog, normalize_cmmc
+from .authoritative_sources import import_authoritative_sources
+
+
+class SprintSeventeenPointSixAuthoritativeSourcesTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.admin = user_model.objects.create_superuser(
+            "source-admin", "admin@example.com", "test-password"
+        )
+        self.regular = user_model.objects.create_user(
+            "source-user", password="test-password"
+        )
+
+    def _workbook(self, directory):
+        path = Path(directory) / "authoritative-sources.xlsx"
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Focal Documents"
+        sheet.append(["Locale", "CCF Column Header", "ADI", "Source", "Focal Document Name", "Authoritative Documents URL"])
+        sheet.append(["Global", "ISO 27001", "iso-27001", "ISO", "ISO/IEC 27001", "https://www.iso.org/standard/27001.html"])
+        sheet.append(["US", "NIST CSF", "duplicate-id", "NIST", "NIST CSF", "https://www.nist.gov/cyberframework"])
+        sheet.append(["US", "NIST SP 800-53", "duplicate-id", "NIST", "NIST SP 800-53", "https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final"])
+        sheet.append(["US", "Invalid Source", "invalid-source", "Example", "Invalid publication", "not a URL"])
+        sheet.append(["Not Complete", "", "", "", "Footer", ""])
+        workbook.save(path)
+        workbook.close()
+        return path
+
+    def test_private_import_preserves_provenance_and_quality(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = import_authoritative_sources(self._workbook(directory), apply=True)
+
+        self.assertEqual(report["records"], 4)
+        self.assertEqual(report["valid"], 1)
+        self.assertEqual(report["duplicate_adi"], 2)
+        self.assertEqual(report["invalid_url"], 1)
+        self.assertEqual(report["excluded_rows"], 1)
+        self.assertEqual(AuthoritativeDocument.objects.count(), 4)
+        invalid = AuthoritativeDocument.objects.get(authoritative_document_id="invalid-source")
+        self.assertEqual(invalid.official_url, "")
+        self.assertEqual(invalid.source_url_text, "not a URL")
+        self.assertEqual(invalid.source_row, 5)
+        self.assertEqual(invalid.authority.canonical_name, "Invalid Source")
+        self.assertEqual(len(invalid.source_sha256), 64)
+
+    def test_registry_is_restricted_to_superusers(self):
+        self.client.force_login(self.regular)
+        self.assertEqual(self.client.get(reverse("authoritative-source-registry")).status_code, 404)
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse("authoritative-source-registry")).status_code, 200)
 
 
 class SprintOneWorkflowTests(TestCase):

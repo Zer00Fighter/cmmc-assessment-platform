@@ -342,6 +342,42 @@ class ExternalAuthority(models.Model):
         return self.canonical_name
 
 
+class AuthoritativeDocument(models.Model):
+    class Quality(models.TextChoices):
+        VALID = "VALID", "Valid"
+        MISSING_URL = "MISSING_URL", "Missing URL"
+        INVALID_URL = "INVALID_URL", "Invalid URL"
+        DUPLICATE_ADI = "DUPLICATE_ADI", "Duplicate identifier"
+
+    authority = models.ForeignKey(
+        ExternalAuthority, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="authoritative_documents",
+    )
+    locale = models.CharField(max_length=100)
+    ccf_column_header = models.CharField(max_length=300)
+    authoritative_document_id = models.CharField(max_length=150)
+    publisher = models.CharField(max_length=250)
+    formal_name = models.CharField(max_length=500)
+    official_url = models.URLField(max_length=1000, blank=True)
+    source_url_text = models.TextField(blank=True)
+    quality = models.CharField(max_length=20, choices=Quality.choices, default=Quality.VALID)
+    superseded_by = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="supersedes"
+    )
+    active = models.BooleanField(default=True)
+    source_row = models.PositiveIntegerField()
+    source_filename = models.CharField(max_length=255)
+    source_sha256 = models.CharField(max_length=64)
+    last_link_check_at = models.DateTimeField(null=True, blank=True)
+    last_link_status = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("locale", "publisher", "formal_name")
+        constraints = [models.UniqueConstraint(
+            fields=("source_sha256", "source_row"), name="unique_authoritative_source_row"
+        )]
+
+
 class MappingReference(models.Model):
     class Status(models.TextChoices):
         UNRESOLVED = "UNRESOLVED", "Unresolved"
