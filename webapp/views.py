@@ -49,6 +49,7 @@ from .forms import (
     FrameworkImportForm,
     AssessmentReuseDecisionForm,
     MappingReferenceReviewForm,
+    EvidenceApplicabilityForm,
 )
 from .models import (
     Assessment,
@@ -61,6 +62,7 @@ from .models import (
     AuditEvent,
     ControlAssessment,
     EvidenceArtifact,
+    EvidenceApplicability,
     EvidenceRequest,
     ExternalAuthority,
     Framework,
@@ -1208,6 +1210,55 @@ def assessment_harmonization(
         "organization": organization, "assessment": assessment, "decisions": decisions,
         "metrics": harmonization_metrics(assessment), "can_edit": can_edit,
         "omni_hub": Framework.objects.filter(is_omni_control_framework=True).first(),
+    })
+
+
+@login_required
+@transaction.atomic
+def shared_work_workspace(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    can_edit = _can_edit(request.user, organization) and not assessment.locked
+    if request.method == "POST":
+        if not can_edit:
+            raise Http404
+        action = request.POST.get("action")
+        if action == "applicability":
+            artifact = get_object_or_404(assessment.evidence_artifacts, pk=request.POST.get("artifact_id"))
+            control = get_object_or_404(assessment.control_results, pk=request.POST.get("control_id"))
+            review, _ = EvidenceApplicability.objects.get_or_create(
+                artifact=artifact, control_result=control, defaults={"reviewed_by": request.user}
+            )
+            form = EvidenceApplicabilityForm(request.POST, instance=review)
+            if form.is_valid():
+                review = form.save(commit=False); review.reviewed_by = request.user; review.save()
+                messages.success(request, "Evidence applicability recorded; the control conclusion remains separate.")
+        elif action == "consolidate":
+            ids = [int(value) for value in request.POST.getlist("requests") if value.isdigit()]
+            requests = list(assessment.evidence_requests.filter(pk__in=ids, consolidated_into__isnull=True))
+            if len(requests) >= 2:
+                primary, controls = requests[0], set()
+                for item in requests:
+                    controls.update(item.controls.values_list("pk", flat=True))
+                primary.controls.set(controls)
+                for item in requests[1:]:
+                    item.consolidated_into = primary; item.save(update_fields=("consolidated_into",))
+                messages.success(request, f"{len(requests)} requests consolidated into {primary.title}.")
+        return redirect("shared-work-workspace", org_slug=org_slug, assessment_id=assessment.pk)
+    decisions = assessment.reuse_decisions.select_related(
+        "source_result__requirement__framework", "target_result__requirement__framework"
+    ).prefetch_related("source_result__evidence_artifacts", "target_result__evidence_artifacts")
+    artifacts = assessment.evidence_artifacts.prefetch_related("controls__requirement__framework", "applicability_reviews")
+    gaps = assessment.control_results.filter(
+        Q(status=ControlAssessment.Status.NOT_ASSESSED) |
+        Q(evidence_artifacts__isnull=True)
+    ).select_related("requirement__framework").distinct()
+    return render(request, "webapp/shared_work_workspace.html", {
+        "organization": organization, "assessment": assessment, "decisions": decisions,
+        "artifacts": artifacts, "gaps": gaps, "can_edit": can_edit,
+        "requests": assessment.evidence_requests.filter(consolidated_into__isnull=True).prefetch_related("controls"),
+        "metrics": {"reuse": decisions.filter(status=AssessmentReuseDecision.Status.APPROVED).count(),
+                    "artifacts": artifacts.count(), "gaps": gaps.count(),
+                    "consolidated": assessment.evidence_requests.filter(consolidated_into__isnull=False).count()},
     })
 
 

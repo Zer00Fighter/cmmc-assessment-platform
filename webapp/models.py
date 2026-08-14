@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 from django.conf import settings
 from django.core.validators import FileExtensionValidator
 from django.db import models
@@ -850,6 +852,9 @@ class EvidenceRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     notify_owner = models.BooleanField(default=True)
+    consolidated_into = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="consolidated_requests"
+    )
 
     class Meta:
         ordering = ("status", "due_date", "title")
@@ -883,6 +888,10 @@ class EvidenceArtifact(models.Model):
     source = models.CharField(max_length=250, blank=True)
     period_start = models.DateField(null=True, blank=True)
     period_end = models.DateField(null=True, blank=True)
+    expires_on = models.DateField(null=True, blank=True)
+    superseded_by = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="supersedes"
+    )
     review_status = models.CharField(
         max_length=20, choices=ReviewStatus.choices, default=ReviewStatus.RECEIVED
     )
@@ -905,6 +914,47 @@ class EvidenceArtifact(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+    @property
+    def freshness(self) -> str:
+        if self.superseded_by_id:
+            return "SUPERSEDED"
+        if self.expires_on and self.expires_on < timezone.localdate():
+            return "EXPIRED"
+        if self.expires_on and self.expires_on <= timezone.localdate() + timedelta(days=30):
+            return "AGING"
+        return "CURRENT"
+
+
+class EvidenceApplicability(models.Model):
+    class Applicability(models.TextChoices):
+        FULL = "FULL", "Fully applicable"
+        PARTIAL = "PARTIAL", "Partially applicable"
+        NOT_APPLICABLE = "NOT_APPLICABLE", "Not applicable"
+        ADDITIONAL_REQUIRED = "ADDITIONAL_REQUIRED", "Additional evidence required"
+
+    artifact = models.ForeignKey(EvidenceArtifact, on_delete=models.CASCADE, related_name="applicability_reviews")
+    control_result = models.ForeignKey(ControlAssessment, on_delete=models.CASCADE, related_name="evidence_applicability")
+    applicability = models.CharField(max_length=25, choices=Applicability.choices)
+    rationale = models.TextField(blank=True)
+    scope_limitations = models.TextField(blank=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="evidence_applicability_reviews")
+    reviewed_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=("artifact", "control_result"), name="unique_evidence_applicability")]
+
+
+class TestReuseReference(models.Model):
+    source_test = models.ForeignKey(TestExecution, on_delete=models.CASCADE, related_name="reuse_references")
+    target_objective = models.ForeignKey(ObjectiveAssessment, on_delete=models.CASCADE, related_name="reused_tests")
+    reuse_decision = models.ForeignKey(AssessmentReuseDecision, on_delete=models.PROTECT, related_name="test_references")
+    limitations = models.TextField(blank=True)
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="approved_test_reuse")
+    approved_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=("source_test", "target_objective"), name="unique_test_reuse_target")]
 
 
 class RemediationPlan(models.Model):

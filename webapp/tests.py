@@ -30,6 +30,7 @@ from .models import (
     AuditEvent,
     ControlAssessment,
     EvidenceArtifact,
+    EvidenceApplicability,
     EvidenceRequest,
     ExternalAuthority,
     Framework,
@@ -1740,3 +1741,39 @@ class SprintFourteenMappingCurationTests(TestCase):
         reference.refresh_from_db()
         self.assertEqual(reference.review_status, MappingReference.ReviewStatus.APPROVED)
         self.assertEqual(reference.reviewed_by, self.admin)
+
+
+class SprintFifteenSharedWorkTests(SprintThirteenHarmonizationTests):
+    def test_shared_workspace_records_applicability_without_changing_conclusion(self):
+        artifact = EvidenceArtifact.objects.create(
+            organization=self.organization, assessment=self.assessment, title="Shared policy",
+            external_reference="https://example.test/policy",
+            review_status=EvidenceArtifact.ReviewStatus.ACCEPTED, uploaded_by=self.admin,
+        )
+        artifact.controls.add(self.result_a)
+        refresh_harmonization(self.assessment)
+        decision = AssessmentReuseDecision.objects.get()
+        review_reuse(decision, self.admin, True)
+        self.client.login(username="harmonizer", password="test-password")
+        url = reverse("shared-work-workspace", args=(self.organization.slug, self.assessment.pk))
+        response = self.client.post(url, {"action": "applicability", "artifact_id": artifact.pk,
+            "control_id": self.result_b.pk, "applicability": "PARTIAL",
+            "rationale": "Same policy, supplemental test needed.", "scope_limitations": "Framework-specific clause."})
+        self.assertRedirects(response, url)
+        self.assertEqual(EvidenceApplicability.objects.get().applicability, "PARTIAL")
+        self.result_b.refresh_from_db()
+        self.assertEqual(self.result_b.status, ControlAssessment.Status.NOT_ASSESSED)
+
+    def test_request_consolidation_preserves_source_requests(self):
+        first = EvidenceRequest.objects.create(assessment=self.assessment, title="Policy copy", created_by=self.admin)
+        second = EvidenceRequest.objects.create(assessment=self.assessment, title="Policy approval", created_by=self.admin)
+        first.controls.add(self.result_a); second.controls.add(self.result_b)
+        self.client.login(username="harmonizer", password="test-password")
+        url = reverse("shared-work-workspace", args=(self.organization.slug, self.assessment.pk))
+        self.client.post(url, {"action": "consolidate", "requests": [first.pk, second.pk]})
+        first.refresh_from_db(); second.refresh_from_db()
+        consolidated = [item for item in (first, second) if item.consolidated_into_id]
+        primary = [item for item in (first, second) if not item.consolidated_into_id]
+        self.assertEqual(len(consolidated), 1)
+        self.assertEqual(len(primary), 1)
+        self.assertEqual(primary[0].controls.count(), 2)

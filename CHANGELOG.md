@@ -1,5 +1,12 @@
 # Changelog
 
+## Sprint 15 — Shared evidence and testing workspace
+
+- Added unified mapped-work and remaining-work views.
+- Added per-control evidence applicability review and freshness/supersession.
+- Added non-destructive evidence-request consolidation.
+- Added governed test reuse by reference without copying conclusions.
+
 ## Sprint 14 — Omni Control Framework onboarding and mapping curation
 
 - Added an external-authority registry for Omni mapping columns beginning at column F.

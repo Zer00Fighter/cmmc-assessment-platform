@@ -10,7 +10,7 @@ from src.evidence.evidence_knowledge import EVIDENCE_KNOWLEDGE
 
 from .models import (
     Assessment, AssessmentAccess, AssessmentFramework, AssessmentProcedure, AssessmentReuseDecision, AssessmentSample, AssessmentTeamMember,
-    ControlAssessment, EvidenceArtifact, EvidenceRequest, Framework, MappingReference,
+    ControlAssessment, EvidenceApplicability, EvidenceArtifact, EvidenceRequest, Framework, MappingReference,
     InterviewSession, Membership, ObjectiveAssessment, Organization,
     NotificationPreference,
     NotificationPolicy,
@@ -300,11 +300,12 @@ class EvidenceArtifactForm(forms.ModelForm):
         model = EvidenceArtifact
         fields = (
             "title", "file", "external_reference", "source", "period_start",
-            "period_end", "review_status", "assessor_notes", "requests", "controls",
+            "period_end", "expires_on", "superseded_by", "review_status", "assessor_notes", "requests", "controls",
         )
         widgets = {
             "period_start": forms.DateInput(attrs={"type": "date"}),
             "period_end": forms.DateInput(attrs={"type": "date"}),
+            "expires_on": forms.DateInput(attrs={"type": "date"}),
             "assessor_notes": forms.Textarea(attrs={"rows": 4}),
             "requests": forms.CheckboxSelectMultiple(),
             "controls": forms.CheckboxSelectMultiple(),
@@ -319,6 +320,7 @@ class EvidenceArtifactForm(forms.ModelForm):
         if not can_review:
             self.fields["review_status"].disabled = True
             self.fields["assessor_notes"].disabled = True
+        self.fields["superseded_by"].queryset = assessment.evidence_artifacts.exclude(pk=self.instance.pk)
 
     def clean_file(self):
         uploaded = self.cleaned_data.get("file")
@@ -338,6 +340,13 @@ class EvidenceArtifactForm(forms.ModelForm):
                 and not (cleaned.get("assessor_notes") or "").strip()):
             self.add_error("assessor_notes", "Explain why the evidence was rejected.")
         return cleaned
+
+
+class EvidenceApplicabilityForm(forms.ModelForm):
+    class Meta:
+        model = EvidenceApplicability
+        fields = ("applicability", "rationale", "scope_limitations")
+        widgets = {"rationale": forms.Textarea(attrs={"rows": 2}), "scope_limitations": forms.Textarea(attrs={"rows": 2})}
 
 
 class RemediationPlanForm(forms.ModelForm):

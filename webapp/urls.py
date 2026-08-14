@@ -57,6 +57,7 @@ urlpatterns = [
     path("organizations/<slug:org_slug>/assessments/<int:assessment_id>/access/", views.assessment_access, name="assessment-access"),
     path("organizations/<slug:org_slug>/assessments/<int:assessment_id>/execution/", views.assessment_execution, name="assessment-execution"),
     path("organizations/<slug:org_slug>/assessments/<int:assessment_id>/harmonization/", views.assessment_harmonization, name="assessment-harmonization"),
+    path("organizations/<slug:org_slug>/assessments/<int:assessment_id>/shared-work/", views.shared_work_workspace, name="shared-work-workspace"),
     path("organizations/<slug:org_slug>/assessments/<int:assessment_id>/execution/objectives/<int:objective_result_id>/", views.objective_edit, name="objective-edit"),
     path("organizations/<slug:org_slug>/assessments/<int:assessment_id>/execution/interviews/new/", views.interview_create, name="interview-create"),
     path("organizations/<slug:org_slug>/assessments/<int:assessment_id>/execution/samples/new/", views.sample_create, name="sample-create"),
