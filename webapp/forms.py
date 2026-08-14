@@ -9,6 +9,7 @@ from .models import (
     Assessment, AssessmentFramework, AssessmentProcedure, AssessmentSample, AssessmentTeamMember,
     ControlAssessment, EvidenceArtifact, EvidenceRequest, Framework,
     InterviewSession, Membership, ObjectiveAssessment, Organization,
+    NotificationPreference,
     RemediationMilestone, RemediationPlan, System, TestExecution,
 )
 
@@ -193,6 +194,9 @@ class EvidenceArtifactForm(forms.ModelForm):
         start, end = cleaned.get("period_start"), cleaned.get("period_end")
         if start and end and end < start:
             self.add_error("period_end", "The period end cannot precede the start.")
+        if (cleaned.get("review_status") == EvidenceArtifact.ReviewStatus.REJECTED
+                and not (cleaned.get("assessor_notes") or "").strip()):
+            self.add_error("assessor_notes", "Explain why the evidence was rejected.")
         return cleaned
 
 
@@ -479,6 +483,15 @@ class QualityReviewForm(forms.ModelForm):
 
 class ReopenAssessmentForm(forms.Form):
     reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 5}), min_length=10)
+
+
+class NotificationPreferenceForm(forms.ModelForm):
+    class Meta:
+        model = NotificationPreference
+        fields = (
+            "delivery", "assignments", "evidence", "remediation",
+            "quality_review", "due_dates",
+        )
 
 
 class ControlAssessmentForm(forms.ModelForm):

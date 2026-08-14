@@ -10,10 +10,13 @@ from .models import (
     ControlAssessment,
     EvidenceArtifact,
     EvidenceRequest,
+    EvidenceReviewHistory,
     Framework,
     GeneratedDocument,
     Membership,
     InterviewSession,
+    Notification,
+    NotificationPreference,
     ObjectiveAssessment,
     Organization,
     Requirement,
@@ -22,6 +25,7 @@ from .models import (
     RequirementMapping,
     System,
     TestExecution,
+    WorkflowHistory,
 )
 
 admin.site.register(
@@ -46,6 +50,10 @@ admin.site.register(
         ControlAssessment,
         EvidenceArtifact,
         EvidenceRequest,
+        EvidenceReviewHistory,
+        Notification,
+        NotificationPreference,
+        WorkflowHistory,
         AuditEvent,
     )
 )

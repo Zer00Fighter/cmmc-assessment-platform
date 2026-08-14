@@ -798,3 +798,105 @@ class AuditEvent(models.Model):
 
     class Meta:
         ordering = ("-created_at",)
+
+
+class NotificationPreference(models.Model):
+    class Delivery(models.TextChoices):
+        IN_APP = "IN_APP", "In-app only"
+        EMAIL = "EMAIL", "In-app and email"
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="omni_notification_preference",
+    )
+    delivery = models.CharField(max_length=10, choices=Delivery.choices, default=Delivery.IN_APP)
+    assignments = models.BooleanField(default=True)
+    evidence = models.BooleanField(default=True)
+    remediation = models.BooleanField(default=True)
+    quality_review = models.BooleanField(default=True)
+    due_dates = models.BooleanField(default=True)
+
+    def __str__(self) -> str:
+        return f"Notification preferences for {self.user}"
+
+
+class Notification(models.Model):
+    class Category(models.TextChoices):
+        ASSIGNMENT = "ASSIGNMENT", "Assignment"
+        EVIDENCE = "EVIDENCE", "Evidence"
+        REMEDIATION = "REMEDIATION", "Remediation"
+        QUALITY = "QUALITY", "Quality review"
+        DEADLINE = "DEADLINE", "Deadline"
+        SYSTEM = "SYSTEM", "System"
+
+    class EmailStatus(models.TextChoices):
+        NOT_REQUESTED = "NOT_REQUESTED", "Not requested"
+        SENT = "SENT", "Sent"
+        FAILED = "FAILED", "Failed"
+
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="omni_notifications"
+    )
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="notifications"
+    )
+    assessment = models.ForeignKey(
+        Assessment, on_delete=models.CASCADE, related_name="notifications", null=True, blank=True
+    )
+    category = models.CharField(max_length=15, choices=Category.choices)
+    title = models.CharField(max_length=250)
+    message = models.TextField()
+    action_url = models.CharField(max_length=500, blank=True)
+    object_type = models.CharField(max_length=100, blank=True)
+    object_id = models.CharField(max_length=100, blank=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    email_status = models.CharField(
+        max_length=15, choices=EmailStatus.choices, default=EmailStatus.NOT_REQUESTED
+    )
+    email_error = models.CharField(max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self) -> str:
+        return self.title
+
+
+class WorkflowHistory(models.Model):
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="workflow_history"
+    )
+    assessment = models.ForeignKey(
+        Assessment, on_delete=models.CASCADE, related_name="workflow_history"
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="omni_workflow_actions"
+    )
+    event = models.CharField(max_length=100)
+    object_type = models.CharField(max_length=100)
+    object_id = models.CharField(max_length=100)
+    previous_status = models.CharField(max_length=50, blank=True)
+    new_status = models.CharField(max_length=50, blank=True)
+    comment = models.TextField(blank=True)
+    recipients = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+
+class EvidenceReviewHistory(models.Model):
+    artifact = models.ForeignKey(
+        EvidenceArtifact, on_delete=models.CASCADE, related_name="review_history"
+    )
+    reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="evidence_reviews"
+    )
+    previous_status = models.CharField(max_length=20)
+    new_status = models.CharField(max_length=20)
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)

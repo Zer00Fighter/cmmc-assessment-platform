@@ -12,6 +12,7 @@ from django.db import transaction
 from django.db.models import Count, Q, Sum
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
 from .forms import (
@@ -27,6 +28,7 @@ from .forms import (
     OrganizationForm,
     InterviewSessionForm,
     ObjectiveAssessmentForm,
+    NotificationPreferenceForm,
     QualityReviewForm,
     ReopenAssessmentForm,
     RemediationMilestoneForm,
@@ -47,6 +49,8 @@ from .models import (
     Framework,
     GeneratedDocument,
     Membership,
+    Notification,
+    NotificationPreference,
     InterviewSession,
     ObjectiveAssessment,
     Organization,
@@ -55,7 +59,9 @@ from .models import (
     RequirementMapping,
     System,
     TestExecution,
+    EvidenceReviewHistory,
 )
+from .notifications import assessment_url, notify, notify_assessment_team, organization_users
 
 
 def _organizations_for(user):
@@ -117,6 +123,46 @@ def organization_list(request: HttpRequest) -> HttpResponse:
     return render(
         request, "webapp/organization_list.html", {"organizations": organizations}
     )
+
+
+@login_required
+def notification_center(request: HttpRequest) -> HttpResponse:
+    notifications = request.user.omni_notifications.select_related(
+        "organization", "assessment"
+    )[:200]
+    return render(request, "webapp/notification_center.html", {
+        "notifications": notifications,
+        "unread": request.user.omni_notifications.filter(read_at=None).count(),
+    })
+
+
+@login_required
+def notification_read(request: HttpRequest, notification_id: int) -> HttpResponse:
+    if request.method != "POST":
+        raise Http404
+    item = get_object_or_404(request.user.omni_notifications, id=notification_id)
+    item.read_at = timezone.now()
+    item.save(update_fields=("read_at",))
+    return redirect(item.action_url or "notification-center")
+
+
+@login_required
+def notifications_read_all(request: HttpRequest) -> HttpResponse:
+    if request.method != "POST":
+        raise Http404
+    request.user.omni_notifications.filter(read_at=None).update(read_at=timezone.now())
+    return redirect("notification-center")
+
+
+@login_required
+def notification_preferences(request: HttpRequest) -> HttpResponse:
+    preference, _ = NotificationPreference.objects.get_or_create(user=request.user)
+    form = NotificationPreferenceForm(request.POST or None, instance=preference)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Notification preferences saved.")
+        return redirect("notification-preferences")
+    return render(request, "webapp/notification_preferences.html", {"form": form})
 
 
 @login_required
@@ -735,6 +781,15 @@ def objective_edit(
             object_type="ObjectiveAssessment", object_id=str(result.id),
             detail={"objective": str(result.objective), "status": result.status},
         )
+        if result.status == ObjectiveAssessment.Status.NOT_MET:
+            notify_assessment_team(
+                assessment, category=Notification.Category.REMEDIATION,
+                title=f"Finding recorded for {result.control_result.requirement.requirement_id}",
+                message="An assessment objective was marked NOT MET and may require a remediation plan.",
+                action_url=f'{assessment_url(assessment, "remediation-create")}?control={result.control_result_id}',
+                actor=request.user, object_type="ObjectiveAssessment", object_id=result.id,
+                event="finding.recorded", new_status=result.status,
+            )
         messages.success(request, "Objective result saved; control outcome recalculated.")
         return redirect("assessment-execution", org_slug=org_slug, assessment_id=assessment.id)
     return render(request, "webapp/objective_form.html", {
@@ -795,11 +850,22 @@ def quality_review(request: HttpRequest, org_slug: str, assessment_id: int) -> H
     if request.method == "POST":
         _require_unlocked(assessment)
         if form.is_valid():
+            previous_status = assessment.quality_review_status
             form.save()
             AuditEvent.objects.create(
                 organization=organization, actor=request.user, action="quality_review.updated",
                 object_type="Assessment", object_id=str(assessment.id),
                 detail={"status": assessment.quality_review_status},
+            )
+            notify_assessment_team(
+                assessment, category=Notification.Category.QUALITY,
+                title=f"Quality review: {assessment.get_quality_review_status_display()}",
+                message="The assessment quality-review status changed. Open Omni to review the details.",
+                action_url=assessment_url(assessment, "quality-review"), actor=request.user,
+                object_type="Assessment", object_id=assessment.id,
+                event="quality_review.transitioned", previous_status=previous_status,
+                new_status=assessment.quality_review_status,
+                comment=assessment.quality_review_notes,
             )
             messages.success(request, "Quality review updated.")
             return redirect("quality-review", org_slug=org_slug, assessment_id=assessment.id)
@@ -836,6 +902,15 @@ def assessment_signoff(request: HttpRequest, org_slug: str, assessment_id: int) 
             organization=organization, actor=request.user, action="assessment.signed_off",
             object_type="Assessment", object_id=str(assessment.id), detail={},
         )
+        notify(
+            recipients=organization_users(organization), organization=organization,
+            assessment=assessment, category=Notification.Category.SYSTEM,
+            title="Assessment signed off", message="The assessment was approved, signed off, and locked.",
+            action_url=assessment_url(assessment), actor=request.user,
+            object_type="Assessment", object_id=assessment.id,
+            event="assessment.signoff_notified", previous_status=Assessment.Status.IN_PROGRESS,
+            new_status=Assessment.Status.COMPLETE,
+        )
         messages.success(request, "Assessment signed off and locked.")
     return redirect("quality-review", org_slug=org_slug, assessment_id=assessment.id)
 
@@ -857,6 +932,14 @@ def assessment_reopen(request: HttpRequest, org_slug: str, assessment_id: int) -
             organization=organization, actor=request.user, action="assessment.reopened",
             object_type="Assessment", object_id=str(assessment.id),
             detail={"reason": form.cleaned_data["reason"]},
+        )
+        notify_assessment_team(
+            assessment, category=Notification.Category.SYSTEM,
+            title="Assessment reopened", message="An administrator reopened the assessment. Sign-off is no longer final.",
+            action_url=assessment_url(assessment), actor=request.user,
+            object_type="Assessment", object_id=assessment.id,
+            event="assessment.reopen_notified", previous_status=Assessment.Status.COMPLETE,
+            new_status=Assessment.Status.IN_PROGRESS, comment=form.cleaned_data["reason"],
         )
         messages.success(request, "Assessment reopened with an audit record.")
         return redirect("assessment-dashboard", org_slug=org_slug, assessment_id=assessment.id)
@@ -1010,6 +1093,15 @@ def evidence_request_create(
             object_type="EvidenceRequest", object_id=str(evidence_request.id),
             detail={"title": evidence_request.title, "controls": evidence_request.controls.count()},
         )
+        if evidence_request.owner:
+            notify(
+                recipients=[evidence_request.owner.user], organization=organization,
+                assessment=assessment, category=Notification.Category.ASSIGNMENT,
+                title="Evidence request assigned", message=f'You were assigned: {evidence_request.title}',
+                action_url=assessment_url(assessment, "evidence-list"), actor=request.user,
+                object_type="EvidenceRequest", object_id=evidence_request.id,
+                event="evidence_request.assigned", new_status=evidence_request.status,
+            )
         messages.success(request, "Evidence request created.")
         return redirect("evidence-list", org_slug=org_slug, assessment_id=assessment.id)
     return render(request, "webapp/entity_form.html", {
@@ -1040,6 +1132,19 @@ def evidence_request_edit(
             organization=organization, actor=request.user, action="evidence_request.updated",
             object_type="EvidenceRequest", object_id=str(evidence_request.id),
             detail={"previous_status": previous_status, "status": evidence_request.status},
+        )
+        recipients = [evidence_request.owner.user] if evidence_request.owner else organization_users(
+            organization, roles=(Membership.Role.ADMIN, Membership.Role.ASSESSOR)
+        )
+        notify(
+            recipients=recipients, organization=organization, assessment=assessment,
+            category=Notification.Category.EVIDENCE,
+            title=f"Evidence request {evidence_request.get_status_display()}",
+            message=f'The status of “{evidence_request.title}” changed.',
+            action_url=assessment_url(assessment, "evidence-list"), actor=request.user,
+            object_type="EvidenceRequest", object_id=evidence_request.id,
+            event="evidence_request.transitioned", previous_status=previous_status,
+            new_status=evidence_request.status,
         )
         messages.success(request, "Evidence request updated.")
         return redirect("evidence-list", org_slug=org_slug, assessment_id=assessment.id)
@@ -1077,6 +1182,13 @@ def evidence_artifact_create(
             object_type="EvidenceArtifact", object_id=str(artifact.id),
             detail={"title": artifact.title, "controls": artifact.controls.count()},
         )
+        notify_assessment_team(
+            assessment, category=Notification.Category.EVIDENCE,
+            title="Evidence received", message=f'New evidence was registered: {artifact.title}',
+            action_url=assessment_url(assessment, "evidence-list"), actor=request.user,
+            object_type="EvidenceArtifact", object_id=artifact.id,
+            event="evidence.received", new_status=artifact.review_status,
+        )
         messages.success(request, "Evidence artifact registered.")
         return redirect("evidence-list", org_slug=org_slug, assessment_id=assessment.id)
     return render(request, "webapp/evidence_artifact_form.html", {
@@ -1096,6 +1208,7 @@ def evidence_artifact_edit(
     artifact = get_object_or_404(
         EvidenceArtifact, id=artifact_id, assessment=assessment, organization=organization
     )
+    previous_status = artifact.review_status
     can_review = _can_edit(request.user, organization)
     form = EvidenceArtifactForm(
         request.POST or None, request.FILES or None, instance=artifact,
@@ -1109,10 +1222,28 @@ def evidence_artifact_edit(
             EvidenceArtifact.ReviewStatus.UNDER_REVIEW,
         ):
             artifact.requests.update(status=artifact.review_status)
+        if artifact.review_status != previous_status:
+            EvidenceReviewHistory.objects.create(
+                artifact=artifact, reviewer=request.user, previous_status=previous_status,
+                new_status=artifact.review_status, comment=artifact.assessor_notes,
+            )
         AuditEvent.objects.create(
             organization=organization, actor=request.user, action="evidence_artifact.updated",
             object_type="EvidenceArtifact", object_id=str(artifact.id),
             detail={"review_status": artifact.review_status},
+        )
+        owners = [item.owner.user for item in artifact.requests.select_related("owner__user") if item.owner]
+        if not owners:
+            owners = [artifact.uploaded_by]
+        notify(
+            recipients=owners, organization=organization, assessment=assessment,
+            category=Notification.Category.EVIDENCE,
+            title=f"Evidence {artifact.get_review_status_display()}",
+            message=f'The evidence review status changed for “{artifact.title}”.',
+            action_url=assessment_url(assessment, "evidence-list"), actor=request.user,
+            object_type="EvidenceArtifact", object_id=artifact.id,
+            event="evidence.reviewed", previous_status=previous_status,
+            new_status=artifact.review_status, comment=artifact.assessor_notes,
         )
         messages.success(request, "Evidence artifact updated.")
         return redirect("evidence-list", org_slug=org_slug, assessment_id=assessment.id)
@@ -1241,6 +1372,16 @@ def remediation_create(request: HttpRequest, org_slug: str, assessment_id: int) 
             object_type="RemediationPlan", object_id=str(plan.id),
             detail={"remediation_id": plan.remediation_id, "controls": plan.controls.count()},
         )
+        if plan.owner:
+            notify(
+                recipients=[plan.owner.user], organization=organization, assessment=assessment,
+                category=Notification.Category.ASSIGNMENT,
+                title=f"Remediation assigned: {plan.remediation_id}",
+                message=f'You own the remediation plan “{plan.title}”.',
+                action_url=reverse("remediation-detail", args=(org_slug, assessment.id, plan.id)),
+                actor=request.user, object_type="RemediationPlan", object_id=plan.id,
+                event="remediation.assigned", new_status=plan.status,
+            )
         messages.success(request, f"{plan.remediation_id} created.")
         return redirect("remediation-detail", org_slug=org_slug,
                         assessment_id=assessment.id, plan_id=plan.id)
@@ -1300,6 +1441,19 @@ def remediation_edit(
             detail={"previous": previous, "status": plan.status,
                     "validation_status": plan.validation_status},
         )
+        recipients = [plan.owner.user] if plan.owner else organization_users(
+            organization, roles=(Membership.Role.ADMIN, Membership.Role.ASSESSOR)
+        )
+        notify(
+            recipients=recipients, organization=organization, assessment=assessment,
+            category=Notification.Category.REMEDIATION,
+            title=f"{plan.remediation_id} is {plan.get_status_display()}",
+            message="A remediation plan status or validation state changed.",
+            action_url=reverse("remediation-detail", args=(org_slug, assessment.id, plan.id)),
+            actor=request.user, object_type="RemediationPlan", object_id=plan.id,
+            event="remediation.transitioned", previous_status=previous["status"],
+            new_status=plan.status, comment=plan.validation_notes,
+        )
         messages.success(request, f"{plan.remediation_id} updated.")
         return redirect("remediation-detail", org_slug=org_slug,
                         assessment_id=assessment.id, plan_id=plan.id)
@@ -1329,6 +1483,16 @@ def remediation_milestone_create(
             object_type="RemediationMilestone", object_id=str(milestone.id),
             detail={"remediation_id": plan.remediation_id, "title": milestone.title},
         )
+        if milestone.owner:
+            notify(
+                recipients=[milestone.owner.user], organization=organization,
+                assessment=assessment, category=Notification.Category.ASSIGNMENT,
+                title=f"Remediation milestone assigned: {milestone.title}",
+                message=f'You were assigned a milestone for {plan.remediation_id}.',
+                action_url=reverse("remediation-detail", args=(org_slug, assessment.id, plan.id)),
+                actor=request.user, object_type="RemediationMilestone", object_id=milestone.id,
+                event="remediation_milestone.assigned", new_status=milestone.status,
+            )
         messages.success(request, "Milestone added.")
         return redirect("remediation-detail", org_slug=org_slug,
                         assessment_id=assessment.id, plan_id=plan.id)

@@ -4,6 +4,10 @@ from . import views
 
 urlpatterns = [
     path("", views.organization_list, name="organization-list"),
+    path("notifications/", views.notification_center, name="notification-center"),
+    path("notifications/read-all/", views.notifications_read_all, name="notifications-read-all"),
+    path("notifications/<int:notification_id>/read/", views.notification_read, name="notification-read"),
+    path("notification-preferences/", views.notification_preferences, name="notification-preferences"),
     path("frameworks/", views.framework_catalog, name="framework-catalog"),
     path("organizations/new/", views.organization_create, name="organization-create"),
     path("organizations/<slug:org_slug>/edit/", views.organization_edit, name="organization-edit"),

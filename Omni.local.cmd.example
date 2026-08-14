@@ -1,0 +1,11 @@
+@rem Copy this file to Omni.local.cmd. Never commit Omni.local.cmd.
+@rem Use a dedicated Google Workspace mailbox and a 16-character App Password.
+set "OMNI_EMAIL_ENABLED=1"
+set "OMNI_EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend"
+set "OMNI_EMAIL_HOST=smtp.gmail.com"
+set "OMNI_EMAIL_PORT=587"
+set "OMNI_EMAIL_USE_TLS=1"
+set "OMNI_EMAIL_USER=notifications@example.com"
+set "OMNI_EMAIL_PASSWORD=PASTE_APP_PASSWORD_LOCALLY"
+set "OMNI_DEFAULT_FROM_EMAIL=Omni by R!SC ^<notifications@example.com^>"
+set "OMNI_BASE_URL=http://127.0.0.1:8000"

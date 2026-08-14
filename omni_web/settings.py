@@ -43,6 +43,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "webapp.context_processors.notification_summary",
             ],
         },
     }
@@ -74,6 +75,17 @@ STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 MEDIA_ROOT = BASE_DIR / "private_uploads"
 OMNI_SSP_TEMPLATE = os.environ.get("OMNI_SSP_TEMPLATE", "")
+EMAIL_BACKEND = os.environ.get(
+    "OMNI_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+)
+EMAIL_HOST = os.environ.get("OMNI_EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.environ.get("OMNI_EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.environ.get("OMNI_EMAIL_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("OMNI_EMAIL_PASSWORD", "")
+EMAIL_USE_TLS = os.environ.get("OMNI_EMAIL_USE_TLS", "1") == "1"
+DEFAULT_FROM_EMAIL = os.environ.get("OMNI_DEFAULT_FROM_EMAIL", "Omni by R!SC")
+OMNI_EMAIL_ENABLED = os.environ.get("OMNI_EMAIL_ENABLED", "0") == "1"
+OMNI_BASE_URL = os.environ.get("OMNI_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"

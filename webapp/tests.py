@@ -8,6 +8,8 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core import mail
+from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from openpyxl import load_workbook
@@ -26,6 +28,8 @@ from .models import (
     Framework,
     GeneratedDocument,
     Membership,
+    Notification,
+    NotificationPreference,
     ObjectiveAssessment,
     Organization,
     RemediationMilestone,
@@ -33,6 +37,7 @@ from .models import (
     Requirement,
     RequirementMapping,
     System,
+    WorkflowHistory,
 )
 
 
@@ -987,3 +992,101 @@ class SprintSevenDashboardTests(TestCase):
         self.assertTrue(AuditEvent.objects.filter(
             organization=self.organization, action="dashboard.exported"
         ).exists())
+
+
+class SprintEightWorkflowTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.assessor = user_model.objects.create_user(
+            "workflow-assessor", email="assessor@example.test", password="test-password"
+        )
+        self.owner = user_model.objects.create_user(
+            "workflow-owner", email="owner@example.test", password="test-password"
+        )
+        self.organization = Organization.objects.create(name="Workflow Test", slug="workflow")
+        Membership.objects.create(
+            user=self.assessor, organization=self.organization, role=Membership.Role.ASSESSOR
+        )
+        self.owner_member = Membership.objects.create(
+            user=self.owner, organization=self.organization, role=Membership.Role.CLIENT
+        )
+        system = System.objects.create(organization=self.organization, name="Workflow System")
+        framework = Framework.objects.create(code="WF", name="Workflow", version="1")
+        requirement = Requirement.objects.create(
+            framework=framework, requirement_id="WF-1", domain="WF",
+            title="Workflow", statement="Operate workflow."
+        )
+        self.assessment = Assessment.objects.create(
+            system=system, framework=framework, name="Workflow Assessment",
+            created_by=self.assessor,
+        )
+        self.control = ControlAssessment.objects.create(
+            assessment=self.assessment, requirement=requirement
+        )
+
+    @override_settings(
+        OMNI_EMAIL_ENABLED=True,
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        DEFAULT_FROM_EMAIL="Omni by R!SC <omni@example.test>",
+    )
+    def test_assignment_creates_in_app_email_audit_and_workflow_history(self):
+        NotificationPreference.objects.create(
+            user=self.owner, delivery=NotificationPreference.Delivery.EMAIL
+        )
+        self.client.login(username="workflow-assessor", password="test-password")
+        response = self.client.post(reverse(
+            "evidence-request-create", args=("workflow", self.assessment.id)
+        ), {
+            "title": "Access policy", "description": "Provide the policy",
+            "status": EvidenceRequest.Status.REQUESTED, "owner": self.owner_member.id,
+            "due_date": date.today() + timedelta(days=7), "controls": [self.control.id],
+        })
+        self.assertRedirects(response, reverse(
+            "evidence-list", args=("workflow", self.assessment.id)
+        ))
+        notice = Notification.objects.get(recipient=self.owner)
+        self.assertEqual(notice.email_status, Notification.EmailStatus.SENT)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertNotIn("Provide the policy", mail.outbox[0].body)
+        self.assertTrue(WorkflowHistory.objects.filter(event="evidence_request.assigned").exists())
+
+    def test_notification_center_marks_only_own_notification_read(self):
+        item = Notification.objects.create(
+            recipient=self.owner, organization=self.organization, assessment=self.assessment,
+            category=Notification.Category.SYSTEM, title="Assigned", message="Open Omni"
+        )
+        self.client.login(username="workflow-assessor", password="test-password")
+        response = self.client.post(reverse("notification-read", args=(item.id,)))
+        self.assertEqual(response.status_code, 404)
+        item.refresh_from_db()
+        self.assertIsNone(item.read_at)
+        self.client.login(username="workflow-owner", password="test-password")
+        self.client.post(reverse("notification-read", args=(item.id,)))
+        item.refresh_from_db()
+        self.assertIsNotNone(item.read_at)
+
+    def test_rejected_evidence_requires_review_comment(self):
+        artifact = EvidenceArtifact.objects.create(
+            organization=self.organization, assessment=self.assessment, title="Synthetic link",
+            external_reference="https://example.test/evidence", uploaded_by=self.owner,
+        )
+        self.client.login(username="workflow-assessor", password="test-password")
+        response = self.client.post(reverse(
+            "evidence-artifact-edit", args=("workflow", self.assessment.id, artifact.id)
+        ), {
+            "title": artifact.title, "external_reference": artifact.external_reference,
+            "review_status": EvidenceArtifact.ReviewStatus.REJECTED,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Explain why the evidence was rejected")
+
+    def test_reminder_command_is_idempotent_per_day(self):
+        EvidenceRequest.objects.create(
+            assessment=self.assessment, title="Due request", owner=self.owner_member,
+            due_date=date.today(), created_by=self.assessor,
+        )
+        call_command("send_workflow_reminders")
+        call_command("send_workflow_reminders")
+        self.assertEqual(Notification.objects.filter(
+            recipient=self.owner, category=Notification.Category.DEADLINE
+        ).count(), 1)
