@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Import framework{% endblock %}
+{% block content %}
+<nav class="crumb"><a href="{% url 'framework-import-list' %}">Framework ingestion</a> / New</nav>
+<div class="page-head"><div><p class="eyebrow">Dry run first</p><h1>Import a framework</h1><p class="muted">Supports CSV, Excel, and text-based PDF. Uploading creates a private preview; it does not modify the catalog.</p></div></div>
+<form method="post" enctype="multipart/form-data" class="card form-card">{% csrf_token %}{{ form.as_p }}<button class="button" type="submit">Validate and preview</button></form>
+{% endblock %}

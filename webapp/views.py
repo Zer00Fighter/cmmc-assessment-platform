@@ -46,6 +46,7 @@ from .forms import (
     RemediationPlanForm,
     SystemForm,
     TestExecutionForm,
+    FrameworkImportForm,
 )
 from .models import (
     Assessment,
@@ -59,6 +60,7 @@ from .models import (
     EvidenceArtifact,
     EvidenceRequest,
     Framework,
+    FrameworkImport,
     GeneratedDocument,
     Membership,
     Notification,
@@ -76,6 +78,7 @@ from .models import (
     EvidenceReviewHistory,
     UserProfile,
 )
+from .framework_import import approve_import, parse_upload
 from .notifications import assessment_url, notify, notify_assessment_team, organization_users
 
 
@@ -279,9 +282,64 @@ def system_health(request: HttpRequest, org_slug: str) -> HttpResponse:
 @login_required
 def framework_catalog(request: HttpRequest) -> HttpResponse:
     frameworks = Framework.objects.filter(active=True).annotate(
-        requirement_count=Count("requirements")
+        requirement_count=Count("requirements", distinct=True),
+        mapped_requirement_count=Count(
+            "requirements", filter=Q(requirements__outbound_mappings__isnull=False), distinct=True
+        ),
     ).order_by("name", "version")
     return render(request, "webapp/framework_catalog.html", {"frameworks": frameworks})
+
+
+@login_required
+def framework_import_list(request: HttpRequest) -> HttpResponse:
+    if not request.user.is_superuser:
+        raise Http404
+    return render(request, "webapp/framework_import_list.html", {
+        "imports": FrameworkImport.objects.select_related("created_by", "approved_by", "imported_framework"),
+    })
+
+
+@login_required
+def framework_import_upload(request: HttpRequest) -> HttpResponse:
+    if not request.user.is_superuser:
+        raise Http404
+    form = FrameworkImportForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and form.is_valid():
+        upload = form.cleaned_data["source_file"]
+        metadata = {key: form.cleaned_data.get(key, "") for key in (
+            "code", "name", "version", "authority", "description"
+        )}
+        try:
+            normalized, report, source_format, digest = parse_upload(upload, metadata)
+        except (ValueError, OSError) as exc:
+            form.add_error("source_file", str(exc))
+        else:
+            job = FrameworkImport.objects.create(
+                source_file=upload, source_filename=upload.name, source_format=source_format,
+                source_sha256=digest, normalized_data=normalized, validation_report=report,
+                status=FrameworkImport.Status.PREVIEW if report["valid"] else FrameworkImport.Status.FAILED,
+                created_by=request.user,
+            )
+            return redirect("framework-import-preview", import_id=job.pk)
+    return render(request, "webapp/framework_import_upload.html", {"form": form})
+
+
+@login_required
+def framework_import_preview(request: HttpRequest, import_id: int) -> HttpResponse:
+    if not request.user.is_superuser:
+        raise Http404
+    job = get_object_or_404(FrameworkImport, pk=import_id)
+    if request.method == "POST":
+        try:
+            framework = approve_import(job, request.user)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, f"{framework.name} {framework.version} imported and provenance recorded.")
+            return redirect("framework-catalog")
+    return render(request, "webapp/framework_import_preview.html", {
+        "job": job, "requirements": job.normalized_data.get("requirements", [])[:100],
+    })
 
 
 @login_required

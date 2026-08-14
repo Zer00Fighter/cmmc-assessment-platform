@@ -31,6 +31,7 @@ from .models import (
     EvidenceArtifact,
     EvidenceRequest,
     Framework,
+    FrameworkImport,
     GeneratedDocument,
     Membership,
     LoginAttempt,
@@ -48,6 +49,7 @@ from .models import (
     WorkflowHistory,
     UserProfile,
 )
+from .framework_import import parse_upload
 
 
 class SprintOneWorkflowTests(TestCase):
@@ -1460,3 +1462,100 @@ class SprintElevenPilotAcceptanceTests(TestCase):
         workbook = load_workbook(BytesIO(build_assessment_workbook(assessment)))
         self.assertIn("Dashboard", workbook.sheetnames)
         self.assertIn("Objective Results", workbook.sheetnames)
+
+
+class SprintTwelveFrameworkImportTests(TestCase):
+    def setUp(self):
+        self.temp_media = tempfile.TemporaryDirectory()
+        self.override = override_settings(MEDIA_ROOT=self.temp_media.name)
+        self.override.enable()
+        user_model = get_user_model()
+        self.admin = user_model.objects.create_superuser("catalog-admin", "admin@example.test", "test-password")
+        self.user = user_model.objects.create_user("regular-user", password="test-password")
+
+    def tearDown(self):
+        self.override.disable()
+        self.temp_media.cleanup()
+
+    def test_csv_dry_run_requires_explicit_approval_and_preserves_provenance(self):
+        self.client.login(username="catalog-admin", password="test-password")
+        source = b"Control ID,Domain,Title,Statement\nCCF-1,Governance,Policy,Maintain a security policy.\n"
+        response = self.client.post(reverse("framework-import-upload"), {
+            "code": "CCF-2026", "name": "Comprehensive Controls Framework",
+            "version": "2026.1", "authority": "R!SC",
+            "source_file": SimpleUploadedFile("ccf.csv", source, content_type="text/csv"),
+        })
+        self.assertEqual(response.status_code, 302)
+        job = FrameworkImport.objects.get()
+        self.assertEqual(job.status, FrameworkImport.Status.PREVIEW)
+        self.assertFalse(Framework.objects.filter(code="CCF-2026").exists())
+        response = self.client.post(reverse("framework-import-preview", args=(job.id,)))
+        self.assertRedirects(response, reverse("framework-catalog"))
+        requirement = Requirement.objects.get(framework__code="CCF-2026")
+        self.assertEqual(requirement.source_row, 2)
+        self.assertEqual(requirement.framework.source_sha256, hashlib.sha256(source).hexdigest())
+
+    def test_existing_code_is_never_overwritten(self):
+        Framework.objects.create(code="CCF", name="Existing", version="1")
+        self.client.login(username="catalog-admin", password="test-password")
+        source = b"id,title,statement\n1,One,Statement\n"
+        self.client.post(reverse("framework-import-upload"), {
+            "code": "CCF", "name": "Replacement", "version": "2",
+            "source_file": SimpleUploadedFile("ccf.csv", source),
+        })
+        job = FrameworkImport.objects.get()
+        response = self.client.post(reverse("framework-import-preview", args=(job.id,)), follow=True)
+        self.assertContains(response, "never overwrites")
+        self.assertEqual(Framework.objects.get(code="CCF").name, "Existing")
+
+    def test_framework_ingestion_is_superuser_only(self):
+        self.client.login(username="regular-user", password="test-password")
+        self.assertEqual(self.client.get(reverse("framework-import-list")).status_code, 404)
+
+    def test_excel_adapter_normalizes_a_standard_control_sheet(self):
+        from openpyxl import Workbook
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(["Requirement ID", "Family", "Requirement Title", "Requirement"])
+        sheet.append(["AC-1", "AC", "Access policy", "Establish access control policy."])
+        stream = BytesIO()
+        workbook.save(stream)
+        upload = SimpleUploadedFile("framework.xlsx", stream.getvalue())
+        normalized, report, source_format, _ = parse_upload(upload, {
+            "code": "TEST", "name": "Test", "version": "1"
+        })
+        self.assertTrue(report["valid"])
+        self.assertEqual(source_format, FrameworkImport.SourceFormat.XLSX)
+        self.assertEqual(normalized["requirements"][0]["requirement_id"], "AC-1")
+
+    def test_ccf_matrix_adapter_retains_cross_framework_references(self):
+        from openpyxl import Workbook
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(["CCF Domain", "CCF Control", "CCF #",
+                      "Comprehensive Controls Framework (CCF)\nControl Description",
+                      "CCF Control Question", "NIST SP 800-171", "ISO 27001"])
+        sheet.append(["Governance", "Security policy", "GOV-01", "Maintain policy.",
+                      "Is policy maintained?", "3.12.4", "5.1"])
+        stream = BytesIO()
+        workbook.save(stream)
+        normalized, report, _, _ = parse_upload(
+            SimpleUploadedFile("ccf.xlsx", stream.getvalue()),
+            {"code": "CCF", "name": "Comprehensive Controls Framework", "version": "2026.2"},
+        )
+        self.assertTrue(report["valid"])
+        self.assertEqual(report["mapping_reference_count"], 2)
+        self.assertEqual(normalized["requirements"][0]["mapping_refs"][0]["target_requirement"], "3.12.4")
+
+    def test_scanned_pdf_is_flagged_for_ocr(self):
+        from pypdf import PdfWriter
+        writer, stream = PdfWriter(), BytesIO()
+        writer.add_blank_page(width=72, height=72)
+        writer.write(stream)
+        _, report, source_format, _ = parse_upload(
+            SimpleUploadedFile("scan.pdf", stream.getvalue()),
+            {"code": "SCAN", "name": "Scan", "version": "1"},
+        )
+        self.assertEqual(source_format, FrameworkImport.SourceFormat.PDF)
+        self.assertFalse(report["valid"])
+        self.assertIn("OCR_REQUIRED", {issue["code"] for issue in report["issues"]})

@@ -41,6 +41,26 @@ class OrganizationForm(forms.ModelForm):
         return instance
 
 
+class FrameworkImportForm(forms.Form):
+    source_file = forms.FileField(
+        help_text="CSV, Excel (.xlsx/.xlsm), or text-based PDF. Scanned PDFs require OCR first."
+    )
+    code = forms.CharField(max_length=50, help_text="Unique, version-specific catalog code.")
+    name = forms.CharField(max_length=200)
+    version = forms.CharField(max_length=50)
+    authority = forms.CharField(max_length=200, required=False)
+    description = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), required=False)
+
+    def clean_source_file(self):
+        upload = self.cleaned_data["source_file"]
+        suffix = upload.name.rsplit(".", 1)[-1].lower() if "." in upload.name else ""
+        if suffix not in {"csv", "xlsx", "xlsm", "pdf"}:
+            raise forms.ValidationError("Choose a CSV, XLSX, XLSM, or PDF file.")
+        if upload.size > 30 * 1024 * 1024:
+            raise forms.ValidationError("Framework source files must be 30 MB or smaller.")
+        return upload
+
+
 class OmniAuthenticationForm(AuthenticationForm):
     error_messages = {
         **AuthenticationForm.error_messages,

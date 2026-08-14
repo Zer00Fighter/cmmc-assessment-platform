@@ -187,6 +187,8 @@ class Framework(models.Model):
     )
     maximum_score = models.IntegerField(null=True, blank=True)
     active = models.BooleanField(default=True)
+    source_filename = models.CharField(max_length=255, blank=True)
+    source_sha256 = models.CharField(max_length=64, blank=True)
 
     def __str__(self) -> str:
         return f"{self.name} {self.version}"
@@ -197,11 +199,14 @@ class Requirement(models.Model):
         Framework, on_delete=models.CASCADE, related_name="requirements"
     )
     requirement_id = models.CharField(max_length=50)
-    domain = models.CharField(max_length=20)
+    domain = models.CharField(max_length=100)
     title = models.CharField(max_length=300)
     statement = models.TextField()
     full_deduction = models.PositiveSmallIntegerField(default=1)
     partial_credit_allowed = models.BooleanField(default=False)
+    source_reference = models.CharField(max_length=300, blank=True)
+    source_page = models.PositiveIntegerField(null=True, blank=True)
+    source_row = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
         ordering = ("requirement_id",)
@@ -221,6 +226,7 @@ class RequirementMapping(models.Model):
         EQUIVALENT = "EQUIVALENT", "Equivalent"
         PARTIAL = "PARTIAL", "Partially equivalent"
         RELATED = "RELATED", "Related"
+        SUPPORTS = "SUPPORTS", "Supports"
 
     source = models.ForeignKey(
         Requirement, on_delete=models.CASCADE, related_name="outbound_mappings"
@@ -233,6 +239,13 @@ class RequirementMapping(models.Model):
     )
     mapping_reference = models.CharField(max_length=300, blank=True)
     notes = models.TextField(blank=True)
+    source_reference = models.CharField(max_length=300, blank=True)
+    confidence = models.DecimalField(max_digits=4, decimal_places=3, null=True, blank=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="approved_requirement_mappings",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("source__framework__code", "source__requirement_id")
@@ -248,6 +261,45 @@ class RequirementMapping(models.Model):
 
     def __str__(self) -> str:
         return f"{self.source} → {self.target} ({self.get_relationship_display()})"
+
+
+class FrameworkImport(models.Model):
+    class SourceFormat(models.TextChoices):
+        CSV = "CSV", "CSV"
+        XLSX = "XLSX", "Excel"
+        PDF = "PDF", "PDF"
+
+    class Status(models.TextChoices):
+        PREVIEW = "PREVIEW", "Awaiting approval"
+        IMPORTED = "IMPORTED", "Imported"
+        REJECTED = "REJECTED", "Rejected"
+        FAILED = "FAILED", "Failed validation"
+
+    source_file = models.FileField(upload_to="private/framework-imports/%Y/%m/")
+    source_filename = models.CharField(max_length=255)
+    source_format = models.CharField(max_length=8, choices=SourceFormat.choices)
+    source_sha256 = models.CharField(max_length=64)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PREVIEW)
+    normalized_data = models.JSONField(default=dict)
+    validation_report = models.JSONField(default=dict)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="framework_imports"
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="approved_framework_imports",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    imported_framework = models.ForeignKey(
+        Framework, null=True, blank=True, on_delete=models.PROTECT, related_name="imports"
+    )
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self) -> str:
+        return f"{self.source_filename} ({self.get_status_display()})"
 
 
 class Assessment(models.Model):
