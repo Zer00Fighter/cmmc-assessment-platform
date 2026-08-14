@@ -1,5 +1,13 @@
 # Changelog
 
+## Sprint 14 — Omni Control Framework onboarding and mapping curation
+
+- Added an external-authority registry for Omni mapping columns beginning at column F.
+- Added a source-faithful mapping-reference ledger with row/column provenance.
+- Added superuser-only mapping quality analytics and controlled bulk review.
+- Enhanced CCF dry-run reports with authority and mapping-cell counts.
+- Preserved immutable framework versions and unresolved references for later catalog resolution.
+
 ## Sprint 13 — Multi-framework harmonization and assessment reuse
 
 - Designated the Omni Control Framework as a unique, native mapping hub.

@@ -48,6 +48,7 @@ from .forms import (
     TestExecutionForm,
     FrameworkImportForm,
     AssessmentReuseDecisionForm,
+    MappingReferenceReviewForm,
 )
 from .models import (
     Assessment,
@@ -61,10 +62,12 @@ from .models import (
     ControlAssessment,
     EvidenceArtifact,
     EvidenceRequest,
+    ExternalAuthority,
     Framework,
     FrameworkImport,
     GeneratedDocument,
     Membership,
+    MappingReference,
     Notification,
     NotificationPreference,
     NotificationPolicy,
@@ -80,7 +83,7 @@ from .models import (
     EvidenceReviewHistory,
     UserProfile,
 )
-from .framework_import import approve_import, parse_upload
+from .framework_import import approve_import, parse_upload, version_impact
 from .harmonization import harmonization_metrics, refresh_harmonization, review_reuse
 from .notifications import assessment_url, notify, notify_assessment_team, organization_users
 
@@ -314,6 +317,7 @@ def framework_import_upload(request: HttpRequest) -> HttpResponse:
         )}
         try:
             normalized, report, source_format, digest = parse_upload(upload, metadata)
+            report["version_impact"] = version_impact(normalized)
         except (ValueError, OSError) as exc:
             form.add_error("source_file", str(exc))
         else:
@@ -342,6 +346,43 @@ def framework_import_preview(request: HttpRequest, import_id: int) -> HttpRespon
             return redirect("framework-catalog")
     return render(request, "webapp/framework_import_preview.html", {
         "job": job, "requirements": job.normalized_data.get("requirements", [])[:100],
+    })
+
+
+@login_required
+def mapping_quality(request: HttpRequest) -> HttpResponse:
+    if not request.user.is_superuser:
+        raise Http404
+    references = MappingReference.objects.select_related(
+        "authority", "source_requirement__framework", "target_requirement__framework", "reviewed_by"
+    )
+    authority = request.GET.get("authority", "")
+    status = request.GET.get("status", "")
+    if authority:
+        references = references.filter(authority__code=authority)
+    if status:
+        references = references.filter(review_status=status)
+    if request.method == "POST":
+        selected = [int(value) for value in request.POST.getlist("selected") if value.isdigit()]
+        action = request.POST.get("action")
+        if action in {"approve", "reject"} and selected:
+            review_status = (MappingReference.ReviewStatus.APPROVED if action == "approve"
+                             else MappingReference.ReviewStatus.REJECTED)
+            updated = MappingReference.objects.filter(pk__in=selected).update(
+                review_status=review_status, reviewed_by=request.user, reviewed_at=timezone.now()
+            )
+            messages.success(request, f"{updated} mapping reference(s) {action}d.")
+        return redirect("mapping-quality")
+    total = MappingReference.objects.count()
+    return render(request, "webapp/mapping_quality.html", {
+        "references": references[:250], "authorities": ExternalAuthority.objects.all(),
+        "filters": {"authority": authority, "status": status},
+        "metrics": {
+            "authorities": ExternalAuthority.objects.count(), "total": total,
+            "resolved": MappingReference.objects.filter(status=MappingReference.Status.RESOLVED).count(),
+            "pending": MappingReference.objects.filter(review_status=MappingReference.ReviewStatus.PENDING).count(),
+            "approved": MappingReference.objects.filter(review_status=MappingReference.ReviewStatus.APPROVED).count(),
+        },
     })
 
 

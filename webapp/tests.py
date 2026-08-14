@@ -31,11 +31,13 @@ from .models import (
     ControlAssessment,
     EvidenceArtifact,
     EvidenceRequest,
+    ExternalAuthority,
     Framework,
     FrameworkImport,
     GeneratedDocument,
     Membership,
     LoginAttempt,
+    MappingReference,
     Notification,
     NotificationPolicy,
     NotificationPreference,
@@ -50,7 +52,7 @@ from .models import (
     WorkflowHistory,
     UserProfile,
 )
-from .framework_import import parse_upload, resolve_catalog_mappings
+from .framework_import import materialize_mapping_references, parse_upload, resolve_catalog_mappings
 from .harmonization import refresh_harmonization, review_reuse
 
 
@@ -1547,6 +1549,8 @@ class SprintTwelveFrameworkImportTests(TestCase):
         )
         self.assertTrue(report["valid"])
         self.assertEqual(report["mapping_reference_count"], 2)
+        self.assertEqual(report["authority_count"], 2)
+        self.assertEqual(normalized["requirements"][0]["mapping_refs"][0]["source_column"], 6)
         self.assertEqual(normalized["requirements"][0]["mapping_refs"][0]["target_requirement"], "3.12.4")
 
     def test_scanned_pdf_is_flagged_for_ocr(self):
@@ -1690,3 +1694,49 @@ class SprintThirteenHarmonizationTests(TestCase):
             source=self.hub_requirement, target=self.requirement_b
         )
         self.assertEqual(mapping.source_reference, "synthetic matrix row 2")
+
+
+class SprintFourteenMappingCurationTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.admin = user_model.objects.create_superuser("mapping-admin", "mapping@example.test", "test-password")
+        self.user = user_model.objects.create_user("mapping-user", password="test-password")
+        self.framework = Framework.objects.create(
+            code="OMNI-CF-TEST", name="Omni Control Framework", version="test",
+            is_omni_control_framework=True,
+        )
+        self.requirement = Requirement.objects.create(
+            framework=self.framework, requirement_id="GOV-01", domain="Governance",
+            title="Governance", statement="Maintain governance.",
+        )
+        self.job = FrameworkImport.objects.create(
+            source_file=SimpleUploadedFile("omni.xlsx", b"synthetic"), source_filename="omni.xlsx",
+            source_format=FrameworkImport.SourceFormat.XLSX, source_sha256="1" * 64,
+            status=FrameworkImport.Status.IMPORTED, normalized_data={"framework": {}, "requirements": [{
+                "requirement_id": "GOV-01", "source_row": 2,
+                "mapping_refs": [{"target_framework": "Example Standard", "target_requirement": "A.1\nA.2", "source_column": 6}],
+            }]}, validation_report={"valid": True}, created_by=self.admin,
+            approved_by=self.admin, approved_at=timezone.now(), imported_framework=self.framework,
+        )
+
+    def test_materialization_preserves_raw_cell_and_provenance(self):
+        result = materialize_mapping_references(self.job)
+        self.assertEqual(result, {"authorities": 1, "references": 1})
+        reference = MappingReference.objects.get()
+        self.assertEqual(reference.raw_reference, "A.1\nA.2")
+        self.assertEqual(reference.source_row, 2)
+        self.assertEqual(reference.source_column, 6)
+        self.assertEqual(reference.authority.aliases, ["Example Standard"])
+
+    def test_mapping_quality_is_superuser_only_and_bulk_reviewed(self):
+        materialize_mapping_references(self.job)
+        reference = MappingReference.objects.get()
+        url = reverse("mapping-quality")
+        self.client.login(username="mapping-user", password="test-password")
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.login(username="mapping-admin", password="test-password")
+        response = self.client.post(url, {"action": "approve", "selected": [reference.pk]})
+        self.assertRedirects(response, url)
+        reference.refresh_from_db()
+        self.assertEqual(reference.review_status, MappingReference.ReviewStatus.APPROVED)
+        self.assertEqual(reference.reviewed_by, self.admin)

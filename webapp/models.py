@@ -313,6 +313,84 @@ class FrameworkImport(models.Model):
         return f"{self.source_filename} ({self.get_status_display()})"
 
 
+class ExternalAuthority(models.Model):
+    class Kind(models.TextChoices):
+        STANDARD = "STANDARD", "Standard or framework"
+        REGULATION = "REGULATION", "Regulation or law"
+        CONTRACT = "CONTRACT", "Contractual or industry requirement"
+        OTHER = "OTHER", "Other"
+
+    code = models.SlugField(max_length=100, unique=True)
+    canonical_name = models.CharField(max_length=300)
+    version = models.CharField(max_length=100, blank=True)
+    kind = models.CharField(max_length=15, choices=Kind.choices, default=Kind.STANDARD)
+    issuer = models.CharField(max_length=250, blank=True)
+    jurisdiction = models.CharField(max_length=150, blank=True)
+    aliases = models.JSONField(default=list, blank=True)
+    source_column = models.PositiveIntegerField(null=True, blank=True)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ("canonical_name", "version")
+
+    def __str__(self) -> str:
+        return self.canonical_name
+
+
+class MappingReference(models.Model):
+    class Status(models.TextChoices):
+        UNRESOLVED = "UNRESOLVED", "Unresolved"
+        RESOLVED = "RESOLVED", "Resolved"
+        IGNORED = "IGNORED", "Ignored"
+
+    class ReviewStatus(models.TextChoices):
+        PENDING = "PENDING", "Pending review"
+        APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
+
+    import_job = models.ForeignKey(
+        FrameworkImport, on_delete=models.CASCADE, related_name="mapping_references"
+    )
+    source_requirement = models.ForeignKey(
+        Requirement, null=True, blank=True, on_delete=models.CASCADE,
+        related_name="catalog_mapping_references",
+    )
+    source_requirement_id_text = models.CharField(max_length=100)
+    authority = models.ForeignKey(
+        ExternalAuthority, on_delete=models.PROTECT, related_name="mapping_references"
+    )
+    raw_reference = models.TextField()
+    parsed_reference = models.CharField(max_length=300, blank=True)
+    target_requirement = models.ForeignKey(
+        Requirement, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="incoming_catalog_references",
+    )
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.UNRESOLVED)
+    relationship = models.CharField(
+        max_length=15, choices=RequirementMapping.Relationship.choices,
+        default=RequirementMapping.Relationship.RELATED,
+    )
+    review_status = models.CharField(
+        max_length=10, choices=ReviewStatus.choices, default=ReviewStatus.PENDING
+    )
+    confidence = models.DecimalField(max_digits=4, decimal_places=3, null=True, blank=True)
+    source_row = models.PositiveIntegerField(null=True, blank=True)
+    source_column = models.PositiveIntegerField(null=True, blank=True)
+    rationale = models.TextField(blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="reviewed_mapping_references",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("review_status", "authority__canonical_name", "source_requirement_id_text")
+        constraints = [models.UniqueConstraint(
+            fields=("import_job", "source_requirement_id_text", "authority", "raw_reference"),
+            name="unique_import_mapping_reference",
+        )]
+
+
 class Assessment(models.Model):
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Draft"

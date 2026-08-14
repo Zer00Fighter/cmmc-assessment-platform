@@ -10,7 +10,7 @@ from src.evidence.evidence_knowledge import EVIDENCE_KNOWLEDGE
 
 from .models import (
     Assessment, AssessmentAccess, AssessmentFramework, AssessmentProcedure, AssessmentReuseDecision, AssessmentSample, AssessmentTeamMember,
-    ControlAssessment, EvidenceArtifact, EvidenceRequest, Framework,
+    ControlAssessment, EvidenceArtifact, EvidenceRequest, Framework, MappingReference,
     InterviewSession, Membership, ObjectiveAssessment, Organization,
     NotificationPreference,
     NotificationPolicy,
@@ -71,6 +71,13 @@ class AssessmentReuseDecisionForm(forms.ModelForm):
         model = AssessmentReuseDecision
         fields = ("reuse_evidence", "reuse_testing", "rationale")
         widgets = {"rationale": forms.Textarea(attrs={"rows": 3})}
+
+
+class MappingReferenceReviewForm(forms.ModelForm):
+    class Meta:
+        model = MappingReference
+        fields = ("relationship", "confidence", "rationale")
+        widgets = {"rationale": forms.Textarea(attrs={"rows": 2})}
 
 
 class OmniAuthenticationForm(AuthenticationForm):
