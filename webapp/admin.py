@@ -30,6 +30,7 @@ from .models import (
     TestExecution,
     WorkflowHistory,
     UserProfile,
+    LoginAttempt,
 )
 
 admin.site.register(
@@ -62,6 +63,7 @@ admin.site.register(
         WorkflowHistory,
         OrganizationInvitation,
         UserProfile,
+        LoginAttempt,
         AuditEvent,
     )
 )

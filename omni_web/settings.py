@@ -31,6 +31,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "webapp.middleware.SecurityHeadersMiddleware",
 ]
 ROOT_URLCONF = "omni_web.urls"
 TEMPLATES = [
@@ -86,6 +87,9 @@ EMAIL_USE_TLS = os.environ.get("OMNI_EMAIL_USE_TLS", "1") == "1"
 DEFAULT_FROM_EMAIL = os.environ.get("OMNI_DEFAULT_FROM_EMAIL", "Omni by R!SC")
 OMNI_EMAIL_ENABLED = os.environ.get("OMNI_EMAIL_ENABLED", "0") == "1"
 OMNI_BASE_URL = os.environ.get("OMNI_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+OMNI_BACKUP_DIR = Path(os.environ.get("OMNI_BACKUP_DIR", str(BASE_DIR / "local_backups")))
+OMNI_LOGIN_FAILURE_LIMIT = int(os.environ.get("OMNI_LOGIN_FAILURE_LIMIT", "5"))
+OMNI_LOGIN_LOCKOUT_MINUTES = int(os.environ.get("OMNI_LOGIN_LOCKOUT_MINUTES", "15"))
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
@@ -99,3 +103,26 @@ CSRF_COOKIE_SECURE = not DEBUG
 SECURE_HSTS_SECONDS = 31_536_000 if not DEBUG else 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
 SECURE_HSTS_PRELOAD = not DEBUG
+SECURE_REFERRER_POLICY = "same-origin"
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+FILE_UPLOAD_PERMISSIONS = 0o600
+DATA_UPLOAD_MAX_MEMORY_SIZE = 30 * 1024 * 1024
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"standard": {"format": "{asctime} {levelname} {name} {message}", "style": "{"}},
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "standard"},
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler", "formatter": "standard",
+            "filename": str(BASE_DIR / "logs" / "omni.log"), "maxBytes": 5_000_000,
+            "backupCount": 5,
+        },
+    },
+    "loggers": {
+        "django.request": {"handlers": ["console", "file"], "level": "WARNING", "propagate": False},
+        "webapp": {"handlers": ["console", "file"], "level": "INFO", "propagate": False},
+    },
+}
+(BASE_DIR / "logs").mkdir(exist_ok=True)

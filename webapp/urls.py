@@ -12,6 +12,7 @@ urlpatterns = [
     path("invitations/<str:token>/accept/", views.invitation_accept, name="invitation-accept"),
     path("organizations/<slug:org_slug>/notification-policy/", views.notification_policy, name="notification-policy"),
     path("organizations/<slug:org_slug>/notification-policy/test/", views.notification_test_email, name="notification-test-email"),
+    path("organizations/<slug:org_slug>/system-health/", views.system_health, name="system-health"),
     path("frameworks/", views.framework_catalog, name="framework-catalog"),
     path("organizations/new/", views.organization_create, name="organization-create"),
     path("organizations/<slug:org_slug>/edit/", views.organization_edit, name="organization-edit"),

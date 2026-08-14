@@ -100,6 +100,19 @@ class UserProfile(models.Model):
         return f"Profile for {self.user}"
 
 
+class LoginAttempt(models.Model):
+    identifier = models.CharField(max_length=254)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    failures = models.PositiveSmallIntegerField(default=0)
+    blocked_until = models.DateTimeField(null=True, blank=True)
+    last_attempt_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(
+            fields=("identifier", "ip_address"), name="unique_login_attempt_source"
+        )]
+
+
 class OrganizationInvitation(models.Model):
     class Status(models.TextChoices):
         PENDING = "PENDING", "Pending"

@@ -14,6 +14,7 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.mail import send_mail
 from django.db import transaction
+from django.db import connection
 from django.db.models import Count, Q, Sum
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -247,6 +248,32 @@ def notification_test_email(request: HttpRequest, org_slug: str) -> HttpResponse
         )
         messages.success(request, "Test email sent." if delivered else "Test email delivery failed.")
     return redirect("notification-policy", org_slug=org_slug)
+
+
+@login_required
+def system_health(request: HttpRequest, org_slug: str) -> HttpResponse:
+    organization = _organization_for(request.user, org_slug)
+    if not _is_org_admin(request.user, organization):
+        raise Http404
+    from .readiness import deployment_readiness
+    database_ok = True
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+    except Exception:
+        database_ok = False
+    return render(request, "webapp/system_health.html", {
+        "organization": organization, "database_ok": database_ok,
+        "readiness": deployment_readiness(),
+        "failed_emails": organization.notifications.filter(
+            email_status=Notification.EmailStatus.FAILED
+        ).count(),
+        "pending_invitations": organization.invitations.filter(
+            status=OrganizationInvitation.Status.PENDING
+        ).count(),
+        "last_audit": organization.audit_events.first(),
+    })
 
 
 @login_required

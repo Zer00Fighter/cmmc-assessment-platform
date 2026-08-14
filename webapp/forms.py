@@ -1,7 +1,9 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.password_validation import validate_password
 from django.utils import timezone
+from datetime import timedelta
 from django.utils.text import slugify
 
 from src.evidence.evidence_knowledge import EVIDENCE_KNOWLEDGE
@@ -13,6 +15,7 @@ from .models import (
     NotificationPreference,
     NotificationPolicy,
     OrganizationInvitation, UserProfile,
+    LoginAttempt,
     RemediationMilestone, RemediationPlan, System, TestExecution,
 )
 
@@ -36,6 +39,38 @@ class OrganizationForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+class OmniAuthenticationForm(AuthenticationForm):
+    error_messages = {
+        **AuthenticationForm.error_messages,
+        "locked": "Too many unsuccessful attempts. Try again later.",
+    }
+
+    def clean(self):
+        identifier = (self.data.get("username") or "").strip().casefold()
+        forwarded = self.request.META.get("HTTP_X_FORWARDED_FOR", "")
+        ip_address = (forwarded.split(",", 1)[0].strip() if forwarded else self.request.META.get("REMOTE_ADDR")) or None
+        attempt, _ = LoginAttempt.objects.get_or_create(
+            identifier=identifier[:254], ip_address=ip_address
+        )
+        if attempt.blocked_until and attempt.blocked_until > timezone.now():
+            raise forms.ValidationError(self.error_messages["locked"], code="locked")
+        try:
+            cleaned = super().clean()
+        except forms.ValidationError:
+            from django.conf import settings
+            attempt.failures += 1
+            if attempt.failures >= settings.OMNI_LOGIN_FAILURE_LIMIT:
+                attempt.blocked_until = timezone.now() + timedelta(
+                    minutes=settings.OMNI_LOGIN_LOCKOUT_MINUTES
+                )
+            attempt.save()
+            raise
+        attempt.failures = 0
+        attempt.blocked_until = None
+        attempt.save(update_fields=("failures", "blocked_until", "last_attempt_at"))
+        return cleaned
 
 
 class SystemForm(forms.ModelForm):

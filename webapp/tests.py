@@ -1,6 +1,7 @@
 import tempfile
 import hashlib
 import zipfile
+import sqlite3
 from datetime import date, timedelta
 from io import BytesIO
 from pathlib import Path
@@ -10,6 +11,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core import mail
+from django.conf import settings
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -31,6 +33,7 @@ from .models import (
     Framework,
     GeneratedDocument,
     Membership,
+    LoginAttempt,
     Notification,
     NotificationPolicy,
     NotificationPreference,
@@ -1330,3 +1333,82 @@ class SprintNineAccessGovernanceTests(TestCase):
         self.assertEqual(export.status_code, 200)
         self.assertIn("access-member", export.content.decode())
         self.assertTrue(AuditEvent.objects.filter(action="access_review.exported").exists())
+
+
+class SprintTenLocalSecurityTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.admin = user_model.objects.create_user(
+            "security-admin", email="security@example.test", password="test-password"
+        )
+        self.organization = Organization.objects.create(name="Security Test", slug="security")
+        Membership.objects.create(
+            user=self.admin, organization=self.organization, role=Membership.Role.ADMIN
+        )
+
+    @override_settings(OMNI_LOGIN_FAILURE_LIMIT=3, OMNI_LOGIN_LOCKOUT_MINUTES=15)
+    def test_login_throttle_blocks_repeated_failures(self):
+        url = reverse("login")
+        for _ in range(3):
+            self.client.post(url, {"username": "security-admin", "password": "wrong"})
+        blocked = self.client.post(url, {
+            "username": "security-admin", "password": "test-password"
+        })
+        self.assertEqual(blocked.status_code, 200)
+        self.assertContains(blocked, "Too many unsuccessful attempts")
+        attempt = LoginAttempt.objects.get(identifier="security-admin")
+        self.assertIsNotNone(attempt.blocked_until)
+
+    def test_security_headers_are_present(self):
+        response = self.client.get(reverse("login"))
+        self.assertIn("default-src 'self'", response["Content-Security-Policy"])
+        self.assertEqual(response["Permissions-Policy"], "camera=(), microphone=(), geolocation=()")
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_password_reset_uses_generic_response_and_sends_secure_link(self):
+        known = self.client.post(reverse("password_reset"), {"email": "security@example.test"})
+        unknown = self.client.post(reverse("password_reset"), {"email": "unknown@example.test"})
+        self.assertEqual(known.status_code, unknown.status_code)
+        self.assertEqual(known.url, unknown.url)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("/accounts/reset/", mail.outbox[0].body)
+        self.assertNotIn("test-password", mail.outbox[0].body)
+
+    def test_backup_and_verification_commands(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            database = root / "source.sqlite3"
+            connection = sqlite3.connect(database)
+            connection.execute("CREATE TABLE sample (value TEXT)")
+            connection.execute("INSERT INTO sample VALUES ('synthetic')")
+            connection.commit()
+            connection.close()
+            media = root / "private"
+            media.mkdir()
+            (media / "evidence.txt").write_text("synthetic evidence", encoding="utf-8")
+            backup = root / "backups"
+            with patch.dict(settings.DATABASES["default"], {"NAME": str(database)}), patch.object(
+                settings, "MEDIA_ROOT", media
+            ), patch.object(settings, "OMNI_BACKUP_DIR", backup):
+                call_command("backup_omni")
+                archive = next(backup.glob("*.zip"))
+                call_command("verify_omni_backup", str(archive))
+                with zipfile.ZipFile(archive) as source:
+                    self.assertIn("private_uploads/evidence.txt", source.namelist())
+
+    def test_expired_invitations_and_admin_health(self):
+        OrganizationInvitation.objects.create(
+            organization=self.organization, email="expired@example.test",
+            role=Membership.Role.VIEWER, token_digest="e" * 64, invited_by=self.admin,
+            expires_at=timezone.now() - timedelta(days=1),
+        )
+        call_command("expire_invitations")
+        self.assertEqual(
+            OrganizationInvitation.objects.get().status,
+            OrganizationInvitation.Status.EXPIRED,
+        )
+        self.client.login(username="security-admin", password="test-password")
+        response = self.client.get(reverse("system-health", args=("security",)))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Future deployment gate")
