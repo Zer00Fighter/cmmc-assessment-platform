@@ -1,5 +1,13 @@
 # Changelog
 
+## Sprint 18.3 — Comprehensive user and administrator manual
+
+- Added a 14-page, framework-agnostic Word manual for Omni's implemented web application.
+- Added an overall assessment-lifecycle diagram and role-based quick-start guidance.
+- Documented assessment planning, result entry, evidence, remediation, quality review, reporting,
+  multi-framework reuse, optional risk, notifications, framework governance, and administration.
+- Added a deterministic public manual builder and preserved the no-client-data repository boundary.
+
 ## Sprint 18.2 — Optional risk treatment and continuous monitoring
 
 - Added default-off assessment and reporting toggles for the entire risk capability.
