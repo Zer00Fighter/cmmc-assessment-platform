@@ -1,5 +1,11 @@
 # Changelog
 
+## Sprint 18.1 — Guided finding-to-risk workflow
+
+- Added approved catalog-risk suggestions for NOT MET controls.
+- Added one-step prefilled risk evaluation from governed relationships.
+- Added duplicate control/catalog risk safeguards and registered-state visibility.
+
 ## Sprint 18 — Operational risk management
 
 - Added organization-scoped assessment risk registers with control, catalog, owner, and remediation links.

@@ -100,6 +100,7 @@ from .harmonization import harmonization_metrics, refresh_harmonization, review_
 from .mapping_governance import review_change
 from .notifications import assessment_url, notify, notify_assessment_team, organization_users
 from .risk_heatmap import build_weighted_risk_heatmap
+from .risk_workflow import finding_risk_suggestions
 
 
 def _organizations_for(user):
@@ -2006,6 +2007,7 @@ def risk_register_list(request: HttpRequest, org_slug: str, assessment_id: int) 
     if category:
         risks = risks.filter(category=category)
     all_risks = assessment.risks.all()
+    suggestions = finding_risk_suggestions(assessment)
     return render(request, "webapp/risk_register_list.html", {
         "organization": organization, "assessment": assessment, "risks": risks,
         "matrix": _risk_matrix(all_risks.exclude(status=RiskRegisterEntry.Status.CLOSED)),
@@ -2018,6 +2020,8 @@ def risk_register_list(request: HttpRequest, org_slug: str, assessment_id: int) 
                         status__in=(RiskRegisterEntry.Status.CLOSED, RiskRegisterEntry.Status.ACCEPTED)).count(),
                     "accepted": all_risks.filter(status=RiskRegisterEntry.Status.ACCEPTED).count()},
         "can_edit": _can_edit(request.user, organization),
+        "risk_suggestions": suggestions,
+        "unregistered_risk_suggestions": sum(not item["registered"] for item in suggestions),
     })
 
 
@@ -2038,24 +2042,39 @@ def risk_register_create(request: HttpRequest, org_slug: str, assessment_id: int
     catalog_id = request.GET.get("catalog", "")
     if catalog_id.isdigit():
         catalog = get_object_or_404(RiskCatalogEntry, pk=catalog_id, active=True)
+        if control_id.isdigit() and not RequirementRiskMapping.objects.filter(
+            requirement=result.requirement, risk=catalog,
+            review_status=RequirementRiskMapping.ReviewStatus.APPROVED,
+        ).exists():
+            raise Http404
         initial.update({"catalog_risk": catalog, "title": catalog.title,
                         "description": catalog.description, "category": catalog.grouping})
     form = RiskRegisterForm(request.POST or None, initial=initial, organization=organization,
                             assessment=assessment, can_accept=_is_org_admin(request.user, organization))
     if request.method == "POST" and form.is_valid():
-        risk = form.save(commit=False)
-        risk.organization, risk.system, risk.assessment = organization, assessment.system, assessment
-        risk.risk_id, risk.created_by = _next_risk_id(organization), request.user
-        risk.source = "CCF_CATALOG" if risk.catalog_risk_id else "ASSESSMENT"
-        if risk.treatment == RiskRegisterEntry.Treatment.ACCEPT:
-            risk.status, risk.accepted_by, risk.accepted_at = RiskRegisterEntry.Status.ACCEPTED, request.user, timezone.now()
-        risk.save(); form.save_m2m()
-        RiskRegisterHistory.objects.create(risk=risk, actor=request.user, action="CREATED", snapshot=_risk_snapshot(risk))
-        AuditEvent.objects.create(organization=organization, actor=request.user, action="risk.created",
-                                  object_type="RiskRegisterEntry", object_id=str(risk.id),
-                                  detail={"risk_id": risk.risk_id, "score": risk.inherent_score})
-        messages.success(request, f"{risk.risk_id} added to the risk register.")
-        return redirect("risk-register-detail", org_slug=org_slug, assessment_id=assessment.id, risk_id=risk.id)
+        catalog = form.cleaned_data.get("catalog_risk")
+        controls = form.cleaned_data.get("controls")
+        duplicate = None
+        if catalog and controls:
+            duplicate = assessment.risks.filter(
+                catalog_risk=catalog, controls__in=controls
+            ).distinct().first()
+        if duplicate:
+            form.add_error("catalog_risk", f"This catalog risk is already registered as {duplicate.risk_id} for a selected control.")
+        else:
+            risk = form.save(commit=False)
+            risk.organization, risk.system, risk.assessment = organization, assessment.system, assessment
+            risk.risk_id, risk.created_by = _next_risk_id(organization), request.user
+            risk.source = "CCF_CATALOG" if risk.catalog_risk_id else "ASSESSMENT"
+            if risk.treatment == RiskRegisterEntry.Treatment.ACCEPT:
+                risk.status, risk.accepted_by, risk.accepted_at = RiskRegisterEntry.Status.ACCEPTED, request.user, timezone.now()
+            risk.save(); form.save_m2m()
+            RiskRegisterHistory.objects.create(risk=risk, actor=request.user, action="CREATED", snapshot=_risk_snapshot(risk))
+            AuditEvent.objects.create(organization=organization, actor=request.user, action="risk.created",
+                                      object_type="RiskRegisterEntry", object_id=str(risk.id),
+                                      detail={"risk_id": risk.risk_id, "score": risk.inherent_score})
+            messages.success(request, f"{risk.risk_id} added to the risk register.")
+            return redirect("risk-register-detail", org_slug=org_slug, assessment_id=assessment.id, risk_id=risk.id)
     return render(request, "webapp/risk_register_form.html", {
         "organization": organization, "assessment": assessment, "form": form,
         "title": "New risk", "submit_label": "Add risk to register",

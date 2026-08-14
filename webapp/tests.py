@@ -320,6 +320,39 @@ class SprintEighteenRiskRegisterTests(TestCase):
             organization=self.organization, action="risk.exported"
         ).exists())
 
+    def test_approved_finding_risk_is_guided_and_cannot_be_registered_twice(self):
+        catalog = RiskCatalogEntry.objects.create(
+            risk_id="R-AC-4", grouping="Access Control", title="Unauthorized access",
+            description="Unauthorized access may occur.", source_row=11,
+            source_filename="private.xlsx", source_sha256="b" * 64,
+        )
+        RequirementRiskMapping.objects.create(
+            requirement=self.control.requirement, risk=catalog,
+            rationale="The failed control directly restricts unauthorized access.",
+            review_status=RequirementRiskMapping.ReviewStatus.APPROVED,
+            proposed_by=self.admin, reviewed_by=self.admin, reviewed_at=timezone.now(),
+        )
+        self.client.login(username="risk-assessor", password="test-password")
+        list_url = reverse("risk-register-list", args=(self.organization.slug, self.assessment.id))
+        listing = self.client.get(list_url)
+        self.assertContains(listing, "Approved catalog risks associated with findings")
+        self.assertContains(listing, "R-AC-4")
+        self.assertContains(listing, "Evaluate and register")
+        create_url = reverse("risk-register-create", args=(self.organization.slug, self.assessment.id))
+        guided = self.client.get(create_url, {"control": self.control.id, "catalog": catalog.id})
+        self.assertContains(guided, "Unauthorized access")
+        payload = self._risk_payload(
+            catalog_risk=str(catalog.id), title=catalog.title,
+            description=catalog.description, category=catalog.grouping,
+        )
+        self.assertEqual(self.client.post(create_url, payload).status_code, 302)
+        self.assertEqual(RiskRegisterEntry.objects.count(), 1)
+        duplicate = self.client.post(create_url, payload)
+        self.assertEqual(duplicate.status_code, 200)
+        self.assertContains(duplicate, "already registered")
+        self.assertEqual(RiskRegisterEntry.objects.count(), 1)
+        self.assertContains(self.client.get(list_url), "Registered")
+
 
 class SprintSeventeenPointSixAuthoritativeSourcesTests(TestCase):
     def setUp(self):

@@ -14,3 +14,10 @@ Sprint 18 turns Omni's catalog risks and weighted control exposure into an organ
 - All screens and exports enforce organization and assessment tenant boundaries.
 
 The CCF catalog continues to describe possible risks. Register entries represent an organization's evaluated risks.
+
+## Sprint 18.1 — Guided finding-to-risk conversion
+
+- Approved control-to-risk relationships are surfaced beside NOT MET controls in the risk workspace.
+- Assessors can open a prefilled risk evaluation from an approved suggestion.
+- Unapproved relationships cannot be used through the guided URL.
+- Existing control/catalog combinations are marked as registered and cannot be duplicated.
