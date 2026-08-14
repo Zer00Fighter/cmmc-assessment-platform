@@ -18,6 +18,7 @@ urlpatterns = [
     path("frameworks/imports/new/", views.framework_import_upload, name="framework-import-upload"),
     path("frameworks/imports/<int:import_id>/", views.framework_import_preview, name="framework-import-preview"),
     path("frameworks/mapping-quality/", views.mapping_quality, name="mapping-quality"),
+    path("frameworks/mapping-governance/", views.mapping_governance, name="mapping-governance"),
     path("organizations/new/", views.organization_create, name="organization-create"),
     path("organizations/<slug:org_slug>/edit/", views.organization_edit, name="organization-edit"),
     path("organizations/<slug:org_slug>/members/", views.membership_list, name="membership-list"),

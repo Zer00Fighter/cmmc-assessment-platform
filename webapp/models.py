@@ -259,6 +259,9 @@ class RequirementMapping(models.Model):
         related_name="approved_requirement_mappings",
     )
     approved_at = models.DateTimeField(null=True, blank=True)
+    lifecycle = models.CharField(max_length=15, choices=(("DRAFT", "Draft"), ("PENDING", "Pending review"), ("APPROVED", "Approved"), ("REJECTED", "Rejected"), ("SUPERSEDED", "Superseded"), ("RETIRED", "Retired")), default="APPROVED")
+    revision = models.PositiveIntegerField(default=1)
+    effective_date = models.DateField(null=True, blank=True)
 
     class Meta:
         ordering = ("source__framework__code", "source__requirement_id")
@@ -1119,6 +1122,7 @@ class GeneratedDocument(models.Model):
     approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="approved_omni_documents")
     approved_at = models.DateTimeField(null=True, blank=True)
     superseded_by = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="supersedes")
+    stale = models.BooleanField(default=False)
     filename = models.CharField(max_length=300)
     version = models.CharField(max_length=30, default="1.0")
     readiness = models.JSONField(default=dict, blank=True)
@@ -1146,6 +1150,48 @@ class ReportingProfile(models.Model):
     require_objectives = models.BooleanField(default=True)
     require_evidence_applicability = models.BooleanField(default=True)
     active = models.BooleanField(default=True)
+
+
+class MappingChangeRequest(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending review"
+        APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
+
+    mapping = models.ForeignKey(RequirementMapping, on_delete=models.PROTECT, related_name="change_requests")
+    proposed_relationship = models.CharField(max_length=15, choices=RequirementMapping.Relationship.choices)
+    proposed_rationale = models.TextField()
+    proposed_confidence = models.DecimalField(max_digits=4, decimal_places=3, null=True, blank=True)
+    reason = models.TextField()
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="mapping_changes_requested")
+    requested_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="mapping_changes_reviewed")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewer_comment = models.TextField(blank=True)
+
+
+class MappingHistory(models.Model):
+    mapping = models.ForeignKey(RequirementMapping, on_delete=models.PROTECT, related_name="history")
+    revision = models.PositiveIntegerField()
+    snapshot = models.JSONField()
+    action = models.CharField(max_length=30)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="mapping_history_events")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class RevalidationTask(models.Model):
+    class Status(models.TextChoices):
+        OPEN = "OPEN", "Open"
+        CONFIRMED = "CONFIRMED", "Revalidated"
+        NO_ACTION = "NO_ACTION", "No action required"
+
+    assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name="revalidation_tasks")
+    change_request = models.ForeignKey(MappingChangeRequest, on_delete=models.CASCADE, related_name="revalidation_tasks")
+    reuse_decision = models.ForeignKey(AssessmentReuseDecision, null=True, blank=True, on_delete=models.SET_NULL, related_name="revalidation_tasks")
+    reason = models.TextField()
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.OPEN)
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class AuditEvent(models.Model):

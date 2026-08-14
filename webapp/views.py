@@ -50,6 +50,7 @@ from .forms import (
     AssessmentReuseDecisionForm,
     MappingReferenceReviewForm,
     EvidenceApplicabilityForm,
+    MappingChangeRequestForm,
 )
 from .models import (
     Assessment,
@@ -70,6 +71,7 @@ from .models import (
     GeneratedDocument,
     Membership,
     MappingReference,
+    MappingChangeRequest,
     Notification,
     NotificationPreference,
     NotificationPolicy,
@@ -87,6 +89,7 @@ from .models import (
 )
 from .framework_import import approve_import, parse_upload, version_impact
 from .harmonization import harmonization_metrics, refresh_harmonization, review_reuse
+from .mapping_governance import review_change
 from .notifications import assessment_url, notify, notify_assessment_team, organization_users
 
 
@@ -385,6 +388,31 @@ def mapping_quality(request: HttpRequest) -> HttpResponse:
             "pending": MappingReference.objects.filter(review_status=MappingReference.ReviewStatus.PENDING).count(),
             "approved": MappingReference.objects.filter(review_status=MappingReference.ReviewStatus.APPROVED).count(),
         },
+    })
+
+
+@login_required
+def mapping_governance(request: HttpRequest) -> HttpResponse:
+    if not request.user.is_superuser:
+        raise Http404
+    form = MappingChangeRequestForm(request.POST or None)
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "create" and form.is_valid():
+            change = form.save(commit=False); change.requested_by = request.user; change.save()
+            messages.success(request, "Mapping change submitted for independent review.")
+        elif action in {"approve", "reject"}:
+            change = get_object_or_404(MappingChangeRequest, pk=request.POST.get("change_id"))
+            try:
+                impacted = review_change(change, request.user, action == "approve", request.POST.get("comment", ""))
+                messages.success(request, f"Change {action}d; {impacted} assessment reuse decision(s) queued for revalidation.")
+            except ValueError as exc:
+                messages.error(request, str(exc))
+        return redirect("mapping-governance")
+    return render(request, "webapp/mapping_governance.html", {
+        "form": form, "changes": MappingChangeRequest.objects.select_related(
+            "mapping__source__framework", "mapping__target__framework", "requested_by", "reviewed_by"
+        ),
     })
 
 

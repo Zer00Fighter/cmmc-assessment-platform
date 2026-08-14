@@ -39,6 +39,9 @@ from .models import (
     Membership,
     LoginAttempt,
     MappingReference,
+    MappingChangeRequest,
+    MappingHistory,
+    RevalidationTask,
     Notification,
     NotificationPolicy,
     NotificationPreference,
@@ -55,6 +58,7 @@ from .models import (
 )
 from .framework_import import materialize_mapping_references, parse_upload, resolve_catalog_mappings
 from .harmonization import refresh_harmonization, review_reuse
+from .mapping_governance import review_change
 
 
 class SprintOneWorkflowTests(TestCase):
@@ -1787,3 +1791,23 @@ class SprintFifteenSharedWorkTests(SprintThirteenHarmonizationTests):
         self.assertTrue(framework_report.startswith(b"PK"))
         self.assertIn(b"FRAME-A", traceability)
         self.assertIn(b"A-1", traceability)
+
+
+class SprintSeventeenMappingGovernanceTests(TestCase):
+    def setUp(self):
+        users = get_user_model(); self.author = users.objects.create_user("map-author"); self.reviewer = users.objects.create_user("map-reviewer")
+        first = Framework.objects.create(code="MAP-A", name="Map A", version="1")
+        second = Framework.objects.create(code="MAP-B", name="Map B", version="1")
+        source = Requirement.objects.create(framework=first, requirement_id="A", domain="G", title="A", statement="A")
+        target = Requirement.objects.create(framework=second, requirement_id="B", domain="G", title="B", statement="B")
+        self.mapping = RequirementMapping.objects.create(source=source, target=target, relationship="RELATED")
+        self.change = MappingChangeRequest.objects.create(mapping=self.mapping, proposed_relationship="PARTIAL", proposed_rationale="Overlap only", reason="Source changed", requested_by=self.author)
+
+    def test_independent_approval_versions_mapping_and_preserves_history(self):
+        with self.assertRaises(ValueError): review_change(self.change, self.author, True)
+        review_change(self.change, self.reviewer, True)
+        self.mapping.refresh_from_db(); self.change.refresh_from_db()
+        self.assertEqual(self.mapping.relationship, "PARTIAL")
+        self.assertEqual(self.mapping.revision, 2)
+        self.assertEqual(self.change.status, "APPROVED")
+        self.assertEqual(MappingHistory.objects.filter(mapping=self.mapping).count(), 2)

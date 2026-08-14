@@ -1,5 +1,10 @@
 # Changelog
 
+## Sprint 17 — Mapping governance and change impact
+
+- Added mapping lifecycle, revisions, independent change requests, and immutable history.
+- Added impact-driven revalidation tasks and stale draft-report flags.
+
 ## Sprint 16 — Multi-framework reporting
 
 - Added framework-specific and consolidated Word assessment reports.

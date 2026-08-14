@@ -16,7 +16,7 @@ from .models import (
     NotificationPolicy,
     OrganizationInvitation, UserProfile,
     LoginAttempt,
-    RemediationMilestone, RemediationPlan, System, TestExecution,
+    RemediationMilestone, RemediationPlan, RequirementMapping, MappingChangeRequest, System, TestExecution,
 )
 
 
@@ -78,6 +78,13 @@ class MappingReferenceReviewForm(forms.ModelForm):
         model = MappingReference
         fields = ("relationship", "confidence", "rationale")
         widgets = {"rationale": forms.Textarea(attrs={"rows": 2})}
+
+
+class MappingChangeRequestForm(forms.ModelForm):
+    class Meta:
+        model = MappingChangeRequest
+        fields = ("mapping", "proposed_relationship", "proposed_confidence", "proposed_rationale", "reason")
+        widgets = {"proposed_rationale": forms.Textarea(attrs={"rows": 3}), "reason": forms.Textarea(attrs={"rows": 3})}
 
 
 class OmniAuthenticationForm(AuthenticationForm):
