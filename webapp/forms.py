@@ -6,9 +6,10 @@ from django.utils.text import slugify
 from src.evidence.evidence_knowledge import EVIDENCE_KNOWLEDGE
 
 from .models import (
-    Assessment, AssessmentFramework, ControlAssessment, EvidenceArtifact,
-    EvidenceRequest, Framework, Membership, Organization, RemediationMilestone,
-    RemediationPlan, System,
+    Assessment, AssessmentFramework, AssessmentProcedure, AssessmentSample, AssessmentTeamMember,
+    ControlAssessment, EvidenceArtifact, EvidenceRequest, Framework,
+    InterviewSession, Membership, ObjectiveAssessment, Organization,
+    RemediationMilestone, RemediationPlan, System, TestExecution,
 )
 
 
@@ -331,6 +332,153 @@ class AssessmentForm(forms.ModelForm):
         if frameworks is not None and primary is not None and primary not in frameworks:
             self.add_error("primary_framework", "The primary framework must also be selected.")
         return cleaned
+
+
+class AssessmentPlanForm(forms.ModelForm):
+    class Meta:
+        model = Assessment
+        fields = (
+            "engagement_start", "engagement_end", "scope_boundaries",
+            "assessment_locations", "sampling_methodology",
+        )
+        widgets = {
+            "engagement_start": forms.DateInput(attrs={"type": "date"}),
+            "engagement_end": forms.DateInput(attrs={"type": "date"}),
+            "scope_boundaries": forms.Textarea(attrs={"rows": 4}),
+            "assessment_locations": forms.Textarea(attrs={"rows": 3}),
+            "sampling_methodology": forms.Textarea(attrs={"rows": 4}),
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        start, end = cleaned.get("engagement_start"), cleaned.get("engagement_end")
+        if start and end and end < start:
+            self.add_error("engagement_end", "Cannot precede the engagement start.")
+        return cleaned
+
+
+class AssessmentTeamForm(forms.ModelForm):
+    class Meta:
+        model = AssessmentTeamMember
+        fields = ("membership", "role")
+
+    def __init__(self, *args, organization, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["membership"].queryset = organization.memberships.filter(
+            active=True
+        ).select_related("user")
+
+
+class ObjectiveAssessmentForm(forms.ModelForm):
+    class Meta:
+        model = ObjectiveAssessment
+        fields = ("status", "assessor_notes", "evidence")
+        widgets = {
+            "assessor_notes": forms.Textarea(attrs={"rows": 5}),
+            "evidence": forms.CheckboxSelectMultiple(),
+        }
+
+    def __init__(self, *args, assessment, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["evidence"].queryset = assessment.evidence_artifacts.all()
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("status") != ObjectiveAssessment.Status.NOT_ASSESSED and not (
+            cleaned.get("assessor_notes") or ""
+        ).strip():
+            self.add_error("assessor_notes", "Document the objective-level conclusion.")
+        return cleaned
+
+
+class InterviewSessionForm(forms.ModelForm):
+    class Meta:
+        model = InterviewSession
+        fields = (
+            "title", "scheduled_at", "location_or_link", "participants",
+            "interviewer", "objectives", "notes", "completed",
+        )
+        widgets = {
+            "scheduled_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "participants": forms.Textarea(attrs={"rows": 3}),
+            "objectives": forms.CheckboxSelectMultiple(),
+            "notes": forms.Textarea(attrs={"rows": 4}),
+        }
+
+    def __init__(self, *args, organization, assessment, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["interviewer"].queryset = organization.memberships.filter(active=True)
+        self.fields["objectives"].queryset = ObjectiveAssessment.objects.filter(
+            control_result__assessment=assessment
+        ).select_related("objective", "control_result__requirement")
+
+
+class AssessmentSampleForm(forms.ModelForm):
+    class Meta:
+        model = AssessmentSample
+        fields = (
+            "name", "population_description", "population_size", "sample_size",
+            "selection_method", "rationale", "selected_items", "objectives",
+        )
+        widgets = {
+            "population_description": forms.Textarea(attrs={"rows": 3}),
+            "selection_method": forms.Textarea(attrs={"rows": 3}),
+            "rationale": forms.Textarea(attrs={"rows": 3}),
+            "selected_items": forms.Textarea(attrs={"rows": 4}),
+            "objectives": forms.CheckboxSelectMultiple(),
+        }
+
+    def __init__(self, *args, assessment, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["objectives"].queryset = ObjectiveAssessment.objects.filter(
+            control_result__assessment=assessment
+        ).select_related("objective")
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("sample_size", 0) > cleaned.get("population_size", 0):
+            self.add_error("sample_size", "Cannot exceed the population size.")
+        return cleaned
+
+
+class TestExecutionForm(forms.ModelForm):
+    class Meta:
+        model = TestExecution
+        fields = (
+            "objective_result", "procedure", "performed_by", "performed_at",
+            "steps_performed", "expected_result", "actual_result", "outcome", "evidence",
+        )
+        widgets = {
+            "performed_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "steps_performed": forms.Textarea(attrs={"rows": 4}),
+            "expected_result": forms.Textarea(attrs={"rows": 3}),
+            "actual_result": forms.Textarea(attrs={"rows": 4}),
+            "evidence": forms.CheckboxSelectMultiple(),
+        }
+
+    def __init__(self, *args, organization, assessment, **kwargs):
+        super().__init__(*args, **kwargs)
+        objectives = ObjectiveAssessment.objects.filter(
+            control_result__assessment=assessment
+        ).select_related("objective", "control_result__requirement")
+        self.fields["objective_result"].queryset = objectives
+        self.fields["procedure"].queryset = AssessmentProcedure.objects.filter(
+            requirement__assessment_results__assessment=assessment,
+            method=AssessmentProcedure.Method.TEST,
+        ).distinct()
+        self.fields["performed_by"].queryset = organization.memberships.filter(active=True)
+        self.fields["evidence"].queryset = assessment.evidence_artifacts.all()
+
+
+class QualityReviewForm(forms.ModelForm):
+    class Meta:
+        model = Assessment
+        fields = ("quality_review_status", "quality_review_notes")
+        widgets = {"quality_review_notes": forms.Textarea(attrs={"rows": 5})}
+
+
+class ReopenAssessmentForm(forms.Form):
+    reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 5}), min_length=10)
 
 
 class ControlAssessmentForm(forms.ModelForm):

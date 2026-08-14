@@ -15,6 +15,10 @@ from openpyxl import load_workbook
 from .models import (
     Assessment,
     AssessmentFramework,
+    AssessmentObjective,
+    AssessmentProcedure,
+    AssessmentSample,
+    AssessmentTeamMember,
     AuditEvent,
     ControlAssessment,
     EvidenceArtifact,
@@ -22,6 +26,7 @@ from .models import (
     Framework,
     GeneratedDocument,
     Membership,
+    ObjectiveAssessment,
     Organization,
     RemediationMilestone,
     RemediationPlan,
@@ -760,3 +765,131 @@ class SprintFivePointFiveFrameworkTests(TestCase):
         ))
         self.assertContains(response, "ISO-MULTI · AC.1")
         self.assertContains(response, "Equivalent")
+
+
+class SprintSixExecutionTests(TestCase):
+    def setUp(self):
+        users = get_user_model()
+        self.assessor = users.objects.create_user("s6-assessor", password="test-password")
+        self.admin = users.objects.create_user("s6-admin", password="test-password")
+        self.organization = Organization.objects.create(name="Synthetic S6", slug="s6")
+        self.assessor_member = Membership.objects.create(
+            user=self.assessor, organization=self.organization, role=Membership.Role.ASSESSOR
+        )
+        self.admin_member = Membership.objects.create(
+            user=self.admin, organization=self.organization, role=Membership.Role.ADMIN
+        )
+        self.system = System.objects.create(organization=self.organization, name="S6 System")
+        self.framework = Framework.objects.create(
+            code="S6-FW", name="Sprint Six", version="1",
+            scoring_method=Framework.ScoringMethod.DEDUCTION, maximum_score=100,
+        )
+        self.requirement = Requirement.objects.create(
+            framework=self.framework, requirement_id="S6.1", domain="S6",
+            title="Objective control", statement="Meet every objective.", full_deduction=5,
+        )
+        self.objective_a = AssessmentObjective.objects.create(
+            requirement=self.requirement, objective_id="a", text="First objective"
+        )
+        self.objective_b = AssessmentObjective.objects.create(
+            requirement=self.requirement, objective_id="b", text="Second objective"
+        )
+        AssessmentProcedure.objects.create(
+            requirement=self.requirement, method=AssessmentProcedure.Method.EXAMINE,
+            sequence=1, assessment_object="Policy",
+        )
+        self.assessment = Assessment.objects.create(
+            system=self.system, framework=self.framework, name="S6 Assessment",
+            created_by=self.assessor,
+        )
+        AssessmentFramework.objects.create(
+            assessment=self.assessment, framework=self.framework, is_primary=True,
+            added_by=self.assessor,
+        )
+        self.control = ControlAssessment.objects.create(
+            assessment=self.assessment, requirement=self.requirement
+        )
+        self.result_a = ObjectiveAssessment.objects.create(
+            control_result=self.control, objective=self.objective_a
+        )
+        self.result_b = ObjectiveAssessment.objects.create(
+            control_result=self.control, objective=self.objective_b
+        )
+
+    def test_planning_records_scope_team_and_sampling_methodology(self):
+        self.client.login(username="s6-assessor", password="test-password")
+        url = reverse("assessment-plan", args=("s6", self.assessment.id))
+        response = self.client.post(url, {
+            "action": "plan", "engagement_start": "2026-08-01",
+            "engagement_end": "2026-08-31", "scope_boundaries": "Synthetic boundary",
+            "assessment_locations": "Remote", "sampling_methodology": "Random sample",
+        })
+        self.assertRedirects(response, url)
+        self.assessment.refresh_from_db()
+        self.assertEqual(self.assessment.sampling_methodology, "Random sample")
+        response = self.client.post(url, {
+            "action": "team", "team-membership": self.assessor_member.id,
+            "team-role": AssessmentTeamMember.Role.LEAD,
+        })
+        self.assertRedirects(response, url)
+        self.assertTrue(self.assessment.team_members.filter(role="LEAD").exists())
+
+    def test_objectives_derive_control_status(self):
+        self.client.login(username="s6-assessor", password="test-password")
+        url_a = reverse("objective-edit", args=("s6", self.assessment.id, self.result_a.id))
+        self.client.post(url_a, {
+            "status": ObjectiveAssessment.Status.MET,
+            "assessor_notes": "First objective met.",
+        })
+        url_b = reverse("objective-edit", args=("s6", self.assessment.id, self.result_b.id))
+        self.client.post(url_b, {
+            "status": ObjectiveAssessment.Status.NOT_MET,
+            "assessor_notes": "Second objective failed.",
+        })
+        self.control.refresh_from_db()
+        self.assertEqual(self.control.status, ControlAssessment.Status.NOT_MET)
+        self.assertEqual(self.control.calculated_deduction, 5)
+
+    def test_sample_cannot_exceed_population(self):
+        self.client.login(username="s6-assessor", password="test-password")
+        response = self.client.post(reverse(
+            "sample-create", args=("s6", self.assessment.id)
+        ), {
+            "name": "Invalid sample", "population_description": "Accounts",
+            "population_size": 5, "sample_size": 6,
+            "selection_method": "Random",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Cannot exceed the population size")
+        self.assertFalse(AssessmentSample.objects.exists())
+
+    def test_signoff_requires_review_then_locks_and_admin_reopens_with_reason(self):
+        ObjectiveAssessment.objects.filter(control_result=self.control).update(
+            status=ObjectiveAssessment.Status.MET, assessor_notes="Met"
+        )
+        self.control.derive_from_objectives()
+        self.assessment.quality_review_status = "APPROVED"
+        self.assessment.save(update_fields=("quality_review_status",))
+        self.client.login(username="s6-assessor", password="test-password")
+        response = self.client.post(reverse(
+            "assessment-signoff", args=("s6", self.assessment.id)
+        ))
+        self.assertRedirects(response, reverse(
+            "quality-review", args=("s6", self.assessment.id)
+        ))
+        self.assessment.refresh_from_db()
+        self.assertTrue(self.assessment.locked)
+        edit = self.client.get(reverse(
+            "objective-edit", args=("s6", self.assessment.id, self.result_a.id)
+        ))
+        self.assertEqual(edit.status_code, 404)
+        self.client.login(username="s6-admin", password="test-password")
+        reopen = self.client.post(reverse(
+            "assessment-reopen", args=("s6", self.assessment.id)
+        ), {"reason": "New evidence requires reassessment."})
+        self.assertRedirects(reopen, reverse(
+            "assessment-dashboard", args=("s6", self.assessment.id)
+        ))
+        self.assessment.refresh_from_db()
+        self.assertFalse(self.assessment.locked)
+        self.assertEqual(self.assessment.reopen_reason, "New evidence requires reassessment.")

@@ -2,6 +2,10 @@ from django.contrib import admin
 
 from .models import (
     Assessment,
+    AssessmentObjective,
+    AssessmentProcedure,
+    AssessmentSample,
+    AssessmentTeamMember,
     AuditEvent,
     ControlAssessment,
     EvidenceArtifact,
@@ -9,12 +13,15 @@ from .models import (
     Framework,
     GeneratedDocument,
     Membership,
+    InterviewSession,
+    ObjectiveAssessment,
     Organization,
     Requirement,
     RemediationMilestone,
     RemediationPlan,
     RequirementMapping,
     System,
+    TestExecution,
 )
 
 admin.site.register(
@@ -29,6 +36,13 @@ admin.site.register(
         RemediationPlan,
         RequirementMapping,
         Assessment,
+        AssessmentObjective,
+        AssessmentProcedure,
+        AssessmentSample,
+        AssessmentTeamMember,
+        InterviewSession,
+        ObjectiveAssessment,
+        TestExecution,
         ControlAssessment,
         EvidenceArtifact,
         EvidenceRequest,

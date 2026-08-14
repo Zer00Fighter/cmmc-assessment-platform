@@ -16,7 +16,7 @@ from openpyxl import load_workbook
 from src.ssp_export import SSPExportMetadata, export_ssp
 from src.workbook import WorkbookBuilder
 
-from .models import ControlAssessment, EvidenceArtifact, RemediationPlan
+from .models import ControlAssessment, EvidenceArtifact, ObjectiveAssessment, RemediationPlan
 from .remediation_export import build_remediation_workbook
 
 
@@ -51,6 +51,11 @@ def assessment_readiness(assessment, *, require_template=False) -> dict:
             review_status=EvidenceArtifact.ReviewStatus.ACCEPTED
         ).exists():
             warnings.append(f"{control} has no accepted supporting artifact.")
+        unassessed_objectives = result.objective_results.filter(
+            status="NOT_ASSESSED"
+        ).count()
+        if unassessed_objectives:
+            blockers.append(f"{control} has {unassessed_objectives} unassessed objective(s).")
     template = Path(settings.OMNI_SSP_TEMPLATE) if settings.OMNI_SSP_TEMPLATE else None
     if require_template and (not template or not template.is_file()):
         blockers.append(
@@ -135,6 +140,37 @@ def build_assessment_workbook(assessment) -> bytes:
         multi_sheet.auto_filter.ref = multi_sheet.dimensions
         for column in range(1, len(multi_headers) + 1):
             multi_sheet.column_dimensions[chr(64 + column)].width = 20
+        objective_sheet = workbook.create_sheet("Objective Results", 4)
+        objective_headers = (
+            "Framework", "Requirement ID", "Objective ID", "Objective Text",
+            "Status", "Assessor Notes", "Assessed By", "Assessed At",
+            "Evidence References", "Examine Objects", "Interview Objects", "Test Objects",
+        )
+        for column, header in enumerate(objective_headers, 1):
+            objective_sheet.cell(1, column, header)
+        objective_results = ObjectiveAssessment.objects.filter(
+            control_result__assessment=assessment
+        ).select_related(
+            "objective__requirement__framework", "assessed_by"
+        ).prefetch_related("evidence", "objective__requirement__assessment_procedures")
+        for row, result in enumerate(objective_results, 2):
+            procedures = list(result.objective.requirement.assessment_procedures.all())
+            method_text = lambda method: "; ".join(
+                item.assessment_object for item in procedures if item.method == method
+            )
+            values = (
+                result.objective.requirement.framework.code,
+                result.objective.requirement.requirement_id, result.objective.objective_id,
+                result.objective.text, result.get_status_display(), result.assessor_notes,
+                (result.assessed_by.get_full_name() or result.assessed_by.username)
+                if result.assessed_by else "", result.assessed_at,
+                "; ".join(f"EA-{item.id:04d} {item.title}" for item in result.evidence.all()),
+                method_text("EXAMINE"), method_text("INTERVIEW"), method_text("TEST"),
+            )
+            for column, value in enumerate(values, 1):
+                objective_sheet.cell(row, column, value)
+        objective_sheet.freeze_panes = "A2"
+        objective_sheet.auto_filter.ref = objective_sheet.dimensions
         sheet = workbook["Assessment"]
         crosswalk = workbook["SSP Crosswalk"]
         for row in range(6, sheet.max_row + 1):

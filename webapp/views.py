@@ -4,6 +4,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Count, Q, Sum
@@ -13,19 +14,30 @@ from django.utils import timezone
 
 from .forms import (
     AssessmentForm,
+    AssessmentPlanForm,
+    AssessmentSampleForm,
+    AssessmentTeamForm,
     BulkControlOwnerForm,
     ControlAssessmentForm,
     EvidenceArtifactForm,
     EvidenceRequestForm,
     MembershipForm,
     OrganizationForm,
+    InterviewSessionForm,
+    ObjectiveAssessmentForm,
+    QualityReviewForm,
+    ReopenAssessmentForm,
     RemediationMilestoneForm,
     RemediationPlanForm,
     SystemForm,
+    TestExecutionForm,
 )
 from .models import (
     Assessment,
     AssessmentFramework,
+    AssessmentProcedure,
+    AssessmentSample,
+    AssessmentTeamMember,
     AuditEvent,
     ControlAssessment,
     EvidenceArtifact,
@@ -33,11 +45,14 @@ from .models import (
     Framework,
     GeneratedDocument,
     Membership,
+    InterviewSession,
+    ObjectiveAssessment,
     Organization,
     RemediationMilestone,
     RemediationPlan,
     RequirementMapping,
     System,
+    TestExecution,
 )
 
 
@@ -268,6 +283,11 @@ def assessment_create(
                     for requirement in framework.requirements.all()
                 ]
             )
+            for result in assessment.control_results.select_related("requirement"):
+                ObjectiveAssessment.objects.bulk_create([
+                    ObjectiveAssessment(control_result=result, objective=objective)
+                    for objective in result.requirement.objectives.all()
+                ])
             AuditEvent.objects.create(
                 organization=organization,
                 actor=request.user,
@@ -326,6 +346,7 @@ def assessment_frameworks(
     organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
     if not _can_edit(request.user, organization):
         raise Http404
+    _require_unlocked(assessment)
     form = AssessmentForm(request.POST or None, instance=assessment)
     if request.method == "POST" and form.is_valid():
         selected = set(form.cleaned_data["frameworks"])
@@ -348,6 +369,13 @@ def assessment_frameworks(
                     ControlAssessment(assessment=assessment, requirement=requirement)
                     for requirement in framework.requirements.all()
                 ])
+                for result in assessment.control_results.filter(
+                    requirement__framework=framework
+                ).select_related("requirement"):
+                    ObjectiveAssessment.objects.bulk_create([
+                        ObjectiveAssessment(control_result=result, objective=objective)
+                        for objective in result.requirement.objectives.all()
+                    ])
             for framework in removed:
                 assessment.control_results.filter(requirement__framework=framework).delete()
                 AssessmentFramework.objects.filter(
@@ -473,6 +501,235 @@ def _assessment_for(user, org_slug: str, assessment_id: int):
         id=assessment_id, system__organization=organization,
     )
     return organization, assessment
+
+
+def _require_unlocked(assessment: Assessment) -> None:
+    if assessment.locked:
+        raise Http404
+
+
+@login_required
+def assessment_plan(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    if not _can_edit(request.user, organization):
+        raise Http404
+    if request.method == "POST":
+        _require_unlocked(assessment)
+    plan_form = AssessmentPlanForm(request.POST or None, instance=assessment)
+    team_form = AssessmentTeamForm(
+        request.POST or None, organization=organization, prefix="team"
+    )
+    if request.method == "POST" and request.POST.get("action") == "plan" and plan_form.is_valid():
+        plan_form.save()
+        AuditEvent.objects.create(
+            organization=organization, actor=request.user, action="assessment.plan_updated",
+            object_type="Assessment", object_id=str(assessment.id), detail={},
+        )
+        messages.success(request, "Assessment plan updated.")
+        return redirect("assessment-plan", org_slug=org_slug, assessment_id=assessment.id)
+    if request.method == "POST" and request.POST.get("action") == "team" and team_form.is_valid():
+        member = team_form.save(commit=False)
+        member.assessment = assessment
+        member.save()
+        messages.success(request, "Assessment team member added.")
+        return redirect("assessment-plan", org_slug=org_slug, assessment_id=assessment.id)
+    return render(request, "webapp/assessment_plan.html", {
+        "organization": organization, "assessment": assessment,
+        "plan_form": plan_form, "team_form": team_form,
+        "team": assessment.team_members.select_related("membership__user"),
+    })
+
+
+@login_required
+def assessment_execution(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    results = assessment.control_results.select_related(
+        "requirement__framework"
+    ).prefetch_related("objective_results__objective", "objective_results__evidence")
+    method = request.GET.get("method", "").upper()
+    framework = request.GET.get("framework", "")
+    assessor = request.GET.get("assessor", "")
+    if framework:
+        results = results.filter(requirement__framework__code=framework)
+    objectives = ObjectiveAssessment.objects.filter(control_result__in=results).select_related(
+        "objective", "control_result__requirement__framework", "assessed_by"
+    ).prefetch_related("objective__procedures", "evidence")
+    if method:
+        objectives = objectives.filter(objective__procedures__method=method).distinct()
+    if assessor.isdigit():
+        objectives = objectives.filter(assessed_by_id=int(assessor))
+    counts = {
+        value: objectives.filter(status=value).count()
+        for value in ObjectiveAssessment.Status.values
+    }
+    return render(request, "webapp/assessment_execution.html", {
+        "organization": organization, "assessment": assessment,
+        "objectives": objectives, "counts": counts,
+        "total": objectives.count(), "frameworks": _selected_frameworks(assessment),
+        "methods": AssessmentProcedure.Method.choices,
+        "assessors": get_user_model().objects.filter(
+            assessed_objectives__control_result__assessment=assessment
+        ).distinct(),
+        "filters": {"method": method, "framework": framework, "assessor": assessor},
+        "can_edit": _can_edit(request.user, organization) and not assessment.locked,
+    })
+
+
+@login_required
+def objective_edit(
+    request: HttpRequest, org_slug: str, assessment_id: int, objective_result_id: int
+) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    if not _can_edit(request.user, organization):
+        raise Http404
+    _require_unlocked(assessment)
+    result = get_object_or_404(
+        ObjectiveAssessment.objects.select_related(
+            "objective__requirement", "control_result__requirement"
+        ), id=objective_result_id, control_result__assessment=assessment,
+    )
+    form = ObjectiveAssessmentForm(request.POST or None, instance=result, assessment=assessment)
+    if request.method == "POST" and form.is_valid():
+        result = form.save(commit=False)
+        result.assessed_by = request.user
+        result.assessed_at = timezone.now()
+        result.save()
+        form.save_m2m()
+        result.control_result.derive_from_objectives()
+        AuditEvent.objects.create(
+            organization=organization, actor=request.user, action="objective.assessed",
+            object_type="ObjectiveAssessment", object_id=str(result.id),
+            detail={"objective": str(result.objective), "status": result.status},
+        )
+        messages.success(request, "Objective result saved; control outcome recalculated.")
+        return redirect("assessment-execution", org_slug=org_slug, assessment_id=assessment.id)
+    return render(request, "webapp/objective_form.html", {
+        "organization": organization, "assessment": assessment, "result": result, "form": form,
+    })
+
+
+def _execution_create(request, org_slug, assessment_id, form_class, title, action):
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    if not _can_edit(request.user, organization):
+        raise Http404
+    _require_unlocked(assessment)
+    kwargs = {"assessment": assessment}
+    if form_class in (InterviewSessionForm, TestExecutionForm):
+        kwargs["organization"] = organization
+    form = form_class(request.POST or None, **kwargs)
+    if request.method == "POST" and form.is_valid():
+        item = form.save(commit=False)
+        item.assessment = assessment
+        item.save()
+        form.save_m2m()
+        AuditEvent.objects.create(
+            organization=organization, actor=request.user, action=action,
+            object_type=item.__class__.__name__, object_id=str(item.id), detail={},
+        )
+        messages.success(request, f"{title} saved.")
+        return redirect("assessment-execution", org_slug=org_slug, assessment_id=assessment.id)
+    return render(request, "webapp/entity_form.html", {
+        "organization": organization, "form": form, "title": title,
+        "eyebrow": assessment.name, "submit_label": f"Save {title.lower()}",
+    })
+
+
+@login_required
+def interview_create(request, org_slug, assessment_id):
+    return _execution_create(request, org_slug, assessment_id, InterviewSessionForm,
+                             "Interview session", "interview.created")
+
+
+@login_required
+def sample_create(request, org_slug, assessment_id):
+    return _execution_create(request, org_slug, assessment_id, AssessmentSampleForm,
+                             "Assessment sample", "sample.created")
+
+
+@login_required
+def test_execution_create(request, org_slug, assessment_id):
+    return _execution_create(request, org_slug, assessment_id, TestExecutionForm,
+                             "Test execution", "test_execution.created")
+
+
+@login_required
+def quality_review(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    if not _can_edit(request.user, organization):
+        raise Http404
+    form = QualityReviewForm(request.POST or None, instance=assessment)
+    if request.method == "POST":
+        _require_unlocked(assessment)
+        if form.is_valid():
+            form.save()
+            AuditEvent.objects.create(
+                organization=organization, actor=request.user, action="quality_review.updated",
+                object_type="Assessment", object_id=str(assessment.id),
+                detail={"status": assessment.quality_review_status},
+            )
+            messages.success(request, "Quality review updated.")
+            return redirect("quality-review", org_slug=org_slug, assessment_id=assessment.id)
+    unassessed = assessment.control_results.filter(
+        objective_results__status=ObjectiveAssessment.Status.NOT_ASSESSED
+    ).distinct().count()
+    return render(request, "webapp/quality_review.html", {
+        "organization": organization, "assessment": assessment, "form": form,
+        "unassessed_objective_controls": unassessed,
+    })
+
+
+@login_required
+def assessment_signoff(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
+    if request.method != "POST":
+        raise Http404
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    if not _can_edit(request.user, organization):
+        raise Http404
+    _require_unlocked(assessment)
+    if assessment.quality_review_status != "APPROVED":
+        messages.error(request, "Quality review must be approved before sign-off.")
+    elif assessment.control_results.filter(
+        objective_results__status=ObjectiveAssessment.Status.NOT_ASSESSED
+    ).exists():
+        messages.error(request, "All assessment objectives must be completed before sign-off.")
+    else:
+        assessment.status = Assessment.Status.COMPLETE
+        assessment.locked = True
+        assessment.signed_off_by = request.user
+        assessment.signed_off_at = timezone.now()
+        assessment.save()
+        AuditEvent.objects.create(
+            organization=organization, actor=request.user, action="assessment.signed_off",
+            object_type="Assessment", object_id=str(assessment.id), detail={},
+        )
+        messages.success(request, "Assessment signed off and locked.")
+    return redirect("quality-review", org_slug=org_slug, assessment_id=assessment.id)
+
+
+@login_required
+def assessment_reopen(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    if not _is_org_admin(request.user, organization) or not assessment.locked:
+        raise Http404
+    form = ReopenAssessmentForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        assessment.locked = False
+        assessment.status = Assessment.Status.IN_PROGRESS
+        assessment.reopened_by = request.user
+        assessment.reopened_at = timezone.now()
+        assessment.reopen_reason = form.cleaned_data["reason"]
+        assessment.save()
+        AuditEvent.objects.create(
+            organization=organization, actor=request.user, action="assessment.reopened",
+            object_type="Assessment", object_id=str(assessment.id),
+            detail={"reason": form.cleaned_data["reason"]},
+        )
+        messages.success(request, "Assessment reopened with an audit record.")
+        return redirect("assessment-dashboard", org_slug=org_slug, assessment_id=assessment.id)
+    return render(request, "webapp/entity_form.html", {
+        "organization": organization, "form": form, "title": "Reopen assessment",
+        "eyebrow": assessment.name, "submit_label": "Reopen assessment",
+    })
 
 
 def _generate_cmmc_drl(assessment: Assessment, framework: Framework | None = None):
@@ -604,6 +861,7 @@ def evidence_request_create(
     organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
     if not _can_edit(request.user, organization):
         raise Http404
+    _require_unlocked(assessment)
     form = EvidenceRequestForm(
         request.POST or None, organization=organization, assessment=assessment
     )
@@ -633,6 +891,7 @@ def evidence_request_edit(
     organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
     if not _can_edit(request.user, organization):
         raise Http404
+    _require_unlocked(assessment)
     evidence_request = get_object_or_404(
         EvidenceRequest, id=evidence_request_id, assessment=assessment
     )
@@ -663,6 +922,7 @@ def evidence_artifact_create(
     organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
     if not _can_manage_evidence(request.user, organization):
         raise Http404
+    _require_unlocked(assessment)
     can_review = _can_edit(request.user, organization)
     form = EvidenceArtifactForm(
         request.POST or None, request.FILES or None, assessment=assessment,
@@ -698,6 +958,7 @@ def evidence_artifact_edit(
     organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
     if not _can_manage_evidence(request.user, organization):
         raise Http404
+    _require_unlocked(assessment)
     artifact = get_object_or_404(
         EvidenceArtifact, id=artifact_id, assessment=assessment, organization=organization
     )
@@ -814,6 +1075,7 @@ def remediation_create(request: HttpRequest, org_slug: str, assessment_id: int) 
     organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
     if not _can_edit(request.user, organization):
         raise Http404
+    _require_unlocked(assessment)
     initial = {}
     result_id = request.GET.get("control", "")
     if result_id.isdigit():
@@ -877,6 +1139,7 @@ def remediation_edit(
 ) -> HttpResponse:
     organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
     plan = get_object_or_404(RemediationPlan, id=plan_id, assessment=assessment)
+    _require_unlocked(assessment)
     if not _can_manage_remediation(request.user, organization, plan):
         raise Http404
     can_validate = _can_edit(request.user, organization)
@@ -919,6 +1182,7 @@ def remediation_milestone_create(
 ) -> HttpResponse:
     organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
     plan = get_object_or_404(RemediationPlan, id=plan_id, assessment=assessment)
+    _require_unlocked(assessment)
     if not _can_manage_remediation(request.user, organization, plan):
         raise Http404
     form = RemediationMilestoneForm(request.POST or None, organization=organization)
@@ -1046,6 +1310,7 @@ def control_edit(
     )
     if not _can_edit(request.user, organization):
         raise Http404
+    _require_unlocked(result.assessment)
     if request.method == "POST":
         previous = {"status": result.status, "deduction": result.calculated_deduction}
         form = ControlAssessmentForm(request.POST, instance=result, organization=organization)
@@ -1099,6 +1364,7 @@ def bulk_control_owners(
     )
     if not _can_edit(request.user, organization):
         raise Http404
+    _require_unlocked(assessment)
     form = BulkControlOwnerForm(
         request.POST or None, organization=organization, assessment=assessment
     )

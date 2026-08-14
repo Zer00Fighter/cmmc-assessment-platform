@@ -197,6 +197,30 @@ class Assessment(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    engagement_start = models.DateField(null=True, blank=True)
+    engagement_end = models.DateField(null=True, blank=True)
+    assessment_locations = models.TextField(blank=True)
+    scope_boundaries = models.TextField(blank=True)
+    sampling_methodology = models.TextField(blank=True)
+    quality_review_status = models.CharField(
+        max_length=20,
+        choices=(("NOT_STARTED", "Not started"), ("IN_REVIEW", "In review"),
+                 ("APPROVED", "Approved"), ("CHANGES_REQUIRED", "Changes required")),
+        default="NOT_STARTED",
+    )
+    quality_review_notes = models.TextField(blank=True)
+    signed_off_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="signed_off_assessments",
+    )
+    signed_off_at = models.DateTimeField(null=True, blank=True)
+    locked = models.BooleanField(default=False)
+    reopened_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="reopened_assessments",
+    )
+    reopened_at = models.DateTimeField(null=True, blank=True)
+    reopen_reason = models.TextField(blank=True)
 
     class Meta:
         ordering = ("-updated_at",)
@@ -242,6 +266,30 @@ class AssessmentFramework(models.Model):
 
     def __str__(self) -> str:
         return f"{self.assessment}: {self.framework}"
+
+
+class AssessmentTeamMember(models.Model):
+    class Role(models.TextChoices):
+        LEAD = "LEAD", "Lead assessor"
+        ASSESSOR = "ASSESSOR", "Assessor"
+        REVIEWER = "REVIEWER", "Quality reviewer"
+        SME = "SME", "Subject-matter expert"
+
+    assessment = models.ForeignKey(
+        Assessment, on_delete=models.CASCADE, related_name="team_members"
+    )
+    membership = models.ForeignKey(
+        Membership, on_delete=models.PROTECT, related_name="assessment_team_assignments"
+    )
+    role = models.CharField(max_length=12, choices=Role.choices)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(
+            fields=("assessment", "membership"), name="unique_assessment_team_member"
+        )]
+
+    def __str__(self) -> str:
+        return f"{self.membership} — {self.get_role_display()}"
 
 
 class ControlAssessment(models.Model):
@@ -317,6 +365,162 @@ class ControlAssessment(models.Model):
     def save(self, *args, **kwargs):
         self.calculated_deduction = self.calculate_deduction()
         super().save(*args, **kwargs)
+
+    def derive_from_objectives(self) -> bool:
+        results = list(self.objective_results.all())
+        if not results:
+            return False
+        statuses = {item.status for item in results}
+        if ObjectiveAssessment.Status.NOT_MET in statuses:
+            status = self.Status.NOT_MET
+            implementation = self.Implementation.PARTIAL
+        elif statuses == {ObjectiveAssessment.Status.NOT_APPLICABLE}:
+            status = self.Status.NOT_APPLICABLE
+            implementation = self.Implementation.NA
+        elif ObjectiveAssessment.Status.NOT_ASSESSED in statuses:
+            status = self.Status.NOT_ASSESSED
+            implementation = self.Implementation.UNASSESSED
+        else:
+            status = self.Status.MET
+            implementation = self.Implementation.FULL
+        changed = self.status != status or self.implementation_state != implementation
+        if changed:
+            self.status, self.implementation_state = status, implementation
+            self.save(update_fields=("status", "implementation_state", "calculated_deduction", "updated_at"))
+        return changed
+
+
+class AssessmentObjective(models.Model):
+    requirement = models.ForeignKey(
+        Requirement, on_delete=models.CASCADE, related_name="objectives"
+    )
+    objective_id = models.CharField(max_length=50)
+    text = models.TextField()
+    source_document = models.CharField(max_length=250, blank=True)
+    source_version = models.CharField(max_length=50, blank=True)
+    source_page_start = models.PositiveIntegerField(null=True, blank=True)
+    source_page_end = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("requirement__requirement_id", "objective_id")
+        constraints = [models.UniqueConstraint(
+            fields=("requirement", "objective_id"), name="unique_requirement_objective"
+        )]
+
+    def __str__(self) -> str:
+        return f"{self.requirement.requirement_id}[{self.objective_id}]"
+
+
+class AssessmentProcedure(models.Model):
+    class Method(models.TextChoices):
+        EXAMINE = "EXAMINE", "Examine"
+        INTERVIEW = "INTERVIEW", "Interview"
+        TEST = "TEST", "Test"
+        OBSERVE = "OBSERVE", "Observe"
+
+    requirement = models.ForeignKey(
+        Requirement, on_delete=models.CASCADE, related_name="assessment_procedures"
+    )
+    objective = models.ForeignKey(
+        AssessmentObjective, on_delete=models.CASCADE, related_name="procedures",
+        null=True, blank=True,
+    )
+    method = models.CharField(max_length=12, choices=Method.choices)
+    sequence = models.PositiveSmallIntegerField(default=1)
+    assessment_object = models.TextField()
+    source_page_start = models.PositiveIntegerField(null=True, blank=True)
+    source_page_end = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("method", "sequence")
+        constraints = [models.UniqueConstraint(
+            fields=("requirement", "objective", "method", "sequence"),
+            name="unique_assessment_procedure",
+        )]
+
+
+class ObjectiveAssessment(models.Model):
+    class Status(models.TextChoices):
+        MET = "MET", "MET"
+        NOT_MET = "NOT_MET", "NOT MET"
+        NOT_APPLICABLE = "NOT_APPLICABLE", "NOT APPLICABLE"
+        NOT_ASSESSED = "NOT_ASSESSED", "NOT ASSESSED"
+
+    control_result = models.ForeignKey(
+        ControlAssessment, on_delete=models.CASCADE, related_name="objective_results"
+    )
+    objective = models.ForeignKey(
+        AssessmentObjective, on_delete=models.PROTECT, related_name="assessment_results"
+    )
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.NOT_ASSESSED)
+    assessor_notes = models.TextField(blank=True)
+    evidence = models.ManyToManyField(
+        "EvidenceArtifact", related_name="objective_results", blank=True
+    )
+    assessed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="assessed_objectives",
+    )
+    assessed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(
+            fields=("control_result", "objective"), name="unique_control_objective_result"
+        )]
+
+    def __str__(self) -> str:
+        return f"{self.objective} — {self.get_status_display()}"
+
+
+class InterviewSession(models.Model):
+    assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name="interviews")
+    title = models.CharField(max_length=250)
+    scheduled_at = models.DateTimeField()
+    location_or_link = models.CharField(max_length=500, blank=True)
+    participants = models.TextField(help_text="Names, titles, and organizational roles.")
+    interviewer = models.ForeignKey(
+        Membership, on_delete=models.PROTECT, related_name="led_interviews"
+    )
+    objectives = models.ManyToManyField(ObjectiveAssessment, related_name="interviews", blank=True)
+    notes = models.TextField(blank=True)
+    completed = models.BooleanField(default=False)
+
+
+class AssessmentSample(models.Model):
+    assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name="samples")
+    name = models.CharField(max_length=250)
+    population_description = models.TextField()
+    population_size = models.PositiveIntegerField()
+    sample_size = models.PositiveIntegerField()
+    selection_method = models.TextField()
+    rationale = models.TextField(blank=True)
+    selected_items = models.TextField(blank=True)
+    objectives = models.ManyToManyField(ObjectiveAssessment, related_name="samples", blank=True)
+
+
+class TestExecution(models.Model):
+    class Outcome(models.TextChoices):
+        PASS = "PASS", "Pass"
+        FAIL = "FAIL", "Fail"
+        INCONCLUSIVE = "INCONCLUSIVE", "Inconclusive"
+
+    assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name="test_executions")
+    objective_result = models.ForeignKey(
+        ObjectiveAssessment, on_delete=models.CASCADE, related_name="test_executions"
+    )
+    procedure = models.ForeignKey(
+        AssessmentProcedure, on_delete=models.PROTECT, related_name="executions",
+        null=True, blank=True,
+    )
+    performed_by = models.ForeignKey(
+        Membership, on_delete=models.PROTECT, related_name="test_executions"
+    )
+    performed_at = models.DateTimeField()
+    steps_performed = models.TextField()
+    expected_result = models.TextField(blank=True)
+    actual_result = models.TextField()
+    outcome = models.CharField(max_length=15, choices=Outcome.choices)
+    evidence = models.ManyToManyField("EvidenceArtifact", related_name="test_executions", blank=True)
 
 
 class EvidenceRequest(models.Model):
