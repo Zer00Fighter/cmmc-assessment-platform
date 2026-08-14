@@ -1412,3 +1412,51 @@ class SprintTenLocalSecurityTests(TestCase):
         response = self.client.get(reverse("system-health", args=("security",)))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Future deployment gate")
+
+
+class SprintElevenPilotAcceptanceTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.admin = user_model.objects.create_superuser(
+            "pilot-admin", email="pilot-admin@example.test", password="test-password"
+        )
+        framework = Framework.objects.create(
+            code="PILOT", name="Pilot Framework", version="RC1",
+            scoring_method=Framework.ScoringMethod.DEDUCTION, maximum_score=100,
+        )
+        requirement = Requirement.objects.create(
+            framework=framework, requirement_id="PILOT-1", domain="AC",
+            title="Synthetic pilot control", statement="Perform the synthetic pilot control.",
+            full_deduction=5,
+        )
+        AssessmentObjective.objects.create(
+            requirement=requirement, objective_id="a", text="Verify the synthetic objective."
+        )
+
+    def test_synthetic_pilot_is_idempotent_and_complete_enough_for_uat(self):
+        call_command("seed_local_pilot", "--confirm-synthetic", "--created-by", "pilot-admin")
+        call_command("seed_local_pilot", "--confirm-synthetic", "--created-by", "pilot-admin")
+        organization = Organization.objects.get(slug="omni-synthetic-pilot")
+        self.assertIn("NOT CLIENT DATA", organization.name)
+        self.assertEqual(organization.systems.count(), 1)
+        assessment = organization.systems.get().assessments.get()
+        self.assertEqual(assessment.control_results.count(), 1)
+        self.assertEqual(ObjectiveAssessment.objects.filter(
+            control_result__assessment=assessment
+        ).count(), 1)
+        self.assertEqual(assessment.evidence_requests.count(), 1)
+        self.assertEqual(assessment.remediation_plans.count(), 1)
+
+    def test_pilot_dashboard_and_workbook_open_without_client_data(self):
+        call_command("seed_local_pilot", "--confirm-synthetic", "--created-by", "pilot-admin")
+        assessment = Assessment.objects.get(system__organization__slug="omni-synthetic-pilot")
+        self.client.login(username="pilot-admin", password="test-password")
+        dashboard = self.client.get(reverse(
+            "assessment-dashboard", args=("omni-synthetic-pilot", assessment.id)
+        ))
+        self.assertEqual(dashboard.status_code, 200)
+        self.assertContains(dashboard, "Executive assessment dashboard")
+        from .reporting import build_assessment_workbook
+        workbook = load_workbook(BytesIO(build_assessment_workbook(assessment)))
+        self.assertIn("Dashboard", workbook.sheetnames)
+        self.assertIn("Objective Results", workbook.sheetnames)
