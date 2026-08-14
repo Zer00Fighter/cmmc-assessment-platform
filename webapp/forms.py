@@ -1,16 +1,18 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
 from django.utils import timezone
 from django.utils.text import slugify
 
 from src.evidence.evidence_knowledge import EVIDENCE_KNOWLEDGE
 
 from .models import (
-    Assessment, AssessmentFramework, AssessmentProcedure, AssessmentSample, AssessmentTeamMember,
+    Assessment, AssessmentAccess, AssessmentFramework, AssessmentProcedure, AssessmentSample, AssessmentTeamMember,
     ControlAssessment, EvidenceArtifact, EvidenceRequest, Framework,
     InterviewSession, Membership, ObjectiveAssessment, Organization,
     NotificationPreference,
     NotificationPolicy,
+    OrganizationInvitation, UserProfile,
     RemediationMilestone, RemediationPlan, System, TestExecution,
 )
 
@@ -68,6 +70,69 @@ class MembershipForm(forms.ModelForm):
             raise forms.ValidationError("No unique Omni account matches that username or email.")
         self.user = users.get()
         return value
+
+
+class InvitationForm(forms.ModelForm):
+    class Meta:
+        model = OrganizationInvitation
+        fields = ("email", "role")
+
+
+class InvitationAcceptForm(forms.Form):
+    first_name = forms.CharField(max_length=150)
+    last_name = forms.CharField(max_length=150)
+    password1 = forms.CharField(widget=forms.PasswordInput, label="Password")
+    password2 = forms.CharField(widget=forms.PasswordInput, label="Confirm password")
+
+    def clean_password1(self):
+        password = self.cleaned_data["password1"]
+        validate_password(password)
+        return password
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("password1") != cleaned.get("password2"):
+            self.add_error("password2", "Passwords do not match.")
+        return cleaned
+
+
+class UserProfileForm(forms.ModelForm):
+    first_name = forms.CharField(max_length=150)
+    last_name = forms.CharField(max_length=150)
+    email = forms.EmailField()
+
+    class Meta:
+        model = UserProfile
+        fields = ("first_name", "last_name", "email", "job_title", "phone", "time_zone")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["first_name"].initial = self.instance.user.first_name
+        self.fields["last_name"].initial = self.instance.user.last_name
+        self.fields["email"].initial = self.instance.user.email
+
+    def save(self, commit=True):
+        profile = super().save(commit=False)
+        user = profile.user
+        user.first_name = self.cleaned_data["first_name"]
+        user.last_name = self.cleaned_data["last_name"]
+        user.email = self.cleaned_data["email"]
+        if commit:
+            user.save(update_fields=("first_name", "last_name", "email"))
+            profile.save()
+        return profile
+
+
+class AssessmentAccessForm(forms.ModelForm):
+    class Meta:
+        model = AssessmentAccess
+        fields = ("membership", "access")
+
+    def __init__(self, *args, organization, assessment, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["membership"].queryset = organization.memberships.filter(
+            active=True
+        ).exclude(assessment_access__assessment=assessment).select_related("user")
 
 
 class BulkControlOwnerForm(forms.Form):

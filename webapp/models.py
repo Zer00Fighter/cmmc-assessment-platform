@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.conf import settings
 from django.core.validators import FileExtensionValidator
 from django.db import models
+from django.utils import timezone
 
 
 def evidence_upload_path(instance, filename: str) -> str:
@@ -85,6 +86,47 @@ class Membership(models.Model):
     def __str__(self) -> str:
         display_name = self.user.get_full_name() or self.user.username
         return f"{display_name} ({self.get_role_display()})"
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="omni_profile"
+    )
+    job_title = models.CharField(max_length=150, blank=True)
+    phone = models.CharField(max_length=50, blank=True)
+    time_zone = models.CharField(max_length=60, default="America/Los_Angeles")
+
+    def __str__(self) -> str:
+        return f"Profile for {self.user}"
+
+
+class OrganizationInvitation(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        ACCEPTED = "ACCEPTED", "Accepted"
+        CANCELLED = "CANCELLED", "Cancelled"
+        EXPIRED = "EXPIRED", "Expired"
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="invitations"
+    )
+    email = models.EmailField()
+    role = models.CharField(max_length=12, choices=Membership.Role.choices)
+    token_digest = models.CharField(max_length=64, unique=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING)
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="sent_omni_invitations"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    @property
+    def is_usable(self):
+        return self.status == self.Status.PENDING and self.expires_at > timezone.now()
 
 
 class System(models.Model):
@@ -292,6 +334,29 @@ class AssessmentFramework(models.Model):
 
     def __str__(self) -> str:
         return f"{self.assessment}: {self.framework}"
+
+
+class AssessmentAccess(models.Model):
+    class Access(models.TextChoices):
+        VIEW = "VIEW", "View only"
+        CONTRIBUTE = "CONTRIBUTE", "Contribute"
+
+    assessment = models.ForeignKey(
+        Assessment, on_delete=models.CASCADE, related_name="access_grants"
+    )
+    membership = models.ForeignKey(
+        Membership, on_delete=models.CASCADE, related_name="assessment_access"
+    )
+    access = models.CharField(max_length=12, choices=Access.choices, default=Access.VIEW)
+    granted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="granted_assessment_access"
+    )
+    granted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(
+            fields=("assessment", "membership"), name="unique_assessment_access"
+        )]
 
 
 class AssessmentTeamMember(models.Model):

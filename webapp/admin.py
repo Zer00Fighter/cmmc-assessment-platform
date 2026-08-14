@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from .models import (
     Assessment,
+    AssessmentAccess,
     AssessmentObjective,
     AssessmentProcedure,
     AssessmentSample,
@@ -20,6 +21,7 @@ from .models import (
     NotificationPolicy,
     ObjectiveAssessment,
     Organization,
+    OrganizationInvitation,
     Requirement,
     RemediationMilestone,
     RemediationPlan,
@@ -27,6 +29,7 @@ from .models import (
     System,
     TestExecution,
     WorkflowHistory,
+    UserProfile,
 )
 
 admin.site.register(
@@ -41,6 +44,7 @@ admin.site.register(
         RemediationPlan,
         RequirementMapping,
         Assessment,
+        AssessmentAccess,
         AssessmentObjective,
         AssessmentProcedure,
         AssessmentSample,
@@ -56,6 +60,8 @@ admin.site.register(
         NotificationPreference,
         NotificationPolicy,
         WorkflowHistory,
+        OrganizationInvitation,
+        UserProfile,
         AuditEvent,
     )
 )

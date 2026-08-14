@@ -1,4 +1,5 @@
 import tempfile
+import hashlib
 import zipfile
 from datetime import date, timedelta
 from io import BytesIO
@@ -12,10 +13,12 @@ from django.core import mail
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from openpyxl import load_workbook
 
 from .models import (
     Assessment,
+    AssessmentAccess,
     AssessmentFramework,
     AssessmentObjective,
     AssessmentProcedure,
@@ -33,12 +36,14 @@ from .models import (
     NotificationPreference,
     ObjectiveAssessment,
     Organization,
+    OrganizationInvitation,
     RemediationMilestone,
     RemediationPlan,
     Requirement,
     RequirementMapping,
     System,
     WorkflowHistory,
+    UserProfile,
 )
 
 
@@ -1201,3 +1206,127 @@ class SprintEightOneGovernanceTests(TestCase):
         policy = self.organization.notification_policy
         self.assertEqual(policy.repeat_overdue_days, 14)
         self.assertFalse(policy.notifications_enabled)
+
+
+class SprintNineAccessGovernanceTests(TestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.admin = user_model.objects.create_user(
+            "access-admin", email="admin@example.test", password="test-password"
+        )
+        self.member_user = user_model.objects.create_user(
+            "access-member", email="member@example.test", password="test-password"
+        )
+        self.other_user = user_model.objects.create_user(
+            "access-other", email="other@example.test", password="test-password"
+        )
+        self.organization = Organization.objects.create(name="Access Test", slug="access")
+        self.admin_member = Membership.objects.create(
+            user=self.admin, organization=self.organization, role=Membership.Role.ADMIN
+        )
+        self.member = Membership.objects.create(
+            user=self.member_user, organization=self.organization, role=Membership.Role.CLIENT
+        )
+        self.other_member = Membership.objects.create(
+            user=self.other_user, organization=self.organization, role=Membership.Role.CLIENT
+        )
+        self.system = System.objects.create(organization=self.organization, name="Access System")
+        framework = Framework.objects.create(code="ACCESS", name="Access", version="1")
+        requirement = Requirement.objects.create(
+            framework=framework, requirement_id="ACCESS-1", domain="AC",
+            title="Access", statement="Restrict access."
+        )
+        self.assessment = Assessment.objects.create(
+            system=self.system, framework=framework, name="Restricted Assessment",
+            created_by=self.admin,
+        )
+        self.control = ControlAssessment.objects.create(
+            assessment=self.assessment, requirement=requirement, primary_owner=self.member
+        )
+
+    @override_settings(
+        OMNI_EMAIL_ENABLED=True,
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        DEFAULT_FROM_EMAIL="Omni <omni@example.test>",
+    )
+    @patch("webapp.views.secrets.token_urlsafe", return_value="fixed-secure-token")
+    def test_invitation_email_acceptance_creates_account_and_membership(self, token_mock):
+        self.client.login(username="access-admin", password="test-password")
+        response = self.client.post(reverse("membership-list", args=("access",)), {
+            "action": "invite", "email": "new-user@example.test",
+            "role": Membership.Role.VIEWER,
+        })
+        self.assertRedirects(response, reverse("membership-list", args=("access",)))
+        invitation = OrganizationInvitation.objects.get(email="new-user@example.test")
+        self.assertNotIn("fixed-secure-token", invitation.token_digest)
+        self.assertEqual(len(mail.outbox), 1)
+        self.client.logout()
+        accepted = self.client.post(reverse("invitation-accept", args=("fixed-secure-token",)), {
+            "first_name": "New", "last_name": "User",
+            "password1": "A-Strong-Test-Password-482!",
+            "password2": "A-Strong-Test-Password-482!",
+        })
+        self.assertRedirects(accepted, reverse("organization-list"))
+        invitation.refresh_from_db()
+        self.assertEqual(invitation.status, OrganizationInvitation.Status.ACCEPTED)
+        self.assertTrue(Membership.objects.filter(
+            user__email="new-user@example.test", organization=self.organization,
+            role=Membership.Role.VIEWER, active=True,
+        ).exists())
+
+    def test_expired_invitation_is_rejected(self):
+        invitation = OrganizationInvitation.objects.create(
+            organization=self.organization, email="expired@example.test",
+            role=Membership.Role.CLIENT, token_digest=hashlib.sha256(b"expired").hexdigest(),
+            invited_by=self.admin, expires_at=timezone.now() - timedelta(minutes=1),
+        )
+        response = self.client.get(reverse("invitation-accept", args=("expired",)))
+        self.assertEqual(response.status_code, 410)
+        invitation.refresh_from_db()
+        self.assertEqual(invitation.status, OrganizationInvitation.Status.PENDING)
+
+    def test_explicit_assessment_access_restricts_other_members(self):
+        AssessmentAccess.objects.create(
+            assessment=self.assessment, membership=self.member,
+            access=AssessmentAccess.Access.VIEW, granted_by=self.admin,
+        )
+        url = reverse("assessment-dashboard", args=("access", self.assessment.id))
+        self.client.login(username="access-member", password="test-password")
+        self.assertEqual(self.client.get(url).status_code, 200)
+        self.client.login(username="access-other", password="test-password")
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.login(username="access-admin", password="test-password")
+        self.assertEqual(self.client.get(url).status_code, 200)
+
+    def test_last_admin_cannot_be_deactivated(self):
+        self.client.login(username="access-admin", password="test-password")
+        response = self.client.post(reverse(
+            "membership-toggle", args=("access", self.admin_member.id)
+        ), {"confirm": "yes"})
+        self.assertRedirects(response, reverse("membership-list", args=("access",)))
+        self.admin_member.refresh_from_db()
+        self.assertTrue(self.admin_member.active)
+
+    def test_assignment_warning_precedes_deactivation(self):
+        self.client.login(username="access-admin", password="test-password")
+        url = reverse("membership-toggle", args=("access", self.member.id))
+        self.client.post(url)
+        self.member.refresh_from_db()
+        self.assertTrue(self.member.active)
+        self.client.post(url, {"confirm": "yes"})
+        self.member.refresh_from_db()
+        self.assertFalse(self.member.active)
+
+    def test_profile_and_access_review_export(self):
+        self.client.login(username="access-admin", password="test-password")
+        profile = self.client.post(reverse("user-profile"), {
+            "first_name": "Access", "last_name": "Admin", "email": "admin@example.test",
+            "job_title": "GRC Administrator", "phone": "555-0100",
+            "time_zone": "America/New_York",
+        })
+        self.assertRedirects(profile, reverse("user-profile"))
+        self.assertEqual(UserProfile.objects.get(user=self.admin).job_title, "GRC Administrator")
+        export = self.client.get(reverse("access-review-export", args=("access",)))
+        self.assertEqual(export.status_code, 200)
+        self.assertIn("access-member", export.content.decode())
+        self.assertTrue(AuditEvent.objects.filter(action="access_review.exported").exists())

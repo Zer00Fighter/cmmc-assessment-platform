@@ -1,0 +1,1 @@
+{% extends "base.html" %}{% block title %}My profile{% endblock %}{% block content %}<section class="form-card"><p class="eyebrow">My account</p><h1>User profile</h1><form method="post" class="stack">{% csrf_token %}{{ form.as_p }}<button class="primary">Save profile</button></form><p><a href="{% url 'password_change' %}">Change password →</a></p></section>{% endblock %}

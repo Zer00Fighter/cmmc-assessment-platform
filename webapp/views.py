@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import csv
+import hashlib
+import secrets
+from datetime import timedelta
 from io import StringIO
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.mail import send_mail
 from django.db import transaction
@@ -26,6 +30,10 @@ from .forms import (
     EvidenceArtifactForm,
     EvidenceRequestForm,
     MembershipForm,
+    InvitationAcceptForm,
+    InvitationForm,
+    UserProfileForm,
+    AssessmentAccessForm,
     OrganizationForm,
     InterviewSessionForm,
     ObjectiveAssessmentForm,
@@ -40,6 +48,7 @@ from .forms import (
 )
 from .models import (
     Assessment,
+    AssessmentAccess,
     AssessmentFramework,
     AssessmentProcedure,
     AssessmentSample,
@@ -57,12 +66,14 @@ from .models import (
     InterviewSession,
     ObjectiveAssessment,
     Organization,
+    OrganizationInvitation,
     RemediationMilestone,
     RemediationPlan,
     RequirementMapping,
     System,
     TestExecution,
     EvidenceReviewHistory,
+    UserProfile,
 )
 from .notifications import assessment_url, notify, notify_assessment_team, organization_users
 
@@ -77,6 +88,21 @@ def _organizations_for(user):
 
 def _organization_for(user, slug: str) -> Organization:
     return get_object_or_404(_organizations_for(user), slug=slug)
+
+
+def _has_assessment_access(user, assessment: Assessment) -> bool:
+    if user.is_superuser:
+        return True
+    membership = Membership.objects.filter(
+        user=user, organization=assessment.system.organization, active=True
+    ).first()
+    if not membership:
+        return False
+    if membership.role == Membership.Role.ADMIN:
+        return True
+    if not assessment.access_grants.exists():
+        return True
+    return assessment.access_grants.filter(membership=membership).exists()
 
 
 def _can_edit(user, organization: Organization) -> bool:
@@ -166,6 +192,17 @@ def notification_preferences(request: HttpRequest) -> HttpResponse:
         messages.success(request, "Notification preferences saved.")
         return redirect("notification-preferences")
     return render(request, "webapp/notification_preferences.html", {"form": form})
+
+
+@login_required
+def user_profile(request: HttpRequest) -> HttpResponse:
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    form = UserProfileForm(request.POST or None, instance=profile)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Profile updated.")
+        return redirect("user-profile")
+    return render(request, "webapp/user_profile.html", {"form": form})
 
 
 @login_required
@@ -313,19 +350,191 @@ def membership_list(request: HttpRequest, org_slug: str) -> HttpResponse:
     organization = _organization_for(request.user, org_slug)
     if not _is_org_admin(request.user, organization):
         raise Http404
-    form = MembershipForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
+    form = MembershipForm(request.POST or None) if request.POST.get("action") != "invite" else MembershipForm()
+    invitation_form = InvitationForm(request.POST or None) if request.POST.get("action") == "invite" else InvitationForm()
+    if request.method == "POST" and request.POST.get("action") in (None, "", "member") and form.is_valid():
         membership, created = Membership.objects.update_or_create(
             user=form.user, organization=organization,
             defaults={"role": form.cleaned_data["role"], "active": True},
         )
         messages.success(request, "Team member added." if created else "Team member updated.")
         return redirect("membership-list", org_slug=org_slug)
+    if request.method == "POST" and request.POST.get("action") == "invite" and invitation_form.is_valid():
+        raw_token = secrets.token_urlsafe(32)
+        invitation = invitation_form.save(commit=False)
+        invitation.organization = organization
+        invitation.invited_by = request.user
+        invitation.token_digest = hashlib.sha256(raw_token.encode()).hexdigest()
+        invitation.expires_at = timezone.now() + timedelta(days=7)
+        invitation.save()
+        link = f'{settings.OMNI_BASE_URL}{reverse("invitation-accept", args=(raw_token,))}'
+        send_mail(
+            f"You are invited to Omni by R!SC",
+            f"You were invited to join {organization.name} in Omni as {invitation.get_role_display()}.\n\nAccept within 7 days: {link}\n\nNo password or assessment data is included.",
+            settings.DEFAULT_FROM_EMAIL, [invitation.email], fail_silently=True,
+        )
+        AuditEvent.objects.create(
+            organization=organization, actor=request.user, action="invitation.created",
+            object_type="OrganizationInvitation", object_id=str(invitation.id),
+            detail={"role": invitation.role},
+        )
+        messages.success(request, "Invitation created and email delivery attempted.")
+        return redirect("membership-list", org_slug=org_slug)
     return render(request, "webapp/membership_list.html", {
         "organization": organization,
         "memberships": organization.memberships.select_related("user").order_by("user__username"),
-        "form": form,
+        "form": form, "invitation_form": invitation_form,
+        "invitations": organization.invitations.all()[:50],
     })
+
+
+def invitation_accept(request: HttpRequest, token: str) -> HttpResponse:
+    digest = hashlib.sha256(token.encode()).hexdigest()
+    invitation = get_object_or_404(
+        OrganizationInvitation.objects.select_related("organization"), token_digest=digest
+    )
+    if not invitation.is_usable:
+        return render(request, "webapp/invitation_invalid.html", status=410)
+    existing = get_user_model().objects.filter(email__iexact=invitation.email).first()
+    form = InvitationAcceptForm(request.POST or None) if not existing else None
+    if request.method == "POST" and (existing or form.is_valid()):
+        user = existing
+        if not user:
+            base = invitation.email.split("@", 1)[0]
+            username, suffix = base, 2
+            while get_user_model().objects.filter(username=username).exists():
+                username, suffix = f"{base}{suffix}", suffix + 1
+            user = get_user_model().objects.create_user(
+                username=username, email=invitation.email,
+                first_name=form.cleaned_data["first_name"], last_name=form.cleaned_data["last_name"],
+                password=form.cleaned_data["password1"],
+            )
+        Membership.objects.update_or_create(
+            user=user, organization=invitation.organization,
+            defaults={"role": invitation.role, "active": True},
+        )
+        invitation.status = OrganizationInvitation.Status.ACCEPTED
+        invitation.accepted_at = timezone.now()
+        invitation.save(update_fields=("status", "accepted_at"))
+        AuditEvent.objects.create(
+            organization=invitation.organization, actor=user, action="invitation.accepted",
+            object_type="OrganizationInvitation", object_id=str(invitation.id), detail={},
+        )
+        if existing:
+            messages.success(request, "Invitation accepted. Sign in to continue.")
+            return redirect("login")
+        login(request, user)
+        return redirect("organization-list")
+    return render(request, "webapp/invitation_accept.html", {
+        "invitation": invitation, "form": form, "existing": bool(existing),
+    })
+
+
+@login_required
+def membership_toggle(request: HttpRequest, org_slug: str, membership_id: int) -> HttpResponse:
+    if request.method != "POST":
+        raise Http404
+    organization = _organization_for(request.user, org_slug)
+    if not _is_org_admin(request.user, organization):
+        raise Http404
+    membership = get_object_or_404(organization.memberships, id=membership_id)
+    if membership.active and membership.role == Membership.Role.ADMIN and organization.memberships.filter(
+        active=True, role=Membership.Role.ADMIN
+    ).count() == 1:
+        messages.error(request, "The last active organization administrator cannot be disabled.")
+        return redirect("membership-list", org_slug=org_slug)
+    assignment_count = (
+        membership.primary_control_assignments.count()
+        + membership.evidence_requests.count()
+        + membership.owned_remediation_plans.count()
+        + membership.remediation_milestones.count()
+    )
+    if membership.active and assignment_count and request.POST.get("confirm") != "yes":
+        messages.error(request, f"This user has {assignment_count} active work assignments. Confirm deactivation after transferring work.")
+        return redirect("membership-list", org_slug=org_slug)
+    membership.active = not membership.active
+    membership.save(update_fields=("active",))
+    AuditEvent.objects.create(
+        organization=organization, actor=request.user,
+        action="membership.activated" if membership.active else "membership.deactivated",
+        object_type="Membership", object_id=str(membership.id),
+        detail={"assignment_count": assignment_count},
+    )
+    messages.success(request, "Membership activated." if membership.active else "Membership deactivated.")
+    return redirect("membership-list", org_slug=org_slug)
+
+
+@login_required
+def invitation_cancel(request: HttpRequest, org_slug: str, invitation_id: int) -> HttpResponse:
+    if request.method != "POST":
+        raise Http404
+    organization = _organization_for(request.user, org_slug)
+    if not _is_org_admin(request.user, organization):
+        raise Http404
+    invitation = get_object_or_404(organization.invitations, id=invitation_id)
+    invitation.status = OrganizationInvitation.Status.CANCELLED
+    invitation.save(update_fields=("status",))
+    AuditEvent.objects.create(
+        organization=organization, actor=request.user, action="invitation.cancelled",
+        object_type="OrganizationInvitation", object_id=str(invitation.id), detail={},
+    )
+    return redirect("membership-list", org_slug=org_slug)
+
+
+@login_required
+def assessment_access(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
+    organization = _organization_for(request.user, org_slug)
+    assessment = get_object_or_404(Assessment, id=assessment_id, system__organization=organization)
+    if not _is_org_admin(request.user, organization):
+        raise Http404
+    form = AssessmentAccessForm(
+        request.POST or None, organization=organization, assessment=assessment
+    )
+    if request.method == "POST" and form.is_valid():
+        grant = form.save(commit=False)
+        grant.assessment = assessment
+        grant.granted_by = request.user
+        grant.save()
+        AuditEvent.objects.create(
+            organization=organization, actor=request.user, action="assessment_access.granted",
+            object_type="AssessmentAccess", object_id=str(grant.id), detail={"access": grant.access},
+        )
+        return redirect("assessment-access", org_slug=org_slug, assessment_id=assessment.id)
+    return render(request, "webapp/assessment_access.html", {
+        "organization": organization, "assessment": assessment, "form": form,
+        "grants": assessment.access_grants.select_related("membership__user", "granted_by"),
+    })
+
+
+@login_required
+def access_review_export(request: HttpRequest, org_slug: str) -> HttpResponse:
+    organization = _organization_for(request.user, org_slug)
+    if not _is_org_admin(request.user, organization):
+        raise Http404
+    output = StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow(["User", "Email", "Organization Role", "Active", "Last Login", "Assessment Access", "Outstanding Assignments"])
+    for membership in organization.memberships.select_related("user").order_by("user__username"):
+        grants = "; ".join(
+            f"{grant.assessment.name} ({grant.get_access_display()})"
+            for grant in membership.assessment_access.select_related("assessment")
+        )
+        assignments = (
+            membership.primary_control_assignments.count() + membership.evidence_requests.count()
+            + membership.owned_remediation_plans.count() + membership.remediation_milestones.count()
+        )
+        writer.writerow([
+            membership.user.get_full_name() or membership.user.username,
+            membership.user.email, membership.get_role_display(), membership.active,
+            membership.user.last_login or "", grants, assignments,
+        ])
+    AuditEvent.objects.create(
+        organization=organization, actor=request.user, action="access_review.exported",
+        object_type="Organization", object_id=str(organization.id), detail={},
+    )
+    response = HttpResponse(output.getvalue(), content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="omni-{organization.slug}-access-review.csv"'
+    return response
 
 
 @login_required
@@ -334,15 +543,26 @@ def assessment_list(
 ) -> HttpResponse:
     organization = _organization_for(request.user, org_slug)
     system = get_object_or_404(System, id=system_id, organization=organization)
+    assessments = system.assessments.all()
+    membership = organization.memberships.filter(user=request.user, active=True).first()
+    if membership and membership.role != Membership.Role.ADMIN:
+        restricted_ids = AssessmentAccess.objects.filter(
+            assessment__system=system
+        ).values_list("assessment_id", flat=True).distinct()
+        assessments = assessments.filter(
+            Q(id__in=AssessmentAccess.objects.filter(membership=membership).values("assessment_id"))
+            | ~Q(id__in=restricted_ids)
+        )
     return render(
         request,
         "webapp/assessment_list.html",
         {
             "organization": organization,
             "system": system,
-            "assessments": system.assessments.all(),
+            "assessments": assessments,
             "can_admin": _is_org_admin(request.user, organization),
             "can_edit": _can_edit(request.user, organization),
+            "can_admin": _is_org_admin(request.user, organization),
         },
     )
 
@@ -512,6 +732,8 @@ def assessment_dashboard(
         id=assessment_id,
         system__organization=organization,
     )
+    if not _has_assessment_access(request.user, assessment):
+        raise Http404
     all_results = assessment.control_results.select_related(
         "requirement__framework", "primary_owner__user"
     ).prefetch_related("supporting_owners")
@@ -727,6 +949,8 @@ def _assessment_for(user, org_slug: str, assessment_id: int):
         Assessment.objects.select_related("system", "framework"),
         id=assessment_id, system__organization=organization,
     )
+    if not _has_assessment_access(user, assessment):
+        raise Http404
     return organization, assessment
 
 

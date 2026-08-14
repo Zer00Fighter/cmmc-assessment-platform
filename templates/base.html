@@ -11,7 +11,7 @@
   <header class="topbar">
     <a class="brand" href="{% url 'organization-list' %}"><span>OMNI</span><small>by R!SC</small></a>
     {% if user.is_authenticated %}
-      <div class="userbar"><a href="{% url 'framework-catalog' %}">Framework catalog</a><a href="{% url 'notification-center' %}">Notifications{% if unread_notification_count %} <b class="notification-badge">{{ unread_notification_count }}</b>{% endif %}</a><span>{{ user.get_full_name|default:user.username }}</span><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link-button">Sign out</button></form></div>
+      <div class="userbar"><a href="{% url 'framework-catalog' %}">Framework catalog</a><a href="{% url 'notification-center' %}">Notifications{% if unread_notification_count %} <b class="notification-badge">{{ unread_notification_count }}</b>{% endif %}</a><a href="{% url 'user-profile' %}">{{ user.get_full_name|default:user.username }}</a><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link-button">Sign out</button></form></div>
     {% endif %}
   </header>
   <main class="shell">
