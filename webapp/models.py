@@ -216,6 +216,11 @@ class Requirement(models.Model):
     title = models.CharField(max_length=300)
     statement = models.TextField()
     full_deduction = models.PositiveSmallIntegerField(default=1)
+    risk_weight = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Framework-native relative control weight; Omni CCF uses 1–10, with 0 reserved for deprecated controls.",
+    )
     partial_credit_allowed = models.BooleanField(default=False)
     source_reference = models.CharField(max_length=300, blank=True)
     source_page = models.PositiveIntegerField(null=True, blank=True)
@@ -227,7 +232,11 @@ class Requirement(models.Model):
             models.UniqueConstraint(
                 fields=("framework", "requirement_id"),
                 name="unique_framework_requirement",
-            )
+            ),
+            models.CheckConstraint(
+                condition=models.Q(risk_weight__isnull=True) | models.Q(risk_weight__lte=10),
+                name="requirement_risk_weight_lte_10",
+            ),
         ]
 
     def __str__(self) -> str:

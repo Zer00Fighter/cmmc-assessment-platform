@@ -1,5 +1,12 @@
 # Changelog
 
+## Sprint 17.7 — Framework-weighted risk heatmap
+
+- Added framework-native control weights, including Omni CCF Column F ingestion.
+- Shifted CCF mapping discovery to begin naturally after the recognized weighting column.
+- Added weighted domain exposure heatmaps for CMMC SPRS and Omni CCF assessments.
+- Preserved unassessed weight as unknown exposure rather than treating it as a finding.
+
 ## Sprint 17.6 — Authoritative Source Registry
 
 - Added private authoritative-source import, provenance, quality classification, and authority linking.

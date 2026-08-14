@@ -93,6 +93,7 @@ from .framework_import import approve_import, parse_upload, version_impact
 from .harmonization import harmonization_metrics, refresh_harmonization, review_reuse
 from .mapping_governance import review_change
 from .notifications import assessment_url, notify, notify_assessment_team, organization_users
+from .risk_heatmap import build_weighted_risk_heatmap
 
 
 def _organizations_for(user):
@@ -1024,6 +1025,7 @@ def assessment_dashboard(
         for item in remediation_active.filter(planned_completion__isnull=False).order_by("planned_completion")[:5]
     )
     timeline = sorted((item for item in timeline if item["date"]), key=lambda item: item["date"])[:8]
+    risk_heatmap = build_weighted_risk_heatmap(results)
     return render(
         request,
         "webapp/assessment_dashboard.html",
@@ -1067,6 +1069,7 @@ def assessment_dashboard(
             "readiness_score": readiness,
             "readiness_blockers": blockers,
             "timeline": timeline,
+            "risk_heatmap": risk_heatmap,
         },
     )
 

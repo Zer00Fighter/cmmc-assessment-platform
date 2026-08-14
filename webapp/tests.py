@@ -63,6 +63,72 @@ from .harmonization import refresh_harmonization, review_reuse
 from .mapping_governance import review_change
 from .omni_evidence_catalog import import_catalog, normalize_cmmc
 from .authoritative_sources import import_authoritative_sources
+from .risk_heatmap import build_weighted_risk_heatmap
+
+
+class SprintSeventeenPointSevenRiskHeatmapTests(TestCase):
+    def test_ccf_column_f_weight_is_imported_and_not_treated_as_a_mapping(self):
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append([
+            "CCF Domain", "CCF Control", "CCF #",
+            "Comprehensive Controls Framework (CCF) Control Description",
+            "CCF Control Question", "Control Weighting", "NIST CSF 2.0",
+        ])
+        sheet.append(["Governance", "Security program", "GOV-01", "Maintain a program.",
+                      "Is a program maintained?", 9, "GV.OC-01"])
+        sheet.append(["Technology", "Deprecated control", "TDA-11.2", "[deprecated]",
+                      "[deprecated]", 0, ""])
+        stream = BytesIO()
+        workbook.save(stream)
+        workbook.close()
+        upload = SimpleUploadedFile(
+            "ccf.xlsx", stream.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+        normalized, report, _, _ = parse_upload(upload, {
+            "code": "OMNI-CCF", "name": "Omni CCF", "version": "2026.2",
+            "is_omni_control_framework": True,
+        })
+
+        requirement = normalized["requirements"][0]
+        self.assertTrue(report["valid"])
+        self.assertEqual(requirement["risk_weight"], 9)
+        self.assertEqual(normalized["requirements"][1]["risk_weight"], 0)
+        self.assertEqual(report["authority_count"], 1)
+        self.assertEqual(requirement["mapping_refs"][0]["source_column"], 7)
+        self.assertEqual(requirement["mapping_refs"][0]["target_framework"], "NIST CSF 2.0")
+
+    def test_heatmap_uses_sprs_and_omni_weights_without_inventing_likelihood(self):
+        sprs = SimpleNamespace(scoring_method=Framework.ScoringMethod.SPRS,
+                               is_omni_control_framework=False)
+        omni = SimpleNamespace(scoring_method=Framework.ScoringMethod.NONE,
+                               is_omni_control_framework=True)
+        results = [
+            SimpleNamespace(requirement=SimpleNamespace(framework=sprs, domain="Access Control",
+                                                        full_deduction=5, risk_weight=None),
+                            status=ControlAssessment.Status.NOT_MET, calculated_deduction=5),
+            SimpleNamespace(requirement=SimpleNamespace(framework=sprs, domain="Access Control",
+                                                        full_deduction=1, risk_weight=None),
+                            status=ControlAssessment.Status.MET, calculated_deduction=0),
+            SimpleNamespace(requirement=SimpleNamespace(framework=omni, domain="Governance",
+                                                        full_deduction=1, risk_weight=10),
+                            status=ControlAssessment.Status.NOT_MET, calculated_deduction=1),
+            SimpleNamespace(requirement=SimpleNamespace(framework=omni, domain="Governance",
+                                                        full_deduction=1, risk_weight=5),
+                            status=ControlAssessment.Status.NOT_ASSESSED, calculated_deduction=0),
+        ]
+
+        heatmap = build_weighted_risk_heatmap(results)
+
+        self.assertEqual(heatmap["sources"], "Omni 0–10 + SPRS")
+        access = next(item for item in heatmap["cells"] if item["domain"] == "Access Control")
+        governance = next(item for item in heatmap["cells"] if item["domain"] == "Governance")
+        self.assertEqual(access["exposure"], 83)
+        self.assertEqual(access["severity"], "critical")
+        self.assertEqual(governance["exposure"], 100)
+        self.assertEqual(governance["unknown_weight"], 5)
 
 
 class SprintSeventeenPointSixAuthoritativeSourcesTests(TestCase):
@@ -1050,6 +1116,19 @@ class SprintSevenDashboardTests(TestCase):
         ), {"domain": "AC"})
         self.assertContains(filtered, "Access")
         self.assertNotContains(filtered, "Respond")
+
+    def test_dashboard_renders_sprs_weighted_risk_heatmap(self):
+        self.framework.scoring_method = Framework.ScoringMethod.SPRS
+        self.framework.save(update_fields=("scoring_method",))
+        self.client.login(username="executive", password="test-password")
+
+        response = self.client.get(reverse(
+            "assessment-dashboard", args=("analytics", self.assessment.id)
+        ))
+
+        self.assertContains(response, "Weighted risk heatmap")
+        self.assertContains(response, "SPRS weights")
+        self.assertContains(response, "Control exposure by domain")
 
     def test_csv_snapshot_is_tenant_scoped_and_audited(self):
         url = reverse("dashboard-export", args=("analytics", self.assessment.id))

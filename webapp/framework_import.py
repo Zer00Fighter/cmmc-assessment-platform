@@ -19,6 +19,7 @@ ALIASES = {
     "domain": {"domain", "family", "category", "function", "ccf domain"},
     "title": {"title", "control title", "requirement title", "name", "ccf control"},
     "statement": {"statement", "requirement", "control statement", "description", "text", "comprehensive controls framework ccf control description"},
+    "risk_weight": {"control weighting", "control weight", "risk weighting", "risk weight"},
     "target_framework": {"target framework", "mapped framework", "framework mapping"},
     "target_requirement": {"target requirement", "mapped requirement", "mapping", "mapped control"},
     "relationship": {"relationship", "mapping type", "type"},
@@ -61,7 +62,9 @@ def _rows_to_requirements(rows, source_name: str, page: int | None = None):
     for row_number, row in enumerate(rows[header_index + 1 :], header_index + 2):
         def value(field):
             pos = mapping.get(field)
-            return str(row[pos] or "").strip() if pos is not None and pos < len(row) else ""
+            if pos is None or pos >= len(row) or row[pos] is None:
+                return ""
+            return str(row[pos]).strip()
         requirement_id = value("requirement_id")
         if not requirement_id:
             continue
@@ -71,11 +74,22 @@ def _rows_to_requirements(rows, source_name: str, page: int | None = None):
             if raw:
                 mapping_refs.append({"target_framework": target_framework, "target_requirement": raw,
                                      "source_column": column + 1})
+        risk_weight_raw = value("risk_weight")
+        risk_weight = None
+        if risk_weight_raw:
+            try:
+                numeric_weight = float(risk_weight_raw)
+                if not numeric_weight.is_integer() or not 0 <= numeric_weight <= 10:
+                    raise ValueError
+                risk_weight = int(numeric_weight)
+            except ValueError:
+                risk_weight = risk_weight_raw
         results.append({
             "requirement_id": requirement_id,
             "domain": value("domain"),
             "title": value("title") or requirement_id,
             "statement": value("statement") or value("title"),
+            "risk_weight": risk_weight,
             "target_framework": value("target_framework"),
             "target_requirement": value("target_requirement"),
             "relationship": value("relationship") or "RELATED",
@@ -139,6 +153,9 @@ def parse_upload(upload, metadata: dict) -> tuple[dict, dict, str, str]:
         seen.add(key)
         if not item["statement"]:
             issues.append({"code": "MISSING_STATEMENT", "requirement_id": item["requirement_id"]})
+        if item.get("risk_weight") is not None and not isinstance(item["risk_weight"], int):
+            issues.append({"code": "INVALID_RISK_WEIGHT", "requirement_id": item["requirement_id"],
+                           "value": item["risk_weight"], "message": "Control weight must be a whole number from 0 to 10."})
     if duplicates:
         issues.append({"code": "DUPLICATE_REQUIREMENTS", "values": sorted(set(duplicates))[:25]})
     if not requirements:
@@ -152,7 +169,7 @@ def parse_upload(upload, metadata: dict) -> tuple[dict, dict, str, str]:
         for authority in item.get("authority_columns", [])
     })
     report = {
-        "valid": not any(i["code"] in {"OCR_REQUIRED", "NO_REQUIREMENTS", "DUPLICATE_REQUIREMENTS"} for i in issues),
+        "valid": not any(i["code"] in {"OCR_REQUIRED", "NO_REQUIREMENTS", "DUPLICATE_REQUIREMENTS", "INVALID_RISK_WEIGHT"} for i in issues),
         "requirement_count": len(requirements), "mapping_reference_count": mapping_count,
         "authority_count": len(authority_names),
         "mapped_authority_count": len(mapped_authority_names),
@@ -188,6 +205,7 @@ def approve_import(job: FrameworkImport, user) -> Framework:
             framework=framework, requirement_id=item["requirement_id"],
             domain=item.get("domain", "")[:100], title=item.get("title", "")[:300],
             statement=item.get("statement", ""), source_reference=item.get("source_reference", ""),
+            risk_weight=item.get("risk_weight"),
             source_page=item.get("source_page"), source_row=item.get("source_row"),
         )
         if item.get("target_requirement"):
