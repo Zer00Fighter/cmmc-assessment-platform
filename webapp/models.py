@@ -387,6 +387,59 @@ class AuthoritativeDocument(models.Model):
         )]
 
 
+class RiskCatalogEntry(models.Model):
+    risk_id = models.CharField(max_length=30, unique=True)
+    grouping = models.CharField(max_length=100)
+    title = models.CharField(max_length=300)
+    description = models.TextField()
+    active = models.BooleanField(default=True)
+    source_row = models.PositiveIntegerField()
+    source_filename = models.CharField(max_length=255)
+    source_sha256 = models.CharField(max_length=64)
+
+    class Meta:
+        ordering = ("grouping", "risk_id")
+
+    def __str__(self) -> str:
+        return f"{self.risk_id} — {self.title}"
+
+
+class RequirementRiskMapping(models.Model):
+    class ReviewStatus(models.TextChoices):
+        PROPOSED = "PROPOSED", "Proposed"
+        APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
+
+    requirement = models.ForeignKey(
+        Requirement, on_delete=models.CASCADE, related_name="risk_mappings"
+    )
+    risk = models.ForeignKey(
+        RiskCatalogEntry, on_delete=models.PROTECT, related_name="control_mappings"
+    )
+    review_status = models.CharField(
+        max_length=10, choices=ReviewStatus.choices, default=ReviewStatus.PROPOSED
+    )
+    rationale = models.TextField()
+    source = models.CharField(max_length=30, default="MANUAL")
+    confidence = models.DecimalField(max_digits=4, decimal_places=3, null=True, blank=True)
+    proposed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="proposed_control_risks",
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="reviewed_control_risks",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("review_status", "requirement__framework__code", "requirement__requirement_id", "risk__risk_id")
+        constraints = [models.UniqueConstraint(
+            fields=("requirement", "risk"), name="unique_requirement_risk_mapping"
+        )]
+
+
 class MappingReference(models.Model):
     class Status(models.TextChoices):
         UNRESOLVED = "UNRESOLVED", "Unresolved"

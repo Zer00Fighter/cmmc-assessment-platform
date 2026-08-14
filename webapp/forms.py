@@ -16,7 +16,8 @@ from .models import (
     NotificationPolicy,
     OrganizationInvitation, UserProfile,
     LoginAttempt,
-    RemediationMilestone, RemediationPlan, RequirementMapping, MappingChangeRequest, System, TestExecution,
+    RemediationMilestone, RemediationPlan, RequirementMapping, RequirementRiskMapping,
+    MappingChangeRequest, System, TestExecution,
 )
 
 
@@ -78,6 +79,20 @@ class MappingReferenceReviewForm(forms.ModelForm):
         model = MappingReference
         fields = ("relationship", "confidence", "rationale")
         widgets = {"rationale": forms.Textarea(attrs={"rows": 2})}
+
+
+class RequirementRiskMappingForm(forms.ModelForm):
+    class Meta:
+        model = RequirementRiskMapping
+        fields = ("requirement", "risk", "confidence", "rationale")
+        widgets = {"rationale": forms.Textarea(attrs={"rows": 3})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["requirement"].queryset = self.fields["requirement"].queryset.select_related(
+            "framework"
+        ).order_by("framework__code", "requirement_id")
+        self.fields["risk"].queryset = self.fields["risk"].queryset.filter(active=True)
 
 
 class MappingChangeRequestForm(forms.ModelForm):

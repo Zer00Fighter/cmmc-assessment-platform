@@ -51,6 +51,7 @@ from .forms import (
     MappingReferenceReviewForm,
     EvidenceApplicabilityForm,
     MappingChangeRequestForm,
+    RequirementRiskMappingForm,
 )
 from .models import (
     Assessment,
@@ -84,6 +85,8 @@ from .models import (
     RemediationMilestone,
     RemediationPlan,
     RequirementMapping,
+    RequirementRiskMapping,
+    RiskCatalogEntry,
     System,
     TestExecution,
     EvidenceReviewHistory,
@@ -1026,6 +1029,22 @@ def assessment_dashboard(
     )
     timeline = sorted((item for item in timeline if item["date"]), key=lambda item: item["date"])[:8]
     risk_heatmap = build_weighted_risk_heatmap(results)
+    approved_risk_mappings = RequirementRiskMapping.objects.filter(
+        requirement_id__in=results.filter(
+            status=ControlAssessment.Status.NOT_MET
+        ).values("requirement_id"),
+        review_status=RequirementRiskMapping.ReviewStatus.APPROVED,
+        risk__active=True,
+    ).select_related("risk", "requirement__framework")
+    exposed_by_id = {}
+    for mapping in approved_risk_mappings:
+        item = exposed_by_id.setdefault(mapping.risk_id, {
+            "risk": mapping.risk, "controls": [],
+        })
+        item["controls"].append(
+            f"{mapping.requirement.framework.code} {mapping.requirement.requirement_id}"
+        )
+    exposed_risks = list(exposed_by_id.values())
     return render(
         request,
         "webapp/assessment_dashboard.html",
@@ -1070,6 +1089,7 @@ def assessment_dashboard(
             "readiness_blockers": blockers,
             "timeline": timeline,
             "risk_heatmap": risk_heatmap,
+            "exposed_risks": exposed_risks,
         },
     )
 
@@ -1643,6 +1663,40 @@ def authoritative_source_registry(request: HttpRequest) -> HttpResponse:
                     "authorities": all_documents.values("authority_id").distinct().count(),
                     "valid": all_documents.filter(quality="VALID").count(),
                     "issues": all_documents.exclude(quality="VALID").count()}})
+
+
+@login_required
+def risk_catalog_registry(request: HttpRequest) -> HttpResponse:
+    if not request.user.is_superuser:
+        raise Http404
+    form = RequirementRiskMappingForm(request.POST or None)
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "propose" and form.is_valid():
+            mapping = form.save(commit=False)
+            mapping.proposed_by = request.user
+            mapping.source = "MANUAL"
+            mapping.save()
+            messages.success(request, "Control-to-risk mapping proposed for review.")
+        elif action in {"approve", "reject"}:
+            selected = [int(value) for value in request.POST.getlist("selected") if value.isdigit()]
+            status = (RequirementRiskMapping.ReviewStatus.APPROVED if action == "approve"
+                      else RequirementRiskMapping.ReviewStatus.REJECTED)
+            updated = RequirementRiskMapping.objects.filter(pk__in=selected).update(
+                review_status=status, reviewed_by=request.user, reviewed_at=timezone.now()
+            )
+            messages.success(request, f"{updated} control-to-risk mapping(s) {action}d.")
+        return redirect("risk-catalog-registry")
+    risks = RiskCatalogEntry.objects.filter(active=True)
+    mappings = RequirementRiskMapping.objects.select_related(
+        "requirement__framework", "risk", "proposed_by", "reviewed_by"
+    )
+    return render(request, "webapp/risk_catalog_registry.html", {
+        "form": form, "risks": risks, "mappings": mappings[:300],
+        "metrics": {"risks": risks.count(), "groups": risks.values("grouping").distinct().count(),
+                    "proposed": mappings.filter(review_status="PROPOSED").count(),
+                    "approved": mappings.filter(review_status="APPROVED").count()},
+    })
 
 
 @login_required
@@ -2281,6 +2335,11 @@ def control_edit(
             "requirement_mappings": RequirementMapping.objects.filter(
                 Q(source=result.requirement) | Q(target=result.requirement)
             ).select_related("source__framework", "target__framework"),
+            "approved_risks": RiskCatalogEntry.objects.filter(
+                control_mappings__requirement=result.requirement,
+                control_mappings__review_status=RequirementRiskMapping.ReviewStatus.APPROVED,
+                active=True,
+            ).distinct(),
         },
     )
 

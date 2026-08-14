@@ -1,5 +1,13 @@
 # Changelog
 
+## Sprint 17.8 — CCF risk catalog and governed control relationships
+
+- Added source-traceable canonical CCF risk definitions and private import tooling.
+- Added proposed, approved, and rejected control-to-risk relationship governance.
+- Added a superuser-only risk catalog and mapping review workspace.
+- Added approved possible-risk exposure to assessment dashboards.
+- Explicitly excluded the private CCF Risk Catalog workbook from Git.
+
 ## Sprint 17.7 — Framework-weighted risk heatmap
 
 - Added framework-native control weights, including Omni CCF Column F ingestion.

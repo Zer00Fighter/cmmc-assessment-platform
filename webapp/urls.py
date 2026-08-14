@@ -21,6 +21,7 @@ urlpatterns = [
     path("frameworks/mapping-governance/", views.mapping_governance, name="mapping-governance"),
     path("frameworks/omni-evidence-catalog/", views.omni_evidence_catalog, name="omni-evidence-catalog"),
     path("frameworks/authoritative-sources/", views.authoritative_source_registry, name="authoritative-source-registry"),
+    path("frameworks/risk-catalog/", views.risk_catalog_registry, name="risk-catalog-registry"),
     path("organizations/new/", views.organization_create, name="organization-create"),
     path("organizations/<slug:org_slug>/edit/", views.organization_edit, name="organization-edit"),
     path("organizations/<slug:org_slug>/members/", views.membership_list, name="membership-list"),

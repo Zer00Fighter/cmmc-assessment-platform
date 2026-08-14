@@ -54,6 +54,8 @@ from .models import (
     RemediationPlan,
     Requirement,
     RequirementMapping,
+    RequirementRiskMapping,
+    RiskCatalogEntry,
     System,
     WorkflowHistory,
     UserProfile,
@@ -64,6 +66,7 @@ from .mapping_governance import review_change
 from .omni_evidence_catalog import import_catalog, normalize_cmmc
 from .authoritative_sources import import_authoritative_sources
 from .risk_heatmap import build_weighted_risk_heatmap
+from .risk_catalog import import_risk_catalog
 
 
 class SprintSeventeenPointSevenRiskHeatmapTests(TestCase):
@@ -129,6 +132,81 @@ class SprintSeventeenPointSevenRiskHeatmapTests(TestCase):
         self.assertEqual(access["severity"], "critical")
         self.assertEqual(governance["exposure"], 100)
         self.assertEqual(governance["unknown_weight"], 5)
+
+
+class SprintSeventeenPointEightRiskCatalogTests(TestCase):
+    def setUp(self):
+        users = get_user_model()
+        self.admin = users.objects.create_superuser(
+            "risk-admin", "risk-admin@example.com", "test-password"
+        )
+        self.regular = users.objects.create_user("risk-user", password="test-password")
+
+    def _catalog(self, directory):
+        path = Path(directory) / "CCF Risk Catalog.xlsx"
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Risk Catalog"
+        sheet.append(["RISK CATALOG use case", None, None, None])
+        for _ in range(4):
+            sheet.append([])
+        sheet.append(["Risk Grouping", "Risk #", "Risk", "Description"])
+        sheet.append([None, None, None, "IF THE CONTROL FAILS"])
+        sheet.append(["Access Control", "R-AC-1", "Loss of accountability", "Accountability may be lost."])
+        sheet.append([None, "R-AC-2", "Unauthorized access", "Unauthorized access may occur."])
+        workbook.save(path)
+        workbook.close()
+        return path
+
+    def test_private_import_preserves_canonical_risks_and_provenance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = import_risk_catalog(self._catalog(directory), apply=True)
+        self.assertTrue(report["valid"])
+        self.assertEqual(report["records"], 2)
+        self.assertEqual(report["groups"], 1)
+        risk = RiskCatalogEntry.objects.get(risk_id="R-AC-2")
+        self.assertEqual(risk.grouping, "Access Control")
+        self.assertEqual(risk.source_row, 9)
+        self.assertEqual(len(risk.source_sha256), 64)
+
+    def test_only_approved_mapping_drives_assessment_risk_visibility(self):
+        organization = Organization.objects.create(name="Risk Client", slug="risk-client")
+        Membership.objects.create(user=self.regular, organization=organization,
+                                  role=Membership.Role.ASSESSOR)
+        system = System.objects.create(organization=organization, name="Risk System")
+        framework = Framework.objects.create(code="RISK-FW", name="Risk Framework", version="1")
+        requirement = Requirement.objects.create(framework=framework, requirement_id="AC-1",
+                                                 domain="Access Control", title="Access",
+                                                 statement="Restrict access.")
+        assessment = Assessment.objects.create(system=system, framework=framework,
+                                               name="Risk Assessment", created_by=self.regular)
+        AssessmentFramework.objects.create(assessment=assessment, framework=framework,
+                                           is_primary=True, added_by=self.regular)
+        ControlAssessment.objects.create(assessment=assessment, requirement=requirement,
+                                         status=ControlAssessment.Status.NOT_MET)
+        risk = RiskCatalogEntry.objects.create(
+            risk_id="R-AC-4", grouping="Access Control", title="Unauthorized access",
+            description="Unauthorized access may occur.", source_row=11,
+            source_filename="private.xlsx", source_sha256="a" * 64,
+        )
+        mapping = RequirementRiskMapping.objects.create(
+            requirement=requirement, risk=risk, rationale="Control directly restricts access.",
+            proposed_by=self.admin,
+        )
+        self.client.login(username="risk-user", password="test-password")
+        url = reverse("assessment-dashboard", args=(organization.slug, assessment.id))
+        self.assertNotContains(self.client.get(url), "R-AC-4")
+        mapping.review_status = RequirementRiskMapping.ReviewStatus.APPROVED
+        mapping.reviewed_by = self.admin
+        mapping.reviewed_at = timezone.now()
+        mapping.save()
+        self.assertContains(self.client.get(url), "R-AC-4")
+
+    def test_registry_is_superuser_only(self):
+        self.client.force_login(self.regular)
+        self.assertEqual(self.client.get(reverse("risk-catalog-registry")).status_code, 404)
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse("risk-catalog-registry")).status_code, 200)
 
 
 class SprintSeventeenPointSixAuthoritativeSourcesTests(TestCase):
