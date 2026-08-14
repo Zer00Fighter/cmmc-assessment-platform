@@ -53,6 +53,11 @@ from .forms import (
     MappingChangeRequestForm,
     RequirementRiskMappingForm,
     RiskRegisterForm,
+    RiskAcceptanceRequestForm,
+    RiskClosureForm,
+    RiskReassessmentForm,
+    RiskTolerancePolicyForm,
+    RiskTreatmentActionForm,
 )
 from .models import (
     Assessment,
@@ -90,6 +95,10 @@ from .models import (
     RiskCatalogEntry,
     RiskRegisterEntry,
     RiskRegisterHistory,
+    RiskAcceptanceRequest,
+    RiskReassessment,
+    RiskTolerancePolicy,
+    RiskTreatmentAction,
     System,
     TestExecution,
     EvidenceReviewHistory,
@@ -1032,14 +1041,14 @@ def assessment_dashboard(
         for item in remediation_active.filter(planned_completion__isnull=False).order_by("planned_completion")[:5]
     )
     timeline = sorted((item for item in timeline if item["date"]), key=lambda item: item["date"])[:8]
-    risk_heatmap = build_weighted_risk_heatmap(results)
+    risk_heatmap = build_weighted_risk_heatmap(results) if assessment.risk_management_enabled else {"available": False, "cells": [], "sources": ""}
     approved_risk_mappings = RequirementRiskMapping.objects.filter(
         requirement_id__in=results.filter(
             status=ControlAssessment.Status.NOT_MET
         ).values("requirement_id"),
         review_status=RequirementRiskMapping.ReviewStatus.APPROVED,
         risk__active=True,
-    ).select_related("risk", "requirement__framework")
+    ).select_related("risk", "requirement__framework") if assessment.risk_management_enabled else []
     exposed_by_id = {}
     for mapping in approved_risk_mappings:
         item = exposed_by_id.setdefault(mapping.risk_id, {
@@ -1049,7 +1058,8 @@ def assessment_dashboard(
             f"{mapping.requirement.framework.code} {mapping.requirement.requirement_id}"
         )
     exposed_risks = list(exposed_by_id.values())
-    register_risks = assessment.risks.exclude(status=RiskRegisterEntry.Status.CLOSED)
+    register_risks = (assessment.risks.exclude(status=RiskRegisterEntry.Status.CLOSED)
+                      if assessment.risk_management_enabled else assessment.risks.none())
     risk_matrix = _risk_matrix(register_risks)
     return render(
         request,
@@ -1184,6 +1194,11 @@ def _risk_matrix(risks):
 
 def _require_unlocked(assessment: Assessment) -> None:
     if assessment.locked:
+        raise Http404
+
+
+def _require_risk_enabled(assessment: Assessment) -> None:
+    if not assessment.risk_management_enabled:
         raise Http404
 
 
@@ -1998,6 +2013,7 @@ def _next_remediation_id(assessment: Assessment) -> str:
 @login_required
 def risk_register_list(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
     organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    _require_risk_enabled(assessment)
     risks = assessment.risks.select_related("catalog_risk", "owner__user").prefetch_related(
         "controls__requirement", "remediation_plans"
     )
@@ -2008,6 +2024,7 @@ def risk_register_list(request: HttpRequest, org_slug: str, assessment_id: int) 
         risks = risks.filter(category=category)
     all_risks = assessment.risks.all()
     suggestions = finding_risk_suggestions(assessment)
+    policy = _risk_policy(organization, request.user)
     return render(request, "webapp/risk_register_list.html", {
         "organization": organization, "assessment": assessment, "risks": risks,
         "matrix": _risk_matrix(all_risks.exclude(status=RiskRegisterEntry.Status.CLOSED)),
@@ -2020,6 +2037,13 @@ def risk_register_list(request: HttpRequest, org_slug: str, assessment_id: int) 
                         status__in=(RiskRegisterEntry.Status.CLOSED, RiskRegisterEntry.Status.ACCEPTED)).count(),
                     "accepted": all_risks.filter(status=RiskRegisterEntry.Status.ACCEPTED).count()},
         "can_edit": _can_edit(request.user, organization),
+        "can_admin": _is_org_admin(request.user, organization),
+        "policy": policy,
+        "above_tolerance": all_risks.filter(residual_score__gt=policy.maximum_residual_score).count(),
+        "reviews_due": all_risks.filter(next_review_date__lte=timezone.localdate()).exclude(
+            status=RiskRegisterEntry.Status.CLOSED).count(),
+        "pending_acceptance": RiskAcceptanceRequest.objects.filter(
+            risk__assessment=assessment, status=RiskAcceptanceRequest.Status.PENDING).count(),
         "risk_suggestions": suggestions,
         "unregistered_risk_suggestions": sum(not item["registered"] for item in suggestions),
     })
@@ -2029,6 +2053,7 @@ def risk_register_list(request: HttpRequest, org_slug: str, assessment_id: int) 
 @transaction.atomic
 def risk_register_create(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
     organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    _require_risk_enabled(assessment)
     if not _can_edit(request.user, organization):
         raise Http404
     _require_unlocked(assessment)
@@ -2084,14 +2109,19 @@ def risk_register_create(request: HttpRequest, org_slug: str, assessment_id: int
 @login_required
 def risk_register_detail(request: HttpRequest, org_slug: str, assessment_id: int, risk_id: int) -> HttpResponse:
     organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    _require_risk_enabled(assessment)
     risk = get_object_or_404(
         RiskRegisterEntry.objects.select_related("catalog_risk", "owner__user", "accepted_by").prefetch_related(
-            "controls__requirement__framework", "remediation_plans", "history__actor"
+            "controls__requirement__framework", "remediation_plans", "supporting_evidence",
+            "history__actor", "treatment_actions__owner__user", "acceptance_requests__requested_by",
+            "reassessments__assessed_by"
         ), pk=risk_id, assessment=assessment, organization=organization,
     )
     return render(request, "webapp/risk_register_detail.html", {
         "organization": organization, "assessment": assessment, "risk": risk,
         "can_edit": _can_edit(request.user, organization) and not assessment.locked,
+        "can_admin": _is_org_admin(request.user, organization) and not assessment.locked,
+        "policy": _risk_policy(organization, request.user),
     })
 
 
@@ -2099,6 +2129,7 @@ def risk_register_detail(request: HttpRequest, org_slug: str, assessment_id: int
 @transaction.atomic
 def risk_register_edit(request: HttpRequest, org_slug: str, assessment_id: int, risk_id: int) -> HttpResponse:
     organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    _require_risk_enabled(assessment)
     risk = get_object_or_404(RiskRegisterEntry, pk=risk_id, assessment=assessment, organization=organization)
     if not _can_edit(request.user, organization):
         raise Http404
@@ -2132,6 +2163,7 @@ def risk_register_edit(request: HttpRequest, org_slug: str, assessment_id: int, 
 @login_required
 def risk_register_export(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
     organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    _require_risk_enabled(assessment)
     output = StringIO(newline="")
     writer = csv.writer(output)
     writer.writerow(["Risk ID", "Title", "Category", "Status", "Owner", "Likelihood", "Impact",
@@ -2152,6 +2184,220 @@ def risk_register_export(request: HttpRequest, org_slug: str, assessment_id: int
     response = HttpResponse(output.getvalue(), content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="omni-{assessment.id}-risk-register.csv"'
     return response
+
+
+def _risk_policy(organization, user):
+    policy, _ = RiskTolerancePolicy.objects.get_or_create(
+        organization=organization, defaults={"updated_by": user}
+    )
+    return policy
+
+
+@login_required
+def risk_tolerance_policy(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    _require_risk_enabled(assessment)
+    if not _is_org_admin(request.user, organization):
+        raise Http404
+    policy = _risk_policy(organization, request.user)
+    form = RiskTolerancePolicyForm(request.POST or None, instance=policy)
+    if request.method == "POST" and form.is_valid():
+        policy = form.save(commit=False); policy.updated_by = request.user; policy.save()
+        AuditEvent.objects.create(organization=organization, actor=request.user,
+                                  action="risk_tolerance.updated", object_type="RiskTolerancePolicy",
+                                  object_id=str(policy.id), detail={"maximum_residual_score": policy.maximum_residual_score})
+        messages.success(request, "Risk appetite and tolerance settings updated.")
+        return redirect("risk-register-list", org_slug=org_slug, assessment_id=assessment.id)
+    return render(request, "webapp/risk_register_form.html", {
+        "organization": organization, "assessment": assessment, "form": form,
+        "title": "Risk appetite and tolerance", "submit_label": "Save policy",
+    })
+
+
+@login_required
+@transaction.atomic
+def risk_treatment_action_create(request: HttpRequest, org_slug: str, assessment_id: int, risk_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    _require_risk_enabled(assessment); _require_unlocked(assessment)
+    risk = get_object_or_404(RiskRegisterEntry, pk=risk_id, assessment=assessment)
+    if not _can_edit(request.user, organization):
+        raise Http404
+    form = RiskTreatmentActionForm(request.POST or None, organization=organization,
+                                   assessment=assessment, risk=risk)
+    if request.method == "POST" and form.is_valid():
+        action = form.save(commit=False); action.risk = risk; action.created_by = request.user
+        action.save(); form.save_m2m()
+        RiskRegisterHistory.objects.create(risk=risk, actor=request.user, action="TREATMENT_ADDED",
+                                           snapshot={"action_id": action.id, "title": action.title})
+        if action.owner:
+            notify(recipients=[action.owner.user], organization=organization, assessment=assessment,
+                   category=Notification.Category.ASSIGNMENT, title=f"Risk treatment assigned: {risk.risk_id}",
+                   message=action.title, action_url=reverse("risk-register-detail", args=(org_slug, assessment.id, risk.id)),
+                   actor=request.user, object_type="RiskTreatmentAction", object_id=action.id,
+                   event="risk.treatment_assigned", new_status=action.status)
+        messages.success(request, "Risk treatment action created.")
+        return redirect("risk-register-detail", org_slug=org_slug, assessment_id=assessment.id, risk_id=risk.id)
+    return render(request, "webapp/risk_register_form.html", {
+        "organization": organization, "assessment": assessment, "form": form,
+        "title": f"New treatment action · {risk.risk_id}", "submit_label": "Create action",
+    })
+
+
+@login_required
+@transaction.atomic
+def risk_treatment_action_edit(request: HttpRequest, org_slug: str, assessment_id: int,
+                               risk_id: int, action_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    _require_risk_enabled(assessment); _require_unlocked(assessment)
+    risk = get_object_or_404(RiskRegisterEntry, pk=risk_id, assessment=assessment)
+    action = get_object_or_404(RiskTreatmentAction, pk=action_id, risk=risk)
+    if not (_can_edit(request.user, organization) or action.owner_id == getattr(
+            Membership.objects.filter(user=request.user, organization=organization).first(), "id", None)):
+        raise Http404
+    form = RiskTreatmentActionForm(request.POST or None, instance=action, organization=organization,
+                                   assessment=assessment, risk=risk)
+    if request.method == "POST" and form.is_valid():
+        action = form.save();
+        RiskRegisterHistory.objects.create(risk=risk, actor=request.user, action="TREATMENT_UPDATED",
+                                           snapshot={"action_id": action.id, "status": action.status})
+        messages.success(request, "Risk treatment action updated.")
+        return redirect("risk-register-detail", org_slug=org_slug, assessment_id=assessment.id, risk_id=risk.id)
+    return render(request, "webapp/risk_register_form.html", {
+        "organization": organization, "assessment": assessment, "form": form,
+        "title": f"Edit treatment action · {risk.risk_id}", "submit_label": "Save action",
+    })
+
+
+@login_required
+@transaction.atomic
+def risk_reassess(request: HttpRequest, org_slug: str, assessment_id: int, risk_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    _require_risk_enabled(assessment); _require_unlocked(assessment)
+    risk = get_object_or_404(RiskRegisterEntry, pk=risk_id, assessment=assessment)
+    if not _can_edit(request.user, organization):
+        raise Http404
+    form = RiskReassessmentForm(request.POST or None, assessment=assessment)
+    if request.method == "POST" and form.is_valid():
+        reassessment = form.save(commit=False); reassessment.risk = risk
+        reassessment.previous_likelihood = risk.residual_likelihood or risk.likelihood
+        reassessment.previous_impact = risk.residual_impact or risk.impact
+        reassessment.assessed_by = request.user; reassessment.save(); form.save_m2m()
+        risk.residual_likelihood, risk.residual_impact = reassessment.new_likelihood, reassessment.new_impact
+        risk.last_reviewed_at = timezone.now()
+        risk.next_review_date = timezone.localdate() + timedelta(days=risk.review_frequency_days)
+        risk.save()
+        policy = _risk_policy(organization, request.user)
+        RiskRegisterHistory.objects.create(risk=risk, actor=request.user, action="REASSESSED",
+                                           snapshot={"reassessment_id": reassessment.id,
+                                                     "residual_score": risk.residual_score,
+                                                     "above_tolerance": risk.residual_score > policy.maximum_residual_score})
+        messages.success(request, f"Residual risk reassessed at {risk.residual_score}.")
+        return redirect("risk-register-detail", org_slug=org_slug, assessment_id=assessment.id, risk_id=risk.id)
+    return render(request, "webapp/risk_register_form.html", {
+        "organization": organization, "assessment": assessment, "form": form,
+        "title": f"Residual reassessment · {risk.risk_id}", "submit_label": "Record reassessment",
+    })
+
+
+@login_required
+@transaction.atomic
+def risk_acceptance_request(request: HttpRequest, org_slug: str, assessment_id: int, risk_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    _require_risk_enabled(assessment); _require_unlocked(assessment)
+    risk = get_object_or_404(RiskRegisterEntry, pk=risk_id, assessment=assessment)
+    if not _can_edit(request.user, organization):
+        raise Http404
+    policy = _risk_policy(organization, request.user)
+    form = RiskAcceptanceRequestForm(request.POST or None, policy=policy)
+    if request.method == "POST" and form.is_valid():
+        acceptance = form.save(commit=False); acceptance.risk = risk; acceptance.requested_by = request.user
+        acceptance.save()
+        recipients = organization_users(organization, roles=(Membership.Role.ADMIN,))
+        notify(recipients=recipients, organization=organization, assessment=assessment,
+               category=Notification.Category.QUALITY, title=f"Risk acceptance requested: {risk.risk_id}",
+               message=acceptance.rationale, action_url=reverse("risk-register-detail", args=(org_slug, assessment.id, risk.id)),
+               actor=request.user, object_type="RiskAcceptanceRequest", object_id=acceptance.id,
+               event="risk.acceptance_requested", new_status=acceptance.status)
+        messages.success(request, "Risk acceptance submitted for administrator review.")
+        return redirect("risk-register-detail", org_slug=org_slug, assessment_id=assessment.id, risk_id=risk.id)
+    return render(request, "webapp/risk_register_form.html", {
+        "organization": organization, "assessment": assessment, "form": form,
+        "title": f"Request risk acceptance · {risk.risk_id}", "submit_label": "Submit request",
+    })
+
+
+@login_required
+@transaction.atomic
+def risk_acceptance_review(request: HttpRequest, org_slug: str, assessment_id: int, request_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    _require_risk_enabled(assessment)
+    if not _is_org_admin(request.user, organization) or request.method != "POST":
+        raise Http404
+    acceptance = get_object_or_404(RiskAcceptanceRequest.objects.select_related("risk"), pk=request_id,
+                                   risk__assessment=assessment, status=RiskAcceptanceRequest.Status.PENDING)
+    approve = request.POST.get("action") == "approve"
+    policy = _risk_policy(organization, request.user)
+    acceptance_score = acceptance.risk.residual_score or acceptance.risk.inherent_score
+    if approve and acceptance_score >= 20 and not policy.critical_acceptance_allowed:
+        messages.error(request, "The organization policy prohibits acceptance of critical risks.")
+    else:
+        acceptance.status = RiskAcceptanceRequest.Status.APPROVED if approve else RiskAcceptanceRequest.Status.REJECTED
+        acceptance.reviewed_by, acceptance.reviewed_at = request.user, timezone.now()
+        acceptance.review_comment = request.POST.get("comment", "").strip(); acceptance.save()
+        risk = acceptance.risk
+        if approve:
+            risk.treatment, risk.status = RiskRegisterEntry.Treatment.ACCEPT, RiskRegisterEntry.Status.ACCEPTED
+            risk.acceptance_rationale, risk.acceptance_expires = acceptance.rationale, acceptance.requested_expiration
+            risk.accepted_by, risk.accepted_at = request.user, timezone.now(); risk.save()
+        RiskRegisterHistory.objects.create(risk=risk, actor=request.user, action=f"ACCEPTANCE_{acceptance.status}",
+                                           snapshot={"request_id": acceptance.id})
+        messages.success(request, f"Risk acceptance {acceptance.get_status_display().lower()}.")
+    return redirect("risk-register-detail", org_slug=org_slug, assessment_id=assessment.id, risk_id=acceptance.risk.id)
+
+
+@login_required
+@transaction.atomic
+def risk_close(request: HttpRequest, org_slug: str, assessment_id: int, risk_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    _require_risk_enabled(assessment); _require_unlocked(assessment)
+    risk = get_object_or_404(RiskRegisterEntry, pk=risk_id, assessment=assessment)
+    if not _can_edit(request.user, organization):
+        raise Http404
+    form = RiskClosureForm(request.POST or None)
+    incomplete = risk.treatment_actions.exclude(status=RiskTreatmentAction.Status.COMPLETE).exists()
+    if request.method == "POST" and form.is_valid():
+        if incomplete or risk.residual_score is None or not risk.supporting_evidence.exists():
+            messages.error(request, "Closure requires completed treatment actions, residual evaluation, and supporting evidence.")
+        else:
+            risk.status, risk.closure_rationale = RiskRegisterEntry.Status.CLOSED, form.cleaned_data["closure_rationale"]
+            risk.closed_by, risk.closed_at = request.user, timezone.now(); risk.save()
+            RiskRegisterHistory.objects.create(risk=risk, actor=request.user, action="CLOSED", snapshot=_risk_snapshot(risk))
+            messages.success(request, f"{risk.risk_id} closed.")
+            return redirect("risk-register-detail", org_slug=org_slug, assessment_id=assessment.id, risk_id=risk.id)
+    return render(request, "webapp/risk_register_form.html", {
+        "organization": organization, "assessment": assessment, "form": form,
+        "title": f"Close {risk.risk_id}", "submit_label": "Validate and close",
+    })
+
+
+@login_required
+@transaction.atomic
+def risk_reopen(request: HttpRequest, org_slug: str, assessment_id: int, risk_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    _require_risk_enabled(assessment); _require_unlocked(assessment)
+    risk = get_object_or_404(RiskRegisterEntry, pk=risk_id, assessment=assessment,
+                             status=RiskRegisterEntry.Status.CLOSED)
+    if not _is_org_admin(request.user, organization) or request.method != "POST":
+        raise Http404
+    reason = request.POST.get("reason", "").strip()
+    if len(reason) < 10:
+        messages.error(request, "Provide a meaningful reason for reopening the risk.")
+    else:
+        risk.status, risk.closed_by, risk.closed_at = RiskRegisterEntry.Status.MONITORING, None, None
+        risk.next_review_date = timezone.localdate(); risk.save()
+        RiskRegisterHistory.objects.create(risk=risk, actor=request.user, action="REOPENED", snapshot={"reason": reason})
+        messages.success(request, f"{risk.risk_id} reopened for review.")
+    return redirect("risk-register-detail", org_slug=org_slug, assessment_id=assessment.id, risk_id=risk.id)
 
 
 @login_required

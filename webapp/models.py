@@ -575,6 +575,8 @@ class Assessment(models.Model):
     reopen_reason = models.TextField(blank=True)
     notifications_enabled = models.BooleanField(default=True)
     email_notifications_enabled = models.BooleanField(default=True)
+    risk_management_enabled = models.BooleanField(default=False)
+    include_risk_in_reports = models.BooleanField(default=False)
 
     class Meta:
         ordering = ("-updated_at",)
@@ -1235,6 +1237,9 @@ class RiskRegisterEntry(models.Model):
     source = models.CharField(max_length=30, default="MANUAL")
     controls = models.ManyToManyField(ControlAssessment, related_name="risks", blank=True)
     remediation_plans = models.ManyToManyField(RemediationPlan, related_name="risks", blank=True)
+    supporting_evidence = models.ManyToManyField(
+        EvidenceArtifact, related_name="risks", blank=True
+    )
     owner = models.ForeignKey(
         Membership, null=True, blank=True, on_delete=models.SET_NULL,
         related_name="owned_risks",
@@ -1259,6 +1264,22 @@ class RiskRegisterEntry(models.Model):
     accepted_at = models.DateTimeField(null=True, blank=True)
     acceptance_expires = models.DateField(null=True, blank=True)
     next_review_date = models.DateField(null=True, blank=True)
+    review_frequency_days = models.PositiveSmallIntegerField(default=90)
+    last_reviewed_at = models.DateTimeField(null=True, blank=True)
+    trend = models.CharField(
+        max_length=12,
+        choices=(("UNKNOWN", "Unknown"), ("INCREASING", "Increasing"),
+                 ("STABLE", "Stable"), ("DECREASING", "Decreasing")),
+        default="UNKNOWN",
+    )
+    monitoring_notes = models.TextField(blank=True)
+    trigger_events = models.TextField(blank=True)
+    closure_rationale = models.TextField(blank=True)
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="closed_risks",
+    )
+    closed_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_risks"
     )
@@ -1307,6 +1328,93 @@ class RiskRegisterHistory(models.Model):
 
     class Meta:
         ordering = ("-created_at",)
+
+
+class RiskTolerancePolicy(models.Model):
+    organization = models.OneToOneField(
+        Organization, on_delete=models.CASCADE, related_name="risk_tolerance_policy"
+    )
+    maximum_residual_score = models.PositiveSmallIntegerField(default=11)
+    critical_acceptance_allowed = models.BooleanField(default=False)
+    maximum_acceptance_days = models.PositiveSmallIntegerField(default=365)
+    review_reminder_days = models.PositiveSmallIntegerField(default=14)
+    acceptance_expiry_reminder_days = models.PositiveSmallIntegerField(default=30)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="updated_risk_tolerance_policies"
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class RiskTreatmentAction(models.Model):
+    class Status(models.TextChoices):
+        NOT_STARTED = "NOT_STARTED", "Not started"
+        IN_PROGRESS = "IN_PROGRESS", "In progress"
+        BLOCKED = "BLOCKED", "Blocked"
+        COMPLETE = "COMPLETE", "Complete"
+
+    risk = models.ForeignKey(RiskRegisterEntry, on_delete=models.CASCADE, related_name="treatment_actions")
+    title = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    owner = models.ForeignKey(Membership, null=True, blank=True, on_delete=models.SET_NULL,
+                              related_name="risk_treatment_actions")
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.NOT_STARTED)
+    priority = models.CharField(max_length=10, choices=RemediationPlan.Priority.choices,
+                                default=RemediationPlan.Priority.MEDIUM)
+    planned_start = models.DateField(null=True, blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    completed_date = models.DateField(null=True, blank=True)
+    completion_notes = models.TextField(blank=True)
+    remediation_plan = models.ForeignKey(RemediationPlan, null=True, blank=True,
+                                         on_delete=models.SET_NULL, related_name="risk_treatment_actions")
+    evidence = models.ManyToManyField(EvidenceArtifact, related_name="risk_treatment_actions", blank=True)
+    dependencies = models.ManyToManyField("self", symmetrical=False, blank=True,
+                                          related_name="dependent_actions")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+                                   related_name="created_risk_treatment_actions")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("status", "due_date", "id")
+
+
+class RiskReassessment(models.Model):
+    risk = models.ForeignKey(RiskRegisterEntry, on_delete=models.CASCADE, related_name="reassessments")
+    previous_likelihood = models.PositiveSmallIntegerField()
+    previous_impact = models.PositiveSmallIntegerField()
+    new_likelihood = models.PositiveSmallIntegerField()
+    new_impact = models.PositiveSmallIntegerField()
+    rationale = models.TextField()
+    evidence = models.ManyToManyField(EvidenceArtifact, related_name="risk_reassessments", blank=True)
+    assessed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+                                    related_name="risk_reassessments")
+    assessed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-assessed_at",)
+
+
+class RiskAcceptanceRequest(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
+        CANCELLED = "CANCELLED", "Cancelled"
+
+    risk = models.ForeignKey(RiskRegisterEntry, on_delete=models.CASCADE, related_name="acceptance_requests")
+    rationale = models.TextField()
+    requested_expiration = models.DateField()
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+                                     related_name="risk_acceptance_requests")
+    requested_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                    on_delete=models.PROTECT, related_name="reviewed_risk_acceptance_requests")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_comment = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ("status", "requested_at")
 
 
 class RemediationMilestone(models.Model):

@@ -58,6 +58,10 @@ from .models import (
     RiskCatalogEntry,
     RiskRegisterEntry,
     RiskRegisterHistory,
+    RiskAcceptanceRequest,
+    RiskReassessment,
+    RiskTolerancePolicy,
+    RiskTreatmentAction,
     System,
     WorkflowHistory,
     UserProfile,
@@ -181,7 +185,8 @@ class SprintSeventeenPointEightRiskCatalogTests(TestCase):
                                                  domain="Access Control", title="Access",
                                                  statement="Restrict access.")
         assessment = Assessment.objects.create(system=system, framework=framework,
-                                               name="Risk Assessment", created_by=self.regular)
+                                               name="Risk Assessment", created_by=self.regular,
+                                               risk_management_enabled=True)
         AssessmentFramework.objects.create(assessment=assessment, framework=framework,
                                            is_primary=True, added_by=self.regular)
         ControlAssessment.objects.create(assessment=assessment, requirement=requirement,
@@ -233,7 +238,8 @@ class SprintEighteenRiskRegisterTests(TestCase):
             title="Access control", statement="Restrict system access.",
         )
         self.assessment = Assessment.objects.create(
-            system=system, framework=framework, name="Sprint 18 Assessment", created_by=self.assessor
+            system=system, framework=framework, name="Sprint 18 Assessment", created_by=self.assessor,
+            risk_management_enabled=True,
         )
         AssessmentFramework.objects.create(
             assessment=self.assessment, framework=framework, is_primary=True, added_by=self.assessor
@@ -352,6 +358,123 @@ class SprintEighteenRiskRegisterTests(TestCase):
         self.assertContains(duplicate, "already registered")
         self.assertEqual(RiskRegisterEntry.objects.count(), 1)
         self.assertContains(self.client.get(list_url), "Registered")
+
+
+class SprintEighteenPointTwoTests(SprintEighteenRiskRegisterTests):
+    def _create_risk(self, **overrides):
+        values = {
+            "organization": self.organization, "system": self.assessment.system,
+            "assessment": self.assessment, "risk_id": "RISK-0001",
+            "title": "Operational risk", "description": "A material event may occur.",
+            "category": "Governance", "created_by": self.assessor,
+            "owner": self.assessor_membership, "likelihood": 3, "impact": 3,
+            "treatment": RiskRegisterEntry.Treatment.MITIGATE,
+            "treatment_plan": "Implement and validate safeguards.",
+        }
+        values.update(overrides)
+        return RiskRegisterEntry.objects.create(**values)
+
+    def test_risk_workflow_is_optional_hidden_and_non_destructive(self):
+        risk = self._create_risk()
+        self.assessment.risk_management_enabled = False
+        self.assessment.include_risk_in_reports = False
+        self.assessment.save(update_fields=("risk_management_enabled", "include_risk_in_reports"))
+        self.client.login(username="risk-assessor", password="test-password")
+        dashboard = self.client.get(reverse(
+            "assessment-dashboard", args=(self.organization.slug, self.assessment.id)
+        ))
+        self.assertNotContains(dashboard, "Organizational risk register")
+        self.assertEqual(self.client.get(reverse(
+            "risk-register-list", args=(self.organization.slug, self.assessment.id)
+        )).status_code, 404)
+        self.assertTrue(RiskRegisterEntry.objects.filter(pk=risk.pk).exists())
+
+    def test_treatment_action_and_evidence_backed_residual_reassessment(self):
+        risk = self._create_risk()
+        evidence = EvidenceArtifact.objects.create(
+            organization=self.organization, assessment=self.assessment,
+            title="Treatment validation", external_reference="https://example.test/risk-evidence",
+            uploaded_by=self.assessor,
+        )
+        self.client.login(username="risk-assessor", password="test-password")
+        action_url = reverse("risk-treatment-action-create", args=(
+            self.organization.slug, self.assessment.id, risk.id
+        ))
+        response = self.client.post(action_url, {
+            "title": "Deploy safeguard", "description": "Deploy and test the safeguard.",
+            "owner": self.assessor_membership.id, "status": "COMPLETE", "priority": "HIGH",
+            "planned_start": "2026-09-01", "due_date": "2026-09-30",
+            "completed_date": "2026-09-20", "completion_notes": "Safeguard tested successfully.",
+            "remediation_plan": "", "evidence": [evidence.id], "dependencies": [],
+        })
+        self.assertEqual(response.status_code, 302)
+        action = RiskTreatmentAction.objects.get(risk=risk)
+        self.assertEqual(action.status, RiskTreatmentAction.Status.COMPLETE)
+        reassess_url = reverse("risk-reassess", args=(self.organization.slug, self.assessment.id, risk.id))
+        response = self.client.post(reassess_url, {
+            "new_likelihood": 2, "new_impact": 2,
+            "rationale": "Validated safeguards reduced probability and impact.",
+            "evidence": [evidence.id],
+        })
+        self.assertEqual(response.status_code, 302)
+        risk.refresh_from_db()
+        self.assertEqual(risk.residual_score, 4)
+        self.assertIsNotNone(risk.last_reviewed_at)
+        self.assertTrue(RiskReassessment.objects.filter(risk=risk, evidence=evidence).exists())
+
+    def test_acceptance_requires_request_policy_and_admin_review(self):
+        risk = self._create_risk()
+        policy = RiskTolerancePolicy.objects.create(
+            organization=self.organization, updated_by=self.admin,
+            maximum_residual_score=11, maximum_acceptance_days=90,
+        )
+        expiration = date.today() + timedelta(days=30)
+        self.client.login(username="risk-assessor", password="test-password")
+        request_url = reverse("risk-acceptance-request", args=(
+            self.organization.slug, self.assessment.id, risk.id
+        ))
+        self.assertEqual(self.client.post(request_url, {
+            "rationale": "Temporary acceptance while replacement is procured.",
+            "requested_expiration": expiration.isoformat(),
+        }).status_code, 302)
+        acceptance = RiskAcceptanceRequest.objects.get(risk=risk)
+        self.assertEqual(acceptance.status, RiskAcceptanceRequest.Status.PENDING)
+        self.client.login(username="risk-owner-admin", password="test-password")
+        review_url = reverse("risk-acceptance-review", args=(
+            self.organization.slug, self.assessment.id, acceptance.id
+        ))
+        self.assertEqual(self.client.post(review_url, {"action": "approve"}).status_code, 302)
+        risk.refresh_from_db(); acceptance.refresh_from_db()
+        self.assertEqual(acceptance.status, RiskAcceptanceRequest.Status.APPROVED)
+        self.assertEqual(risk.status, RiskRegisterEntry.Status.ACCEPTED)
+        self.assertEqual(risk.acceptance_expires, expiration)
+        self.assertEqual(policy.maximum_residual_score, 11)
+
+    def test_closure_requires_completed_actions_residual_score_and_evidence_then_reopens(self):
+        risk = self._create_risk(residual_likelihood=1, residual_impact=2)
+        evidence = EvidenceArtifact.objects.create(
+            organization=self.organization, assessment=self.assessment,
+            title="Closure evidence", external_reference="https://example.test/closure",
+            uploaded_by=self.assessor,
+        )
+        risk.supporting_evidence.add(evidence)
+        RiskTreatmentAction.objects.create(
+            risk=risk, title="Complete treatment", status=RiskTreatmentAction.Status.COMPLETE,
+            completed_date=date.today(), completion_notes="Validated.", created_by=self.assessor,
+        )
+        self.client.login(username="risk-assessor", password="test-password")
+        close_url = reverse("risk-close", args=(self.organization.slug, self.assessment.id, risk.id))
+        self.assertEqual(self.client.post(close_url, {
+            "closure_rationale": "Validated evidence demonstrates treatment completion."
+        }).status_code, 302)
+        risk.refresh_from_db(); self.assertEqual(risk.status, RiskRegisterEntry.Status.CLOSED)
+        self.client.login(username="risk-owner-admin", password="test-password")
+        reopen_url = reverse("risk-reopen", args=(self.organization.slug, self.assessment.id, risk.id))
+        self.assertEqual(self.client.post(reopen_url, {
+            "reason": "A material trigger event requires a new assessment."
+        }).status_code, 302)
+        risk.refresh_from_db(); self.assertEqual(risk.status, RiskRegisterEntry.Status.MONITORING)
+        self.assertTrue(RiskRegisterHistory.objects.filter(risk=risk, action="REOPENED").exists())
 
 
 class SprintSeventeenPointSixAuthoritativeSourcesTests(TestCase):
@@ -973,6 +1096,30 @@ class SprintFiveReportingTests(TestCase):
                 self.assertIn("https://example.com/access-review", reference_text)
                 self.assertIn("AC.L2-3.1.1", reference_text)
 
+    def test_risk_register_is_packaged_only_when_both_toggles_are_enabled(self):
+        from .reporting import build_package
+        RiskRegisterEntry.objects.create(
+            organization=self.organization, system=self.system, assessment=self.assessment,
+            risk_id="RISK-0001", title="Synthetic risk", description="Synthetic exposure.",
+            category="Access Control", created_by=self.assessor,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            template = f"{directory}/private-template.docx"
+            Path(template).touch()
+            with override_settings(OMNI_SSP_TEMPLATE=template), patch(
+                "webapp.reporting.build_word_ssp", return_value=b"synthetic docx"
+            ):
+                without_risk, _ = build_package(self.assessment, self.assessor)
+                self.assessment.risk_management_enabled = True
+                self.assessment.include_risk_in_reports = True
+                self.assessment.save(update_fields=("risk_management_enabled", "include_risk_in_reports"))
+                with_risk, _ = build_package(self.assessment, self.assessor)
+        with zipfile.ZipFile(BytesIO(without_risk)) as package:
+            self.assertNotIn("Deliverables/Omni-Risk-Register.csv", package.namelist())
+        with zipfile.ZipFile(BytesIO(with_risk)) as package:
+            self.assertIn("Deliverables/Omni-Risk-Register.csv", package.namelist())
+            self.assertIn(b"RISK-0001", package.read("Deliverables/Omni-Risk-Register.csv"))
+
     def test_download_creates_metadata_history_without_persisting_client_file(self):
         self.client.login(username="report-assessor", password="test-password")
         with patch("webapp.reporting.build_assessment_workbook", return_value=b"workbook"):
@@ -1343,6 +1490,8 @@ class SprintSevenDashboardTests(TestCase):
     def test_dashboard_renders_sprs_weighted_risk_heatmap(self):
         self.framework.scoring_method = Framework.ScoringMethod.SPRS
         self.framework.save(update_fields=("scoring_method",))
+        self.assessment.risk_management_enabled = True
+        self.assessment.save(update_fields=("risk_management_enabled",))
         self.client.login(username="executive", password="test-password")
 
         response = self.client.get(reverse(

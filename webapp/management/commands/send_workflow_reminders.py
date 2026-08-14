@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from webapp.models import (
     EvidenceRequest, Notification, NotificationPolicy, RemediationMilestone, RemediationPlan,
+    RiskRegisterEntry, RiskRegisterHistory, RiskTreatmentAction,
 )
 from webapp.notifications import client_escalation_email, escalation_users, notify
 
@@ -33,14 +34,19 @@ class Command(BaseCommand):
             return ""
 
         def deliver(*, owner, assessment, due_date, title, message, action_url,
-                    object_type, object_id, actor, notify_owner=True):
+                    object_type, object_id, actor, notify_owner=True, reminder_days=None):
             nonlocal created
             if not notify_owner or not owner:
                 return
             policy, _ = NotificationPolicy.objects.get_or_create(
                 organization=assessment.system.organization
             )
-            event = due_event(due_date, policy)
+            if reminder_days is None:
+                event = due_event(due_date, policy)
+            else:
+                delta = (due_date - today).days
+                event = ("reminder" if delta == reminder_days else "due today" if delta == 0
+                         else "overdue escalation" if delta < 0 else "")
             if not event:
                 return
             recipients = escalation_users(assessment, owner) if event == "overdue escalation" else [owner]
@@ -104,4 +110,45 @@ class Command(BaseCommand):
                 object_type="RemediationMilestone", object_id=item.id,
                 actor=item.plan.created_by, notify_owner=item.notify_owner,
             )
+        actions = RiskTreatmentAction.objects.filter(
+            due_date__isnull=False, risk__assessment__risk_management_enabled=True
+        ).exclude(status=RiskTreatmentAction.Status.COMPLETE).select_related(
+            "owner__user", "risk__assessment__system__organization", "risk__created_by"
+        )
+        for item in actions:
+            assessment = item.risk.assessment
+            deliver(owner=item.owner.user if item.owner else None, assessment=assessment,
+                    due_date=item.due_date, title=f"Risk treatment {item.risk.risk_id}",
+                    message=f'“{item.title}” is due {item.due_date:%b %d, %Y}.',
+                    action_url=f'/organizations/{assessment.system.organization.slug}/assessments/{assessment.id}/risks/{item.risk_id}/',
+                    object_type="RiskTreatmentAction", object_id=item.id, actor=item.risk.created_by)
+        risks = RiskRegisterEntry.objects.filter(
+            assessment__risk_management_enabled=True
+        ).exclude(status=RiskRegisterEntry.Status.CLOSED).select_related(
+            "owner__user", "assessment__system__organization", "created_by", "accepted_by"
+        )
+        for risk in risks:
+            risk_policy = getattr(risk.organization, "risk_tolerance_policy", None)
+            if risk.next_review_date:
+                deliver(owner=risk.owner.user if risk.owner else None, assessment=risk.assessment,
+                        due_date=risk.next_review_date, title=f"Risk review {risk.risk_id}",
+                        message=f'“{risk.title}” requires periodic review.',
+                        action_url=f'/organizations/{risk.organization.slug}/assessments/{risk.assessment_id}/risks/{risk.id}/',
+                        object_type="RiskRegisterEntry", object_id=risk.id, actor=risk.created_by,
+                        reminder_days=(risk_policy.review_reminder_days if risk_policy else 14))
+            if risk.status == RiskRegisterEntry.Status.ACCEPTED and risk.acceptance_expires:
+                deliver(owner=risk.owner.user if risk.owner else None, assessment=risk.assessment,
+                        due_date=risk.acceptance_expires, title=f"Risk acceptance {risk.risk_id}",
+                        message=f'Acceptance for “{risk.title}” expires {risk.acceptance_expires:%b %d, %Y}.',
+                        action_url=f'/organizations/{risk.organization.slug}/assessments/{risk.assessment_id}/risks/{risk.id}/',
+                        object_type="RiskRegisterEntry", object_id=risk.id, actor=risk.accepted_by or risk.created_by,
+                        reminder_days=(risk_policy.acceptance_expiry_reminder_days if risk_policy else 30))
+                if risk.acceptance_expires < today:
+                    risk.status = RiskRegisterEntry.Status.MONITORING
+                    risk.next_review_date = today
+                    risk.save(update_fields=("status", "next_review_date", "updated_at"))
+                    RiskRegisterHistory.objects.create(
+                        risk=risk, actor=risk.accepted_by or risk.created_by,
+                        action="ACCEPTANCE_EXPIRED", snapshot={"expired": str(risk.acceptance_expires)},
+                    )
         self.stdout.write(self.style.SUCCESS(f"Created {created} workflow reminders."))

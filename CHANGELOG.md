@@ -1,5 +1,12 @@
 # Changelog
 
+## Sprint 18.2 — Optional risk treatment and continuous monitoring
+
+- Added default-off assessment and reporting toggles for the entire risk capability.
+- Added treatment actions, evidence, dependencies, tolerance policies, and residual reassessment.
+- Added governed acceptance requests, review, expiration, continuous monitoring, and reminders.
+- Added validated closure/reopening and conditional risk-register package export.
+
 ## Sprint 18.1 — Guided finding-to-risk workflow
 
 - Added approved catalog-risk suggestions for NOT MET controls.

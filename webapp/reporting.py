@@ -368,6 +368,25 @@ def _artifact_reference_text(artifact) -> str:
     return "\n".join(f"{key}: {value}" for key, value in lines.items()) + "\n"
 
 
+def build_risk_register_csv(assessment) -> str:
+    output = io.StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow(["Risk ID", "Title", "Category", "Status", "Likelihood", "Impact",
+                     "Inherent Score", "Treatment", "Residual Likelihood", "Residual Impact",
+                     "Residual Score", "Trend", "Target Date", "Next Review", "Controls"])
+    for risk in assessment.risks.prefetch_related("controls__requirement__framework"):
+        controls = "; ".join(
+            f"{item.requirement.framework.code} {item.requirement.requirement_id}"
+            for item in risk.controls.all()
+        )
+        writer.writerow([risk.risk_id, risk.title, risk.category, risk.get_status_display(),
+                         risk.likelihood, risk.impact, risk.inherent_score,
+                         risk.get_treatment_display(), risk.residual_likelihood or "",
+                         risk.residual_impact or "", risk.residual_score or "", risk.get_trend_display(),
+                         risk.target_date or "", risk.next_review_date or "", controls])
+    return output.getvalue()
+
+
 def build_package(assessment, generated_by) -> tuple[bytes, dict]:
     readiness = assessment_readiness(assessment, require_template=True)
     if not readiness["ready"]:
@@ -381,6 +400,8 @@ def build_package(assessment, generated_by) -> tuple[bytes, dict]:
         package.writestr("Deliverables/Omni-Assessment-Workbook.xlsx", workbook)
         package.writestr("Deliverables/Omni-System-Security-Plan.docx", ssp)
         package.writestr("Deliverables/Omni-Remediation-Action-Plan.xlsx", remediation)
+        if assessment.risk_management_enabled and assessment.include_risk_in_reports:
+            package.writestr("Deliverables/Omni-Risk-Register.csv", build_risk_register_csv(assessment))
         artifacts = assessment.evidence_artifacts.select_related("uploaded_by").prefetch_related(
             "controls__requirement", "requests", "remediation_plans"
         )
@@ -422,6 +443,10 @@ def build_package(assessment, generated_by) -> tuple[bytes, dict]:
             "generated_at": timezone.now().isoformat(),
             "generated_by": generated_by.get_full_name() or generated_by.username,
             "readiness": readiness, "evidence_count": len(manifest_rows),
+            "risk_management_enabled": assessment.risk_management_enabled,
+            "risk_reporting_included": (
+                assessment.risk_management_enabled and assessment.include_risk_in_reports
+            ),
         }, indent=2))
     return output.getvalue(), readiness
 

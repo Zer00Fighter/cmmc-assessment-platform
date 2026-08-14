@@ -17,7 +17,8 @@ from .models import (
     OrganizationInvitation, UserProfile,
     LoginAttempt,
     RemediationMilestone, RemediationPlan, RequirementMapping, RequirementRiskMapping,
-    MappingChangeRequest, RiskRegisterEntry, System, TestExecution,
+    MappingChangeRequest, RiskAcceptanceRequest, RiskReassessment, RiskRegisterEntry,
+    RiskTolerancePolicy, RiskTreatmentAction, System, TestExecution,
 )
 
 
@@ -464,20 +465,23 @@ class RiskRegisterForm(forms.ModelForm):
         model = RiskRegisterEntry
         fields = (
             "catalog_risk", "title", "description", "category", "controls",
-            "remediation_plans", "owner", "status", "likelihood", "impact",
+            "remediation_plans", "supporting_evidence", "owner", "status", "likelihood", "impact",
             "treatment", "treatment_plan", "target_date", "residual_likelihood",
             "residual_impact", "acceptance_rationale", "acceptance_expires",
-            "next_review_date",
+            "next_review_date", "review_frequency_days", "trend", "monitoring_notes", "trigger_events",
         )
         widgets = {
             "description": forms.Textarea(attrs={"rows": 4}),
             "controls": forms.CheckboxSelectMultiple(),
             "remediation_plans": forms.CheckboxSelectMultiple(),
+            "supporting_evidence": forms.CheckboxSelectMultiple(),
             "treatment_plan": forms.Textarea(attrs={"rows": 4}),
             "acceptance_rationale": forms.Textarea(attrs={"rows": 3}),
             "target_date": forms.DateInput(attrs={"type": "date"}),
             "acceptance_expires": forms.DateInput(attrs={"type": "date"}),
             "next_review_date": forms.DateInput(attrs={"type": "date"}),
+            "monitoring_notes": forms.Textarea(attrs={"rows": 3}),
+            "trigger_events": forms.Textarea(attrs={"rows": 3}),
         }
 
     def __init__(self, *args, organization, assessment, can_accept=False, **kwargs):
@@ -489,10 +493,17 @@ class RiskRegisterForm(forms.ModelForm):
         self.fields["owner"].queryset = organization.memberships.filter(active=True).select_related("user")
         self.fields["controls"].queryset = assessment.control_results.select_related("requirement")
         self.fields["remediation_plans"].queryset = assessment.remediation_plans.all()
+        self.fields["supporting_evidence"].queryset = assessment.evidence_artifacts.all()
+        self.fields["review_frequency_days"].required = False
+        self.fields["trend"].required = False
         self.can_accept = can_accept
 
     def clean(self):
         cleaned = super().clean()
+        cleaned["review_frequency_days"] = (
+            cleaned.get("review_frequency_days") or self.instance.review_frequency_days or 90
+        )
+        cleaned["trend"] = cleaned.get("trend") or self.instance.trend or "UNKNOWN"
         residual_likelihood = cleaned.get("residual_likelihood")
         residual_impact = cleaned.get("residual_impact")
         if (residual_likelihood is None) != (residual_impact is None):
@@ -508,6 +519,92 @@ class RiskRegisterForm(forms.ModelForm):
             if not cleaned.get("acceptance_expires"):
                 self.add_error("acceptance_expires", "Risk acceptance requires an expiration date.")
         return cleaned
+
+
+class RiskTolerancePolicyForm(forms.ModelForm):
+    class Meta:
+        model = RiskTolerancePolicy
+        fields = ("maximum_residual_score", "critical_acceptance_allowed",
+                  "maximum_acceptance_days", "review_reminder_days",
+                  "acceptance_expiry_reminder_days")
+
+    def clean_maximum_residual_score(self):
+        value = self.cleaned_data["maximum_residual_score"]
+        if not 1 <= value <= 25:
+            raise forms.ValidationError("Use a residual-risk threshold from 1 to 25.")
+        return value
+
+
+class RiskTreatmentActionForm(forms.ModelForm):
+    class Meta:
+        model = RiskTreatmentAction
+        fields = ("title", "description", "owner", "status", "priority", "planned_start",
+                  "due_date", "completed_date", "completion_notes", "remediation_plan",
+                  "evidence", "dependencies")
+        widgets = {"description": forms.Textarea(attrs={"rows": 3}),
+                   "completion_notes": forms.Textarea(attrs={"rows": 3}),
+                   "planned_start": forms.DateInput(attrs={"type": "date"}),
+                   "due_date": forms.DateInput(attrs={"type": "date"}),
+                   "completed_date": forms.DateInput(attrs={"type": "date"}),
+                   "evidence": forms.CheckboxSelectMultiple(),
+                   "dependencies": forms.CheckboxSelectMultiple()}
+
+    def __init__(self, *args, organization, assessment, risk, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["owner"].queryset = organization.memberships.filter(active=True).select_related("user")
+        self.fields["remediation_plan"].queryset = assessment.remediation_plans.all()
+        self.fields["evidence"].queryset = assessment.evidence_artifacts.all()
+        self.fields["dependencies"].queryset = risk.treatment_actions.exclude(pk=self.instance.pk)
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("status") == RiskTreatmentAction.Status.COMPLETE:
+            if not cleaned.get("completed_date"):
+                self.add_error("completed_date", "Required when the action is complete.")
+            if not (cleaned.get("completion_notes") or "").strip():
+                self.add_error("completion_notes", "Document the completed treatment work.")
+        if cleaned.get("planned_start") and cleaned.get("due_date") and cleaned["due_date"] < cleaned["planned_start"]:
+            self.add_error("due_date", "Cannot precede the planned start.")
+        return cleaned
+
+
+class RiskReassessmentForm(forms.ModelForm):
+    class Meta:
+        model = RiskReassessment
+        fields = ("new_likelihood", "new_impact", "rationale", "evidence")
+        widgets = {"rationale": forms.Textarea(attrs={"rows": 4}),
+                   "evidence": forms.CheckboxSelectMultiple()}
+
+    def __init__(self, *args, assessment, **kwargs):
+        super().__init__(*args, **kwargs)
+        choices = [(i, str(i)) for i in range(1, 6)]
+        self.fields["new_likelihood"].widget = forms.Select(choices=choices)
+        self.fields["new_impact"].widget = forms.Select(choices=choices)
+        self.fields["evidence"].queryset = assessment.evidence_artifacts.all()
+
+
+class RiskAcceptanceRequestForm(forms.ModelForm):
+    class Meta:
+        model = RiskAcceptanceRequest
+        fields = ("rationale", "requested_expiration")
+        widgets = {"rationale": forms.Textarea(attrs={"rows": 4}),
+                   "requested_expiration": forms.DateInput(attrs={"type": "date"})}
+
+    def __init__(self, *args, policy, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.policy = policy
+
+    def clean_requested_expiration(self):
+        value = self.cleaned_data["requested_expiration"]
+        if value <= timezone.localdate():
+            raise forms.ValidationError("Acceptance must expire in the future.")
+        if value > timezone.localdate() + timedelta(days=self.policy.maximum_acceptance_days):
+            raise forms.ValidationError("The requested period exceeds the organization's maximum.")
+        return value
+
+
+class RiskClosureForm(forms.Form):
+    closure_rationale = forms.CharField(widget=forms.Textarea(attrs={"rows": 4}), min_length=10)
 
 
 class RemediationMilestoneForm(forms.ModelForm):
@@ -573,6 +670,7 @@ class AssessmentPlanForm(forms.ModelForm):
             "engagement_start", "engagement_end", "scope_boundaries",
             "assessment_locations", "sampling_methodology",
             "notifications_enabled", "email_notifications_enabled",
+            "risk_management_enabled", "include_risk_in_reports",
         )
         widgets = {
             "engagement_start": forms.DateInput(attrs={"type": "date"}),
@@ -587,6 +685,8 @@ class AssessmentPlanForm(forms.ModelForm):
         start, end = cleaned.get("engagement_start"), cleaned.get("engagement_end")
         if start and end and end < start:
             self.add_error("engagement_end", "Cannot precede the engagement start.")
+        if cleaned.get("include_risk_in_reports") and not cleaned.get("risk_management_enabled"):
+            self.add_error("include_risk_in_reports", "Enable risk management before including it in reports.")
         return cleaned
 
 
