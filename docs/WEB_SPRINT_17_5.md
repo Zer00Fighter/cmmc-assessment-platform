@@ -1,0 +1,3 @@
+# Sprint 17.5 — Omni Evidence Catalog integration
+
+The private 316-row Omni Control Framework evidence list is imported into the ignored local database with original identifiers, wording, descriptions, control mappings, CMMC references, row provenance, filename, and SHA-256. CMMC L1 references are normalized to equivalent L2 identifiers while originals remain intact. Exact canonical matches resolve automatically; aliases, new-object candidates, disregards, and unresolved requests require governed review. Assessment generation consolidates approved canonical objects and preserves unresolved source requests independently.

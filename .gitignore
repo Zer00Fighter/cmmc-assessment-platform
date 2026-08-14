@@ -10,6 +10,9 @@ __pycache__/
 inspect_real_171a.py
 docs/source/sp800-171a-assessment-procedures.xlsx
 docs/source/CCF Mapping.xlsx
+docs/source/CCF Evidence Request List.xlsx
+docs/source/CCF Authoritative Documents.xlsx
+docs/source/~$*.xlsx
 
 # Generated workbook output.
 output/

@@ -73,6 +73,7 @@ from .models import (
     MappingReference,
     MappingChangeRequest,
     Notification,
+    OmniEvidenceSourceRequest,
     NotificationPreference,
     NotificationPolicy,
     InterviewSession,
@@ -1526,6 +1527,30 @@ def evidence_request_generate(
     organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
     if not _can_edit(request.user, organization):
         raise Http404
+    omni_framework = next((item for item in _selected_frameworks(assessment)
+                           if item.is_omni_control_framework), None)
+    if omni_framework is not None:
+        results_by_id = {item.requirement.requirement_id: item for item in assessment.control_results.filter(
+            requirement__framework=omni_framework).select_related("requirement")}
+        existing = set(assessment.evidence_requests.values_list("title", flat=True))
+        created_count = 0
+        grouped = {}
+        for source in OmniEvidenceSourceRequest.objects.exclude(resolution="DISREGARDED"):
+            controls = [results_by_id[x] for x in source.omni_control_ids if x in results_by_id]
+            if not controls: continue
+            key = source.canonical_evidence_code or source.source_identifier
+            group = grouped.setdefault(key, {"title": source.source_title, "description": source.source_description, "controls": set()})
+            group["controls"].update(item.pk for item in controls)
+        from src.evidence.evidence_knowledge import EVIDENCE_KNOWLEDGE
+        canonical = {item.evidence_id: item for item in EVIDENCE_KNOWLEDGE}
+        for key, group in grouped.items():
+            if key in canonical: group["title"], group["description"] = canonical[key].canonical_name, canonical[key].description
+            if group["title"] in existing: continue
+            item = EvidenceRequest.objects.create(assessment=assessment, evidence_code=key if key in canonical else "",
+                title=group["title"], description=group["description"], created_by=request.user)
+            item.controls.set(group["controls"]); existing.add(group["title"]); created_count += 1
+        messages.success(request, f"Generated {created_count} Omni Control Framework evidence requests.")
+        return redirect("evidence-list", org_slug=org_slug, assessment_id=assessment.id)
     cmmc_framework = next(
         (item for item in _selected_frameworks(assessment)
          if item.code.upper().startswith("CMMC")), None
@@ -1567,6 +1592,36 @@ def evidence_request_generate(
     )
     messages.success(request, f"Generated {created_count} optimized evidence requests.")
     return redirect("evidence-list", org_slug=org_slug, assessment_id=assessment.id)
+
+
+@login_required
+def omni_evidence_catalog(request: HttpRequest) -> HttpResponse:
+    if not request.user.is_superuser: raise Http404
+    if request.method == "POST":
+        item = get_object_or_404(OmniEvidenceSourceRequest, pk=request.POST.get("source_id"))
+        code = request.POST.get("canonical_evidence_code", "").strip()
+        resolution = request.POST.get("resolution", OmniEvidenceSourceRequest.Resolution.REVIEW)
+        valid = {x.evidence_id for x in __import__("src.evidence.evidence_knowledge", fromlist=["EVIDENCE_KNOWLEDGE"]).EVIDENCE_KNOWLEDGE}
+        if code and code not in valid:
+            messages.error(request, "Unknown canonical evidence code.")
+        else:
+            item.canonical_evidence_code = code; item.resolution = resolution
+            item.reviewer_rationale = request.POST.get("rationale", ""); item.reviewed_by = request.user
+            item.reviewed_at = timezone.now(); item.save()
+            messages.success(request, f"{item.source_identifier} curated.")
+        return redirect("omni-evidence-catalog")
+    items = OmniEvidenceSourceRequest.objects.all()
+    status = request.GET.get("status", "")
+    if status: items = items.filter(resolution=status)
+    from src.evidence.evidence_knowledge import EVIDENCE_KNOWLEDGE
+    all_sources = OmniEvidenceSourceRequest.objects.all()
+    return render(request, "webapp/omni_evidence_catalog.html", {"items": items[:250],
+        "canonical": EVIDENCE_KNOWLEDGE, "status": status,
+        "metrics": {"total": all_sources.count(),
+                    "resolved": OmniEvidenceSourceRequest.objects.filter(resolution__in=("EXACT", "ALIAS")).count(),
+                    "review": OmniEvidenceSourceRequest.objects.filter(resolution="REVIEW").count(),
+                    "candidates": OmniEvidenceSourceRequest.objects.filter(resolution="NEW_CANDIDATE").count(),
+                    "controls": len({control for source in all_sources for control in source.omni_control_ids})}})
 
 
 @login_required

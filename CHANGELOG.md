@@ -1,5 +1,11 @@
 # Changelog
 
+## Sprint 17.5 — Omni Evidence Catalog integration
+
+- Added source-faithful private Omni evidence-list import and validation.
+- Added CMMC L1/L2 alias normalization and canonical evidence curation.
+- Added Omni-framework evidence-request generation with governed consolidation.
+
 ## Sprint 17 — Mapping governance and change impact
 
 - Added mapping lifecycle, revisions, independent change requests, and immutable history.

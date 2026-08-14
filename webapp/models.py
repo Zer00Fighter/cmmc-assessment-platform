@@ -396,6 +396,35 @@ class MappingReference(models.Model):
         )]
 
 
+class OmniEvidenceSourceRequest(models.Model):
+    class Resolution(models.TextChoices):
+        EXACT = "EXACT", "Exact canonical match"
+        ALIAS = "ALIAS", "Approved alias"
+        NEW_CANDIDATE = "NEW_CANDIDATE", "New-object candidate"
+        REVIEW = "REVIEW", "Needs review"
+        DISREGARDED = "DISREGARDED", "Disregarded"
+
+    source_identifier = models.CharField(max_length=30, unique=True)
+    area_of_focus = models.CharField(max_length=250)
+    source_title = models.CharField(max_length=300)
+    source_description = models.TextField()
+    omni_control_ids = models.JSONField(default=list)
+    source_cmmc_ids = models.JSONField(default=list)
+    normalized_cmmc_ids = models.JSONField(default=list)
+    canonical_evidence_code = models.CharField(max_length=30, blank=True)
+    resolution = models.CharField(max_length=20, choices=Resolution.choices, default=Resolution.REVIEW)
+    reviewer_rationale = models.TextField(blank=True)
+    source_row = models.PositiveIntegerField()
+    source_filename = models.CharField(max_length=255)
+    source_sha256 = models.CharField(max_length=64)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="reviewed_omni_evidence_sources")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("area_of_focus", "source_identifier")
+
+
 class Assessment(models.Model):
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Draft"

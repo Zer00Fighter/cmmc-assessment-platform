@@ -43,6 +43,7 @@ from .models import (
     MappingHistory,
     RevalidationTask,
     Notification,
+    OmniEvidenceSourceRequest,
     NotificationPolicy,
     NotificationPreference,
     ObjectiveAssessment,
@@ -59,6 +60,7 @@ from .models import (
 from .framework_import import materialize_mapping_references, parse_upload, resolve_catalog_mappings
 from .harmonization import refresh_harmonization, review_reuse
 from .mapping_governance import review_change
+from .omni_evidence_catalog import import_catalog, normalize_cmmc
 
 
 class SprintOneWorkflowTests(TestCase):
@@ -1811,3 +1813,25 @@ class SprintSeventeenMappingGovernanceTests(TestCase):
         self.assertEqual(self.mapping.revision, 2)
         self.assertEqual(self.change.status, "APPROVED")
         self.assertEqual(MappingHistory.objects.filter(mapping=self.mapping).count(), 2)
+
+
+class SprintSeventeenPointFiveEvidenceCatalogTests(TestCase):
+    def test_private_catalog_import_preserves_source_and_normalizes_cmmc_alias(self):
+        from openpyxl import Workbook
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "evidence.xlsx"; workbook = Workbook(); sheet = workbook.active
+            sheet.append(["#", "ERL #", "Area of Focus", "Documentation Artifact", "Artifact Description", "SCF Control Mappings", "Relevant CMMC"])
+            sheet.append([1, "E-1", "Governance", "Security Plan", "Plan evidence", "GOV-01\nGOV-02", "AC.L1-3.1.1"])
+            sheet.append([2, "E-2", "Governance", "Novel Evidence", "Novel evidence", "GOV-03", ""]); workbook.save(path)
+            report = import_catalog(path, apply=True)
+        self.assertEqual(report["requests"], 2); self.assertEqual(report["exact"], 1)
+        exact = OmniEvidenceSourceRequest.objects.get(source_identifier="E-1")
+        self.assertEqual(exact.canonical_evidence_code, "EV-0001")
+        self.assertEqual(exact.source_cmmc_ids, ["AC.L1-3.1.1"])
+        self.assertEqual(exact.normalized_cmmc_ids, ["AC.L2-3.1.1"])
+        self.assertEqual(OmniEvidenceSourceRequest.objects.get(source_identifier="E-2").resolution, "REVIEW")
+
+    def test_catalog_curation_is_superuser_only(self):
+        user = get_user_model().objects.create_user("catalog-reader", password="test-password")
+        self.client.login(username="catalog-reader", password="test-password")
+        self.assertEqual(self.client.get(reverse("omni-evidence-catalog")).status_code, 404)
