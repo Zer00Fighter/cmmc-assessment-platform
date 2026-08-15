@@ -21,6 +21,7 @@ from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from .forms import (
     AssessmentForm,
@@ -1983,6 +1984,7 @@ def evidence_list(request: HttpRequest, org_slug: str, assessment_id: int) -> Ht
     domain = request.GET.get("domain", "").strip()
     owner = request.GET.get("owner", "").strip()
     query = request.GET.get("q", "").strip()
+    freshness = request.GET.get("freshness", "").strip().upper()
     if status:
         evidence_requests = evidence_requests.filter(status=status)
     if domain:
@@ -1994,6 +1996,13 @@ def evidence_list(request: HttpRequest, org_slug: str, assessment_id: int) -> Ht
     if query:
         evidence_requests = evidence_requests.filter(title__icontains=query)
         artifacts = artifacts.filter(title__icontains=query)
+    artifacts = list(artifacts)
+    freshness_metrics = {
+        state: sum(item.freshness == state for item in artifacts)
+        for state in ("CURRENT", "AGING", "EXPIRED", "UNDATED", "SUPERSEDED")
+    }
+    if freshness:
+        artifacts = [item for item in artifacts if item.freshness == freshness]
     domains = assessment.control_results.values_list(
         "requirement__domain", flat=True
     ).distinct().order_by("requirement__domain")
@@ -2002,7 +2011,9 @@ def evidence_list(request: HttpRequest, org_slug: str, assessment_id: int) -> Ht
         "evidence_requests": evidence_requests, "artifacts": artifacts,
         "statuses": EvidenceRequest.Status.choices, "domains": domains,
         "memberships": organization.memberships.filter(active=True).select_related("user"),
-        "filters": {"status": status, "domain": domain, "owner": owner, "q": query},
+        "filters": {"status": status, "domain": domain, "owner": owner, "q": query,
+                    "freshness": freshness},
+        "freshness_metrics": freshness_metrics,
         "can_edit": _can_edit(request.user, organization),
         "can_manage_evidence": _can_manage_evidence(request.user, organization),
     })
@@ -2188,6 +2199,45 @@ def evidence_artifact_edit(
         "form": form, "assessment": assessment, "organization": organization,
         "title": "Review evidence artifact", "submit_label": "Save changes",
     })
+
+
+@login_required
+@require_POST
+def evidence_artifact_renew(
+    request: HttpRequest, org_slug: str, assessment_id: int, artifact_id: int
+) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    if not _can_manage_evidence(request.user, organization):
+        raise Http404
+    _require_unlocked(assessment)
+    artifact = get_object_or_404(
+        EvidenceArtifact, id=artifact_id, assessment=assessment, organization=organization
+    )
+    from .evidence_freshness import create_renewal_requests
+
+    renewals = create_renewal_requests(artifact, actor=request.user, force=True)
+    for renewal in renewals:
+        if renewal.owner and renewal.notify_owner:
+            notify(
+                recipients=[renewal.owner.user], organization=organization,
+                assessment=assessment, category=Notification.Category.EVIDENCE,
+                title="Evidence renewal requested",
+                message=f'Please renew “{artifact.title}”.',
+                action_url=assessment_url(assessment, "evidence-list"), actor=request.user,
+                object_type="EvidenceRequest", object_id=renewal.id,
+                event="evidence.renewal_requested", new_status=renewal.status,
+            )
+    AuditEvent.objects.create(
+        organization=organization, actor=request.user,
+        action="evidence_artifact.renewal_requested",
+        object_type="EvidenceArtifact", object_id=str(artifact.id),
+        detail={"renewal_request_ids": [item.id for item in renewals]},
+    )
+    if renewals:
+        messages.success(request, f"Created {len(renewals)} evidence renewal request(s).")
+    else:
+        messages.info(request, "Renewal work already exists or this artifact has no linked request.")
+    return redirect("evidence-list", org_slug=org_slug, assessment_id=assessment.id)
 
 
 @login_required

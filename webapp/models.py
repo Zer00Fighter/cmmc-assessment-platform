@@ -1044,6 +1044,23 @@ class EvidenceRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     notify_owner = models.BooleanField(default=True)
+    freshness_days = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="Expected validity in days. Use 0 when this evidence does not expire.",
+    )
+    renewal_lead_days = models.PositiveSmallIntegerField(
+        default=30,
+        help_text="Open renewal work this many days before the evidence becomes stale.",
+    )
+    auto_renew = models.BooleanField(
+        default=True,
+        help_text="Allow Omni to create a renewal request before linked evidence expires.",
+    )
+    renewal_of = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="renewal_requests",
+    )
+    renewal_generated_at = models.DateTimeField(null=True, blank=True)
     consolidated_into = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="consolidated_requests"
     )
@@ -1078,6 +1095,10 @@ class EvidenceArtifact(models.Model):
     )
     external_reference = models.URLField(blank=True)
     source = models.CharField(max_length=250, blank=True)
+    effective_on = models.DateField(
+        null=True, blank=True,
+        help_text="Date the evidence became effective or was issued.",
+    )
     period_start = models.DateField(null=True, blank=True)
     period_end = models.DateField(null=True, blank=True)
     expires_on = models.DateField(null=True, blank=True)
@@ -1111,11 +1132,40 @@ class EvidenceArtifact(models.Model):
     def freshness(self) -> str:
         if self.superseded_by_id:
             return "SUPERSEDED"
-        if self.expires_on and self.expires_on < timezone.localdate():
+        deadline = self.freshness_deadline
+        if deadline is None:
+            return "UNDATED"
+        if deadline < timezone.localdate():
             return "EXPIRED"
-        if self.expires_on and self.expires_on <= timezone.localdate() + timedelta(days=30):
+        if deadline <= timezone.localdate() + timedelta(days=self.renewal_lead_days):
             return "AGING"
         return "CURRENT"
+
+    @property
+    def freshness_reference_date(self):
+        return self.effective_on or self.period_end or (
+            self.created_at.date() if self.created_at else None
+        )
+
+    @property
+    def freshness_deadline(self):
+        if self.expires_on:
+            return self.expires_on
+        reference = self.freshness_reference_date
+        if not reference or not self.pk:
+            return None
+        validity = [
+            item.freshness_days for item in self.requests.all()
+            if item.freshness_days
+        ]
+        return reference + timedelta(days=min(validity)) if validity else None
+
+    @property
+    def renewal_lead_days(self) -> int:
+        if not self.pk:
+            return 30
+        lead_times = [item.renewal_lead_days for item in self.requests.all()]
+        return max(lead_times) if lead_times else 30
 
 
 class EvidenceApplicability(models.Model):

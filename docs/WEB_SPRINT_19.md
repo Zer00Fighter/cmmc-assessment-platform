@@ -28,13 +28,29 @@ authoritative record for assessment conclusions, evidence acceptance, risk
 decisions, quality review, and sign-off. Sprint 19.1 does not connect to an
 external service and stores no API token, password, endpoint, or client file.
 
+## Sprint 19.2 delivered evidence freshness and renewal
+
+- Evidence-request validity periods and configurable renewal lead times
+- Optional automatic renewal at the individual request level
+- Explicit artifact effective and expiration dates
+- Policy-derived deadlines when an explicit expiration date is not supplied
+- Current, renew-soon, expired, undated, and superseded artifact states
+- Evidence workspace freshness metrics, filters, deadlines, and renewal action
+- Duplicate-safe renewal requests preserving owners, controls, catalog identity,
+  notification preferences, and source-request lineage
+- Scheduled renewal generation through the existing workflow reminder command
+- Freshness warnings and deadline metadata in assessment exports
+
+Renewal creates a new request; it never overwrites or copies an evidence file.
+When replacement evidence is accepted, the prior artifact can be linked through
+the existing supersession field, retaining a defensible evidence history.
+
 ## Remaining Sprint 19 workstreams
 
-1. Evidence freshness and renewal
-2. Continuous control monitoring and reassessment triggers
-3. Approved baselines and period-over-period comparison
-4. Program and portfolio dashboard
-5. Compliance calendar and scheduled workflow automation
-6. Continuous compliance reports and exports
-7. External ticket event routing and later connector implementation
-8. Security, regression, and synthetic acceptance testing
+1. Continuous control monitoring and reassessment triggers
+2. Approved baselines and period-over-period comparison
+3. Program and portfolio dashboard
+4. Compliance calendar and scheduled workflow automation
+5. Continuous compliance reports and exports
+6. External ticket event routing and later connector implementation
+7. Security, regression, and synthetic acceptance testing

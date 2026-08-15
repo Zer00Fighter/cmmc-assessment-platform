@@ -111,6 +111,10 @@ urlpatterns = [
         views.evidence_artifact_edit, name="evidence-artifact-edit",
     ),
     path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/evidence/artifacts/<int:artifact_id>/renew/",
+        views.evidence_artifact_renew, name="evidence-artifact-renew",
+    ),
+    path(
         "organizations/<slug:org_slug>/assessments/<int:assessment_id>/evidence/artifacts/<int:artifact_id>/download/",
         views.evidence_artifact_download, name="evidence-artifact-download",
     ),

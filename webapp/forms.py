@@ -269,7 +269,8 @@ class EvidenceRequestForm(forms.ModelForm):
         model = EvidenceRequest
         fields = (
             "catalog_object", "title", "description", "status", "owner",
-            "due_date", "notify_owner", "controls",
+            "due_date", "notify_owner", "freshness_days", "renewal_lead_days",
+            "auto_renew", "controls",
         )
         widgets = {
             "description": forms.Textarea(attrs={"rows": 4}),
@@ -280,6 +281,8 @@ class EvidenceRequestForm(forms.ModelForm):
     def __init__(self, *args, organization, assessment, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["title"].required = False
+        self.fields["freshness_days"].required = False
+        self.fields["renewal_lead_days"].required = False
         if self.instance.pk and self.instance.evidence_code:
             self.fields["catalog_object"].initial = self.instance.evidence_code
         self.fields["owner"].queryset = Membership.objects.filter(
@@ -291,6 +294,9 @@ class EvidenceRequestForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        cleaned["freshness_days"] = cleaned.get("freshness_days") or 0
+        if cleaned.get("renewal_lead_days") is None:
+            cleaned["renewal_lead_days"] = 30
         code = cleaned.get("catalog_object")
         if code:
             evidence = next(item for item in EVIDENCE_KNOWLEDGE if item.evidence_id == code)
@@ -323,11 +329,13 @@ class EvidenceArtifactForm(forms.ModelForm):
         model = EvidenceArtifact
         fields = (
             "title", "file", "external_reference", "source", "period_start",
-            "period_end", "expires_on", "superseded_by", "review_status", "assessor_notes", "requests", "controls",
+            "period_end", "effective_on", "expires_on", "superseded_by",
+            "review_status", "assessor_notes", "requests", "controls",
         )
         widgets = {
             "period_start": forms.DateInput(attrs={"type": "date"}),
             "period_end": forms.DateInput(attrs={"type": "date"}),
+            "effective_on": forms.DateInput(attrs={"type": "date"}),
             "expires_on": forms.DateInput(attrs={"type": "date"}),
             "assessor_notes": forms.Textarea(attrs={"rows": 4}),
             "requests": forms.CheckboxSelectMultiple(),
@@ -359,6 +367,9 @@ class EvidenceArtifactForm(forms.ModelForm):
         start, end = cleaned.get("period_start"), cleaned.get("period_end")
         if start and end and end < start:
             self.add_error("period_end", "The period end cannot precede the start.")
+        effective, expires = cleaned.get("effective_on"), cleaned.get("expires_on")
+        if effective and expires and expires < effective:
+            self.add_error("expires_on", "The expiration date cannot precede the effective date.")
         if (cleaned.get("review_status") == EvidenceArtifact.ReviewStatus.REJECTED
                 and not (cleaned.get("assessor_notes") or "").strip()):
             self.add_error("assessor_notes", "Explain why the evidence was rejected.")

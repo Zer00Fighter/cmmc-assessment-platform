@@ -76,8 +76,8 @@ def assessment_readiness(assessment, *, require_template=False) -> dict:
 
 def multi_framework_readiness(assessment) -> dict:
     report = assessment_readiness(assessment)
-    for artifact in assessment.evidence_artifacts.all():
-        if artifact.freshness in {"EXPIRED", "SUPERSEDED"}:
+    for artifact in assessment.evidence_artifacts.prefetch_related("requests"):
+        if artifact.freshness in {"AGING", "EXPIRED", "SUPERSEDED"}:
             report["warnings"].append(f"{artifact.title} is {artifact.freshness.lower()}.")
     for decision in assessment.reuse_decisions.filter(status="APPROVED", reuse_evidence=True):
         if not decision.target_result.evidence_applicability.exists():
@@ -423,6 +423,8 @@ def build_package(assessment, generated_by) -> tuple[bytes, dict]:
             manifest_rows.append({
                 "artifact_id": artifact_id, "title": artifact.title,
                 "review_status": artifact.get_review_status_display(),
+                "freshness": artifact.freshness,
+                "freshness_deadline": artifact.freshness_deadline or "",
                 "controls": controls, "requests": requests,
                 "remediation_plans": remediations,
                 "uploaded_file": Path(artifact.file.name).name if artifact.file else "",
@@ -430,7 +432,8 @@ def build_package(assessment, generated_by) -> tuple[bytes, dict]:
             })
         csv_buffer = io.StringIO()
         writer = csv.DictWriter(csv_buffer, fieldnames=(
-            "artifact_id", "title", "review_status", "controls", "requests",
+            "artifact_id", "title", "review_status", "freshness", "freshness_deadline",
+            "controls", "requests",
             "remediation_plans", "uploaded_file", "external_reference",
         ))
         writer.writeheader()

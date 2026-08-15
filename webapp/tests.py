@@ -2441,3 +2441,67 @@ class SprintNineteenFoundationTests(TestCase):
         self.assertTrue(policy.external_ticketing_enabled)
         self.assertEqual(OutboundWorkItem.objects.count(), 0)
         self.assertContains(response, "Foundation only")
+
+    def test_policy_driven_freshness_uses_effective_date(self):
+        evidence_request = self.assessment.evidence_requests.get()
+        evidence_request.freshness_days = 365
+        evidence_request.renewal_lead_days = 30
+        evidence_request.save()
+        artifact = EvidenceArtifact.objects.create(
+            organization=self.organization, assessment=self.assessment,
+            title="Annual policy", external_reference="https://example.invalid/policy",
+            effective_on=timezone.localdate() - timedelta(days=350),
+            uploaded_by=self.admin,
+        )
+        artifact.requests.add(evidence_request)
+        self.assertEqual(
+            artifact.freshness_deadline,
+            artifact.effective_on + timedelta(days=365),
+        )
+        self.assertEqual(artifact.freshness, "AGING")
+
+    def test_manual_renewal_is_idempotent_and_preserves_request_context(self):
+        evidence_request = self.assessment.evidence_requests.get()
+        evidence_request.freshness_days = 90
+        evidence_request.renewal_lead_days = 20
+        evidence_request.save()
+        artifact = EvidenceArtifact.objects.create(
+            organization=self.organization, assessment=self.assessment,
+            title="Quarterly access review",
+            external_reference="https://example.invalid/access-review",
+            effective_on=timezone.localdate() - timedelta(days=80),
+            uploaded_by=self.admin,
+        )
+        artifact.requests.add(evidence_request)
+        url = reverse("evidence-artifact-renew", args=(
+            self.organization.slug, self.assessment.id, artifact.id,
+        ))
+        self.client.post(url)
+        self.client.post(url)
+        renewal = EvidenceRequest.objects.get(renewal_of=evidence_request)
+        self.assertEqual(renewal.title, "Renew: Synthetic policy")
+        self.assertEqual(
+            list(renewal.controls.values_list("id", flat=True)),
+            list(evidence_request.controls.values_list("id", flat=True)),
+        )
+        self.assertEqual(evidence_request.renewal_requests.count(), 1)
+        self.assertTrue(AuditEvent.objects.filter(
+            action="evidence_artifact.renewal_requested", object_id=str(artifact.id)
+        ).exists())
+
+    def test_workflow_command_opens_automatic_renewal_once(self):
+        evidence_request = self.assessment.evidence_requests.get()
+        evidence_request.freshness_days = 30
+        evidence_request.renewal_lead_days = 10
+        evidence_request.auto_renew = True
+        evidence_request.save()
+        artifact = EvidenceArtifact.objects.create(
+            organization=self.organization, assessment=self.assessment,
+            title="Monthly evidence", external_reference="https://example.invalid/monthly",
+            effective_on=timezone.localdate() - timedelta(days=25),
+            uploaded_by=self.admin,
+        )
+        artifact.requests.add(evidence_request)
+        call_command("send_workflow_reminders")
+        call_command("send_workflow_reminders")
+        self.assertEqual(evidence_request.renewal_requests.count(), 1)

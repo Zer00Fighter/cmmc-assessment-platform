@@ -1,5 +1,13 @@
 # Changelog
 
+## Sprint 19.2 — Evidence freshness and renewal
+
+- Added request-level validity periods, renewal lead times, and automatic-renewal policies.
+- Added effective dates and policy-derived artifact freshness deadlines.
+- Added current, renew-soon, expired, undated, and superseded evidence analytics and filtering.
+- Added idempotent manual and scheduled renewal requests with owner notifications and audit history.
+- Added renewal lineage and freshness data to the evidence package index and readiness warnings.
+
 ## Sprint 19.1 — Assessment templates and integration foundation
 
 - Added organization-scoped assessment templates with recurrence, framework, planning, and evidence-request blueprints.

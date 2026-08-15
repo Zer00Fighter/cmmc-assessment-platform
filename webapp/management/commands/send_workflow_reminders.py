@@ -4,10 +4,11 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from webapp.models import (
-    EvidenceRequest, Notification, NotificationPolicy, RemediationMilestone, RemediationPlan,
+    EvidenceArtifact, EvidenceRequest, Notification, NotificationPolicy, RemediationMilestone, RemediationPlan,
     RiskRegisterEntry, RiskRegisterHistory, RiskTreatmentAction,
 )
 from webapp.notifications import client_escalation_email, escalation_users, notify
+from webapp.evidence_freshness import create_renewal_requests
 
 
 class Command(BaseCommand):
@@ -16,6 +17,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         today = timezone.localdate()
         created = 0
+        renewals_created = 0
 
         def due_event(due_date, policy):
             delta = (due_date - today).days
@@ -72,6 +74,30 @@ class Command(BaseCommand):
                     settings.DEFAULT_FROM_EMAIL, [external], fail_silently=True,
                 )
             created += 1
+
+        artifacts = EvidenceArtifact.objects.filter(
+            superseded_by__isnull=True, requests__auto_renew=True
+        ).select_related("assessment__system__organization", "uploaded_by").prefetch_related(
+            "requests__owner__user", "requests__controls"
+        ).distinct()
+        for artifact in artifacts:
+            if artifact.freshness not in {"AGING", "EXPIRED"}:
+                continue
+            renewals = create_renewal_requests(artifact, actor=artifact.uploaded_by)
+            renewals_created += len(renewals)
+            for renewal in renewals:
+                if renewal.owner and renewal.notify_owner:
+                    notify(
+                        recipients=[renewal.owner.user],
+                        organization=artifact.organization, assessment=artifact.assessment,
+                        category=Notification.Category.EVIDENCE,
+                        title="Evidence renewal requested",
+                        message=f'Please renew “{artifact.title}”.',
+                        action_url=f'/organizations/{artifact.organization.slug}/assessments/{artifact.assessment_id}/evidence/',
+                        actor=artifact.uploaded_by, object_type="EvidenceRequest",
+                        object_id=renewal.id, event="evidence.renewal_requested",
+                        new_status=renewal.status,
+                    )
 
         requests = EvidenceRequest.objects.filter(due_date__isnull=False).exclude(
             status=EvidenceRequest.Status.ACCEPTED
@@ -151,4 +177,6 @@ class Command(BaseCommand):
                         risk=risk, actor=risk.accepted_by or risk.created_by,
                         action="ACCEPTANCE_EXPIRED", snapshot={"expired": str(risk.acceptance_expires)},
                     )
-        self.stdout.write(self.style.SUCCESS(f"Created {created} workflow reminders."))
+        self.stdout.write(self.style.SUCCESS(
+            f"Created {created} workflow reminders and {renewals_created} evidence renewals."
+        ))
