@@ -21,6 +21,7 @@ from openpyxl import Workbook, load_workbook
 from .models import (
     Assessment,
     AssessmentAccess,
+    AssessmentBaseline,
     AssessmentFramework,
     AssessmentReuseDecision,
     AssessmentObjective,
@@ -2577,3 +2578,81 @@ class SprintNineteenFoundationTests(TestCase):
         )
         self.assertEqual(list(event.controls.all()), [control])
         self.assertEqual(event.reassessment_tasks.count(), 1)
+
+    def test_unsigned_assessment_cannot_be_captured_as_baseline(self):
+        response = self.client.post(reverse("assessment-baseline-create", args=(
+            self.organization.slug, self.assessment.id,
+        )), {"name": "Invalid draft", "description": "Not signed off"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Only a signed-off assessment")
+        self.assertFalse(AssessmentBaseline.objects.exists())
+
+    def test_approved_baseline_is_immutable_comparison_point(self):
+        self.assessment.locked = True
+        self.assessment.status = Assessment.Status.COMPLETE
+        self.assessment.quality_review_status = "APPROVED"
+        self.assessment.signed_off_by = self.admin
+        self.assessment.signed_off_at = timezone.now()
+        self.assessment.save()
+        create_url = reverse("assessment-baseline-create", args=(
+            self.organization.slug, self.assessment.id,
+        ))
+        self.client.post(create_url, {
+            "name": "Approved synthetic baseline", "description": "Period one",
+        })
+        baseline = AssessmentBaseline.objects.get()
+        self.assertEqual(baseline.status, AssessmentBaseline.Status.DRAFT)
+        self.client.post(reverse("assessment-baseline-approve", args=(
+            self.organization.slug, self.assessment.id, baseline.id,
+        )))
+        baseline.refresh_from_db()
+        self.assertEqual(baseline.status, AssessmentBaseline.Status.APPROVED)
+        control = self.assessment.control_results.get()
+        control.status = ControlAssessment.Status.NOT_MET
+        control.implementation_state = ControlAssessment.Implementation.NONE
+        control.assessor_notes_findings = "A new synthetic finding."
+        control.save()
+        response = self.client.get(reverse("assessment-baselines", args=(
+            self.organization.slug, self.assessment.id,
+        )), {"baseline": baseline.id})
+        self.assertContains(response, "REGRESSED")
+        self.assertEqual(
+            next(iter(baseline.snapshot["controls"].values()))["status"],
+            ControlAssessment.Status.MET,
+        )
+        self.assertTrue(AuditEvent.objects.filter(
+            action="assessment_baseline.approved", object_id=str(baseline.id)
+        ).exists())
+        export = self.client.get(reverse("assessment-baseline-comparison-export", args=(
+            self.organization.slug, self.assessment.id, baseline.id,
+        )))
+        self.assertEqual(export.status_code, 200)
+        self.assertIn(b"REGRESSED", export.content)
+        self.assertIn(baseline.checksum.encode(), export.content)
+        preserved_snapshot = baseline.snapshot
+        self.client.post(reverse("assessment-baseline-retire", args=(
+            self.organization.slug, self.assessment.id, baseline.id,
+        )))
+        baseline.refresh_from_db()
+        self.assertEqual(baseline.status, AssessmentBaseline.Status.RETIRED)
+        self.assertEqual(baseline.snapshot, preserved_snapshot)
+        baseline.snapshot = {"tampered": True}
+        with self.assertRaisesRegex(ValueError, "immutable"):
+            baseline.save()
+
+    def test_baseline_integrity_failure_prevents_approval(self):
+        from .assessment_baselines import assessment_snapshot
+        self.assessment.locked = True
+        self.assessment.quality_review_status = "APPROVED"
+        self.assessment.save()
+        snapshot = assessment_snapshot(self.assessment)
+        baseline = AssessmentBaseline.objects.create(
+            assessment=self.assessment, name="Tampered baseline", snapshot=snapshot,
+            checksum="0" * 64, created_by=self.admin,
+        )
+        response = self.client.post(reverse("assessment-baseline-approve", args=(
+            self.organization.slug, self.assessment.id, baseline.id,
+        )), follow=True)
+        baseline.refresh_from_db()
+        self.assertEqual(baseline.status, AssessmentBaseline.Status.DRAFT)
+        self.assertContains(response, "failed its integrity check")

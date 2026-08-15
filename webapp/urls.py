@@ -95,6 +95,27 @@ urlpatterns = [
         views.control_monitoring, name="control-monitoring",
     ),
     path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/baselines/",
+        views.assessment_baselines, name="assessment-baselines",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/baselines/new/",
+        views.assessment_baseline_create, name="assessment-baseline-create",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/baselines/<int:baseline_id>/approve/",
+        views.assessment_baseline_approve, name="assessment-baseline-approve",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/baselines/<int:baseline_id>/retire/",
+        views.assessment_baseline_retire, name="assessment-baseline-retire",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/baselines/<int:baseline_id>/export/",
+        views.assessment_baseline_comparison_export,
+        name="assessment-baseline-comparison-export",
+    ),
+    path(
         "organizations/<slug:org_slug>/assessments/<int:assessment_id>/monitoring/events/new/",
         views.control_monitoring_event_create, name="control-monitoring-event-create",
     ),

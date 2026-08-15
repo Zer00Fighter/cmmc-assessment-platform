@@ -25,6 +25,7 @@ from django.views.decorators.http import require_POST
 
 from .forms import (
     AssessmentForm,
+    AssessmentBaselineForm,
     AssessmentTemplateForm,
     TemplateAssessmentForm,
     AssessmentPlanForm,
@@ -69,6 +70,7 @@ from .forms import (
 )
 from .models import (
     Assessment,
+    AssessmentBaseline,
     AuthoritativeDocument,
     AssessmentAccess,
     AssessmentFramework,
@@ -2075,6 +2077,162 @@ def control_monitoring(request: HttpRequest, org_slug: str, assessment_id: int) 
         ).select_related("requirement__framework")[:100],
         "can_edit": _can_edit(request.user, organization),
     })
+
+
+@login_required
+def assessment_baselines(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    baselines = AssessmentBaseline.objects.filter(
+        assessment__system=assessment.system
+    ).select_related("assessment", "created_by", "approved_by", "retired_by")
+    selected = None
+    comparison = None
+    baseline_id = request.GET.get("baseline", "")
+    if baseline_id.isdigit():
+        selected = get_object_or_404(
+            baselines, id=int(baseline_id), status=AssessmentBaseline.Status.APPROVED
+        )
+    else:
+        selected = baselines.filter(status=AssessmentBaseline.Status.APPROVED).first()
+    if selected:
+        from .assessment_baselines import compare_to_baseline
+        try:
+            comparison = compare_to_baseline(assessment, selected)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+    return render(request, "webapp/assessment_baselines.html", {
+        "organization": organization, "assessment": assessment,
+        "baselines": baselines, "selected": selected, "comparison": comparison,
+        "can_edit": _can_edit(request.user, organization),
+        "can_admin": _is_org_admin(request.user, organization),
+        "can_capture": (assessment.locked and assessment.quality_review_status == "APPROVED"
+                        and bool(assessment.signed_off_at)),
+    })
+
+
+@login_required
+def assessment_baseline_create(
+    request: HttpRequest, org_slug: str, assessment_id: int
+) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    if not _can_edit(request.user, organization):
+        raise Http404
+    form = AssessmentBaselineForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        from .assessment_baselines import create_baseline
+        try:
+            baseline = create_baseline(
+                assessment=assessment, name=form.cleaned_data["name"],
+                description=form.cleaned_data["description"], actor=request.user,
+            )
+        except ValueError as exc:
+            form.add_error(None, str(exc))
+        else:
+            AuditEvent.objects.create(
+                organization=organization, actor=request.user, action="assessment_baseline.created",
+                object_type="AssessmentBaseline", object_id=str(baseline.id),
+                detail={"assessment_id": assessment.id, "checksum": baseline.checksum},
+            )
+            messages.success(request, "Draft baseline captured. An administrator must approve it.")
+            return redirect("assessment-baselines", org_slug=org_slug, assessment_id=assessment.id)
+    return render(request, "webapp/entity_form.html", {
+        "form": form, "title": "Capture assessment baseline", "organization": organization,
+        "eyebrow": assessment.name, "submit_label": "Capture draft baseline",
+    })
+
+
+@login_required
+@require_POST
+def assessment_baseline_approve(
+    request: HttpRequest, org_slug: str, assessment_id: int, baseline_id: int
+) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    if not _is_org_admin(request.user, organization):
+        raise Http404
+    baseline = get_object_or_404(
+        AssessmentBaseline, id=baseline_id, assessment__system=assessment.system
+    )
+    from .assessment_baselines import approve_baseline
+    try:
+        approve_baseline(baseline, request.user)
+    except ValueError as exc:
+        messages.error(request, str(exc))
+    else:
+        AuditEvent.objects.create(
+            organization=organization, actor=request.user, action="assessment_baseline.approved",
+            object_type="AssessmentBaseline", object_id=str(baseline.id),
+            detail={"checksum": baseline.checksum},
+        )
+        messages.success(request, "Baseline approved and available for comparison.")
+    return redirect("assessment-baselines", org_slug=org_slug, assessment_id=assessment.id)
+
+
+@login_required
+@require_POST
+def assessment_baseline_retire(
+    request: HttpRequest, org_slug: str, assessment_id: int, baseline_id: int
+) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    if not _is_org_admin(request.user, organization):
+        raise Http404
+    baseline = get_object_or_404(
+        AssessmentBaseline, id=baseline_id, assessment__system=assessment.system,
+        status=AssessmentBaseline.Status.APPROVED,
+    )
+    baseline.status = AssessmentBaseline.Status.RETIRED
+    baseline.retired_by, baseline.retired_at = request.user, timezone.now()
+    baseline.save(update_fields=("status", "retired_by", "retired_at"))
+    AuditEvent.objects.create(
+        organization=organization, actor=request.user, action="assessment_baseline.retired",
+        object_type="AssessmentBaseline", object_id=str(baseline.id),
+        detail={"checksum": baseline.checksum},
+    )
+    messages.success(request, "Baseline retired; its historical snapshot was preserved.")
+    return redirect("assessment-baselines", org_slug=org_slug, assessment_id=assessment.id)
+
+
+@login_required
+def assessment_baseline_comparison_export(
+    request: HttpRequest, org_slug: str, assessment_id: int, baseline_id: int
+) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    baseline = get_object_or_404(
+        AssessmentBaseline, id=baseline_id, assessment__system=assessment.system,
+        status=AssessmentBaseline.Status.APPROVED,
+    )
+    from .assessment_baselines import compare_to_baseline
+    try:
+        comparison = compare_to_baseline(assessment, baseline)
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect("assessment-baselines", org_slug=org_slug, assessment_id=assessment.id)
+    output = StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow(["Omni Period-over-Period Control Comparison"])
+    writer.writerow(["Baseline", baseline.name])
+    writer.writerow(["Baseline assessment", baseline.assessment.name])
+    writer.writerow(["Current assessment", assessment.name])
+    writer.writerow(["Baseline checksum", baseline.checksum])
+    writer.writerow([])
+    writer.writerow(["Framework", "Requirement", "Title", "Baseline status",
+                     "Current status", "Change", "Accepted evidence delta", "Finding changed"])
+    for row in comparison["rows"]:
+        writer.writerow([
+            row["framework"], row["requirement_id"], row["title"],
+            row["before_status"], row["after_status"], row["change"],
+            row["evidence_delta"], "Yes" if row["finding_changed"] else "No",
+        ])
+    AuditEvent.objects.create(
+        organization=organization, actor=request.user,
+        action="assessment_baseline.comparison_exported",
+        object_type="AssessmentBaseline", object_id=str(baseline.id),
+        detail={"current_assessment_id": assessment.id, "rows": len(comparison["rows"])},
+    )
+    response = HttpResponse(output.getvalue(), content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = (
+        f'attachment; filename="omni-baseline-{baseline.id}-comparison.csv"'
+    )
+    return response
 
 
 @login_required

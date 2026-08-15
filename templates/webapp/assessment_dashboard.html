@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ assessment.name }}{% endblock %}
 {% block content %}
-<div class="actions"><a class="secondary button" href="{% url 'control-monitoring' organization.slug assessment.id %}">Continuous monitoring</a></div>
+<div class="actions"><a class="secondary button" href="{% url 'control-monitoring' organization.slug assessment.id %}">Continuous monitoring</a><a class="secondary button" href="{% url 'assessment-baselines' organization.slug assessment.id %}">Baselines and comparison</a></div>
 <nav class="crumb"><a href="{% url 'organization-list' %}">Organizations</a> / <a href="{% url 'system-list' organization.slug %}">{{ organization.name }}</a> / <a href="{% url 'assessment-list' organization.slug assessment.system.id %}">{{ assessment.system.name }}</a> / {{ assessment.name }}</nav>
 <div class="page-head">
   <div><p class="eyebrow">Executive assessment dashboard</p><h1>{{ assessment.name }}</h1><p class="muted">Primary: {{ assessment.framework }} · Updated {{ assessment.updated_at|date:"M j, Y g:i A" }}{% if assessment.locked %} · Locked after sign-off{% endif %}</p></div>

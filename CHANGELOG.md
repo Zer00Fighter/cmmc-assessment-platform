@@ -1,5 +1,12 @@
 # Changelog
 
+## Sprint 19.4 — Approved baselines and period comparison
+
+- Added checksum-protected snapshots of signed-off assessments with draft, approved, and retired governance states.
+- Added same-system period comparison for control conclusions, scores, findings, and accepted evidence.
+- Classified improved, regressed, changed, unchanged, new, and removed controls without copying prior results.
+- Added traceable CSV comparison export and baseline lifecycle audit events.
+
 ## Sprint 19.3 — Continuous control monitoring
 
 - Added optional control-level periodic monitoring schedules and ownership.

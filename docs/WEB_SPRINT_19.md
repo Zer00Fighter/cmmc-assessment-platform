@@ -64,11 +64,26 @@ the control, performs and records the necessary assessment work, and then closes
 the reassessment task with a documented outcome. This preserves decision authority
 and makes the before-and-after trail explicit.
 
+## Sprint 19.4 delivered approved baselines and comparison
+
+- Baseline capture restricted to signed-off assessments with approved quality review
+- Draft, approved, and retired baseline lifecycle with administrator approval
+- Immutable JSON snapshots protected by deterministic SHA-256 checksums
+- Preserved framework scores, control conclusions, implementation states,
+  deductions, finding fingerprints, and accepted-evidence counts
+- Same-system comparison against current assessment work without copying results
+- Improved, regressed, changed, unchanged, new, and removed control classification
+- Framework score deltas, accepted-evidence deltas, and finding-change indicators
+- CSV comparison export containing the baseline checksum and full control traceability
+- Audit history for baseline capture, approval, retirement, and export
+
+Retiring a baseline removes it from active comparison without deleting its snapshot.
+Reopening or changing the source assessment cannot rewrite the captured baseline.
+
 ## Remaining Sprint 19 workstreams
 
-1. Approved baselines and period-over-period comparison
-2. Program and portfolio dashboard
-3. Compliance calendar and scheduled workflow automation
-4. Continuous compliance reports and exports
-5. External ticket event routing and later connector implementation
-6. Security, regression, and synthetic acceptance testing
+1. Program and portfolio dashboard
+2. Compliance calendar and scheduled workflow automation
+3. Continuous compliance reports and exports
+4. External ticket event routing and later connector implementation
+5. Security, regression, and synthetic acceptance testing

@@ -9,7 +9,7 @@ from django.utils.text import slugify
 from src.evidence.evidence_knowledge import EVIDENCE_KNOWLEDGE
 
 from .models import (
-    Assessment, AssessmentAccess, AssessmentFramework, AssessmentProcedure, AssessmentReuseDecision, AssessmentSample, AssessmentTeamMember, AssessmentTemplate,
+    Assessment, AssessmentAccess, AssessmentBaseline, AssessmentFramework, AssessmentProcedure, AssessmentReuseDecision, AssessmentSample, AssessmentTeamMember, AssessmentTemplate,
     ControlAssessment, ControlMonitoringEvent, ControlMonitoringProfile,
     ControlReassessmentTask, EvidenceApplicability, EvidenceArtifact, EvidenceRequest, Framework, MappingReference,
     InterviewSession, Membership, ObjectiveAssessment, Organization,
@@ -395,6 +395,13 @@ class ControlMonitoringEventForm(forms.ModelForm):
         self.fields["controls"].queryset = assessment.control_results.select_related(
             "requirement__framework"
         )
+
+
+class AssessmentBaselineForm(forms.ModelForm):
+    class Meta:
+        model = AssessmentBaseline
+        fields = ("name", "description")
+        widgets = {"description": forms.Textarea(attrs={"rows": 3})}
 
 
 class ControlMonitoringProfileForm(forms.ModelForm):

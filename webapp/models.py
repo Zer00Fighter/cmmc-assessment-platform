@@ -684,6 +684,53 @@ class AssessmentTemplate(models.Model):
         return self.name
 
 
+class AssessmentBaseline(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = "DRAFT", "Draft"
+        APPROVED = "APPROVED", "Approved"
+        RETIRED = "RETIRED", "Retired"
+
+    assessment = models.ForeignKey(
+        Assessment, on_delete=models.PROTECT, related_name="baselines"
+    )
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT)
+    snapshot = models.JSONField(default=dict)
+    checksum = models.CharField(max_length=64)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="created_assessment_baselines",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="approved_assessment_baselines",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    retired_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="retired_assessment_baselines",
+    )
+    retired_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        constraints = [models.UniqueConstraint(
+            fields=("assessment", "name"), name="unique_baseline_name_per_assessment"
+        )]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.get_status_display()})"
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            original = type(self).objects.only("snapshot", "checksum").get(pk=self.pk)
+            if self.snapshot != original.snapshot or self.checksum != original.checksum:
+                raise ValueError("An assessment baseline snapshot and checksum are immutable.")
+        super().save(*args, **kwargs)
+
+
 class AssessmentReuseDecision(models.Model):
     class Basis(models.TextChoices):
         DIRECT = "DIRECT", "Direct mapping"
