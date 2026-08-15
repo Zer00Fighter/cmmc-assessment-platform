@@ -1,5 +1,12 @@
 # Changelog
 
+## Sprint 19.5 — Program and portfolio dashboard
+
+- Added tenant- and assessment-grant-aware executive analytics across systems and assessments.
+- Added portfolio filters, system posture, framework coverage, program trends, and operational exposure metrics.
+- Added live control, evidence, remediation, reassessment, and optional-risk aggregation.
+- Added filter-preserving CSV export with audit history and no new duplicated analytics store.
+
 ## Sprint 19.4 — Approved baselines and period comparison
 
 - Added checksum-protected snapshots of signed-off assessments with draft, approved, and retired governance states.

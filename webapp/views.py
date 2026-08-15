@@ -492,6 +492,85 @@ def system_list(request: HttpRequest, org_slug: str) -> HttpResponse:
     systems = organization.systems.filter(active=True).annotate(
         assessment_count=Count("assessments")
     )
+
+
+def _portfolio_assessments(request, organization):
+    from .portfolio import authorized_assessments
+    assessments = authorized_assessments(request.user, organization)
+    system_id = request.GET.get("system", "").strip()
+    framework = request.GET.get("framework", "").strip()
+    status = request.GET.get("status", "").strip()
+    query = request.GET.get("q", "").strip()
+    if system_id.isdigit():
+        assessments = assessments.filter(system_id=int(system_id))
+    if framework:
+        assessments = assessments.filter(
+            Q(framework__code=framework) | Q(frameworks__code=framework)
+        ).distinct()
+    if status:
+        assessments = assessments.filter(status=status)
+    if query:
+        assessments = assessments.filter(
+            Q(name__icontains=query) | Q(system__name__icontains=query)
+        )
+    return assessments, {
+        "system": system_id, "framework": framework, "status": status, "q": query,
+    }
+
+
+@login_required
+def portfolio_dashboard(request: HttpRequest, org_slug: str) -> HttpResponse:
+    organization = _organization_for(request.user, org_slug)
+    from .portfolio import authorized_assessments
+    unfiltered = authorized_assessments(request.user, organization)
+    assessments, filters = _portfolio_assessments(request, organization)
+    from .portfolio import portfolio_analytics
+    analytics = portfolio_analytics(assessments, organization=organization)
+    return render(request, "webapp/portfolio_dashboard.html", {
+        "organization": organization, "analytics": analytics, "filters": filters,
+        "systems": System.objects.filter(
+            id__in=unfiltered.values("system_id"), organization=organization
+        ).order_by("name"),
+        "frameworks": Framework.objects.filter(
+            Q(multi_assessments__in=unfiltered) | Q(assessments__in=unfiltered)
+        ).distinct().order_by("code"),
+        "statuses": Assessment.Status.choices,
+    })
+
+
+@login_required
+def portfolio_export(request: HttpRequest, org_slug: str) -> HttpResponse:
+    organization = _organization_for(request.user, org_slug)
+    assessments, _ = _portfolio_assessments(request, organization)
+    from .portfolio import portfolio_analytics
+    analytics = portfolio_analytics(assessments, organization=organization)
+    output = StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow(["Omni Program and Portfolio Snapshot"])
+    writer.writerow(["Organization", organization.name])
+    writer.writerow(["Generated", timezone.now().isoformat()])
+    writer.writerow([])
+    writer.writerow(["Metric", "Value"])
+    for key, value in analytics["metrics"].items():
+        writer.writerow([key.replace("_", " ").title(), value])
+    writer.writerow([])
+    writer.writerow(["System", "Latest assessment", "Assessment status", "Completion",
+                     "Findings", "Evidence overdue", "Open remediation", "Open reassessments"])
+    for row in analytics["systems"]:
+        writer.writerow([
+            row["system"].name, row["latest"].name, row["latest"].get_status_display(),
+            row["completion"], row["findings"], row["evidence_overdue"],
+            row["remediation_open"], row["reassessments_open"],
+        ])
+    AuditEvent.objects.create(
+        organization=organization, actor=request.user, action="portfolio.exported",
+        object_type="Organization", object_id=str(organization.id),
+        detail={"assessments": analytics["metrics"]["assessments"],
+                "systems": analytics["metrics"]["systems"]},
+    )
+    response = HttpResponse(output.getvalue(), content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="omni-{organization.slug}-portfolio.csv"'
+    return response
     return render(
         request,
         "webapp/system_list.html",

@@ -80,10 +80,24 @@ and makes the before-and-after trail explicit.
 Retiring a baseline removes it from active comparison without deleting its snapshot.
 Reopening or changing the source assessment cannot rewrite the captured baseline.
 
+## Sprint 19.5 delivered program and portfolio analytics
+
+- Organization-level executive dashboard across authorized systems and assessments
+- Filters for system, framework, assessment status, and system or assessment search
+- Program metrics for assessment delivery, control completion, findings, evidence
+  deadlines and freshness, remediation, control reassessment, and optional risk
+- Latest-assessment posture for each visible system with direct drill-down
+- Framework coverage and completion across single- and multi-framework assessments
+- Recent assessment trend showing completion, findings, and framework-native scores
+- Filter-preserving CSV portfolio snapshot with an organization audit record
+- Assessment-grant-aware authorization for dashboard counts, labels, links, and exports
+
+Portfolio analytics are calculated from Omni's authoritative records at request
+time. No copied executive-data store can drift from the underlying assessment work.
+
 ## Remaining Sprint 19 workstreams
 
-1. Program and portfolio dashboard
-2. Compliance calendar and scheduled workflow automation
-3. Continuous compliance reports and exports
-4. External ticket event routing and later connector implementation
-5. Security, regression, and synthetic acceptance testing
+1. Compliance calendar and scheduled workflow automation
+2. Continuous compliance reports and exports
+3. External ticket event routing and later connector implementation
+4. Security, regression, and synthetic acceptance testing

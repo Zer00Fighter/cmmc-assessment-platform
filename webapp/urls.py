@@ -34,6 +34,14 @@ urlpatterns = [
     path(
         "organizations/<slug:org_slug>/systems/", views.system_list, name="system-list"
     ),
+    path(
+        "organizations/<slug:org_slug>/portfolio/",
+        views.portfolio_dashboard, name="portfolio-dashboard",
+    ),
+    path(
+        "organizations/<slug:org_slug>/portfolio/export/",
+        views.portfolio_export, name="portfolio-export",
+    ),
     path("organizations/<slug:org_slug>/systems/new/", views.system_create, name="system-create"),
     path("organizations/<slug:org_slug>/systems/<int:system_id>/edit/", views.system_edit, name="system-edit"),
     path(

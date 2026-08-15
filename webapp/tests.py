@@ -2656,3 +2656,96 @@ class SprintNineteenFoundationTests(TestCase):
         baseline.refresh_from_db()
         self.assertEqual(baseline.status, AssessmentBaseline.Status.DRAFT)
         self.assertContains(response, "failed its integrity check")
+
+
+class SprintNineteenPointFivePortfolioTests(TestCase):
+    def setUp(self):
+        users = get_user_model()
+        self.admin = users.objects.create_user("portfolio-admin", password="test-password")
+        self.viewer = users.objects.create_user("portfolio-viewer", password="test-password")
+        self.other = users.objects.create_user("portfolio-other", password="test-password")
+        self.organization = Organization.objects.create(name="Synthetic Portfolio", slug="portfolio")
+        Membership.objects.create(
+            user=self.admin, organization=self.organization, role=Membership.Role.ADMIN
+        )
+        self.viewer_membership = Membership.objects.create(
+            user=self.viewer, organization=self.organization, role=Membership.Role.VIEWER
+        )
+        self.other_membership = Membership.objects.create(
+            user=self.other, organization=self.organization, role=Membership.Role.VIEWER
+        )
+        self.system = System.objects.create(
+            organization=self.organization, name="Visible Portfolio System"
+        )
+        self.framework = Framework.objects.create(
+            code="PORT-FW", name="Portfolio Framework", version="1"
+        )
+        requirement = Requirement.objects.create(
+            framework=self.framework, requirement_id="PORT-1", domain="Governance",
+            title="Portfolio requirement", statement="Synthetic statement",
+        )
+        self.visible = Assessment.objects.create(
+            system=self.system, framework=self.framework, name="Visible Assessment",
+            status=Assessment.Status.IN_PROGRESS, created_by=self.admin,
+        )
+        self.hidden = Assessment.objects.create(
+            system=self.system, framework=self.framework, name="Restricted Assessment",
+            status=Assessment.Status.COMPLETE, created_by=self.admin,
+        )
+        for assessment in (self.visible, self.hidden):
+            AssessmentFramework.objects.create(
+                assessment=assessment, framework=self.framework,
+                is_primary=True, added_by=self.admin,
+            )
+        AssessmentAccess.objects.create(
+            assessment=self.hidden, membership=self.other_membership,
+            access=AssessmentAccess.Access.VIEW, granted_by=self.admin,
+        )
+        ControlAssessment.objects.create(
+            assessment=self.visible, requirement=requirement,
+            status=ControlAssessment.Status.MET,
+            implementation_state=ControlAssessment.Implementation.FULL,
+        )
+        ControlAssessment.objects.create(
+            assessment=self.hidden, requirement=requirement,
+            status=ControlAssessment.Status.NOT_MET,
+            implementation_state=ControlAssessment.Implementation.NONE,
+        )
+        self.outside = Organization.objects.create(name="Outside Tenant", slug="outside-portfolio")
+        outside_system = System.objects.create(
+            organization=self.outside, name="Outside Confidential System"
+        )
+        Assessment.objects.create(
+            system=outside_system, framework=self.framework,
+            name="Outside Confidential Assessment", created_by=self.admin,
+        )
+
+    def test_viewer_portfolio_respects_assessment_grants(self):
+        self.client.login(username="portfolio-viewer", password="test-password")
+        response = self.client.get(reverse("portfolio-dashboard", args=(self.organization.slug,)))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Visible Assessment")
+        self.assertNotContains(response, "Restricted Assessment")
+        self.assertNotContains(response, "Outside Confidential")
+        self.assertEqual(response.context["analytics"]["metrics"]["assessments"], 1)
+        self.assertEqual(response.context["analytics"]["metrics"]["findings"], 0)
+
+    def test_admin_filters_and_export_are_tenant_scoped_and_audited(self):
+        self.client.login(username="portfolio-admin", password="test-password")
+        url = reverse("portfolio-dashboard", args=(self.organization.slug,))
+        response = self.client.get(url, {"status": Assessment.Status.COMPLETE})
+        self.assertEqual(response.context["analytics"]["metrics"]["assessments"], 1)
+        self.assertEqual(response.context["analytics"]["metrics"]["findings"], 1)
+        export = self.client.get(
+            reverse("portfolio-export", args=(self.organization.slug,)),
+            {"status": Assessment.Status.COMPLETE},
+        )
+        self.assertEqual(export.status_code, 200)
+        self.assertIn(b"Restricted Assessment", export.content)
+        self.assertNotIn(b"Outside Confidential", export.content)
+        self.assertTrue(AuditEvent.objects.filter(action="portfolio.exported").exists())
+
+    def test_unassigned_tenant_portfolio_is_not_found(self):
+        self.client.login(username="portfolio-viewer", password="test-password")
+        response = self.client.get(reverse("portfolio-dashboard", args=(self.outside.slug,)))
+        self.assertEqual(response.status_code, 404)
