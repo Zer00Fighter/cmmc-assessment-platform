@@ -19,6 +19,28 @@ ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "docs" / "Omni-Comprehensive-User-and-Administrator-Manual.docx"
 ASSET_DIR = ROOT / "output" / "manual_assets"
 WORKFLOW_IMAGE = ASSET_DIR / "omni_workflow.png"
+SCREENSHOT_DIR = ROOT / "docs" / "manual_screenshots"
+ANNOTATED_SCREENSHOT_DIR = ASSET_DIR / "annotated_screenshots"
+
+SCREENSHOTS = [
+    ("01-sign-in.png", "Sign in", [(1, .50, .35), (2, .50, .53)], ["Enter your Omni account credentials.", "Select Sign in to open your authorized workspace."]),
+    ("02-organizations.png", "Choose an organization", [(1, .20, .28), (2, .83, .20)], ["Open the organization that owns the engagement.", "Administrators can create a new organization from this action."]),
+    ("03-systems.png", "Choose a system or environment", [(1, .22, .39), (2, .82, .20)], ["Open the system, enclave, or environment in assessment scope.", "Use Add system to establish a new assessment boundary."]),
+    ("04-assessments.png", "Open or create an assessment", [(1, .28, .40), (2, .83, .20)], ["Open the applicable assessment period and purpose.", "Use New assessment to select one or more frameworks and load controls."]),
+    ("05-dashboard.png", "Use the executive dashboard", [(1, .48, .18), (2, .28, .43), (3, .83, .20)], ["Use the action bar to move between planning, execution, evidence, remediation, review, and reports.", "Monitor completion, results, evidence, remediation, deadlines, and optional risk indicators.", "Use dashboard actions to maintain authorized assessment settings."]),
+    ("06-assessment-plan.png", "Complete the assessment plan", [(1, .25, .31), (2, .73, .31), (3, .24, .83)], ["Define dates, boundaries, locations, and methodology.", "Assign the assessment team and team roles.", "Save the plan after confirming optional risk settings."]),
+    ("07-assessment-execution.png", "Execute assessment objectives", [(1, .53, .24), (2, .26, .44), (3, .88, .67)], ["Record interviews, samples, and tests when the methodology requires them.", "Use the status metrics and filters to identify remaining objective work.", "Select Assess to document the objective status, notes, and supporting artifacts."]),
+    ("08-control-result.png", "Record the control conclusion", [(1, .28, .31), (2, .27, .61), (3, .79, .84)], ["Select the supported control status and implementation state.", "Use Assessor Notes/Findings for either a conformity statement or a finding.", "Confirm ownership, dates, and evidence, then save and refresh the dashboard."]),
+    ("09-evidence-workspace.png", "Manage evidence", [(1, .54, .21), (2, .25, .47), (3, .87, .20)], ["Filter and track evidence requests through the collection workflow.", "Open a request to manage ownership, controls, due dates, and artifacts.", "Register a file or governed external reference as a supporting artifact."]),
+    ("10-remediation.png", "Track remediation", [(1, .26, .41), (2, .65, .41), (3, .88, .20)], ["Open a remediation plan to manage corrective action and linked controls.", "Monitor priority, status, due dates, and validation.", "Create a new plan for a confirmed assessment gap."]),
+    ("11-quality-review.png", "Complete quality review", [(1, .25, .35), (2, .73, .35), (3, .79, .82)], ["Resolve assessment readiness blockers before approval.", "Review scoring, evidence, findings, demographics, remediation, and report warnings.", "Record the review decision and notes before sign-off."]),
+    ("12-report-center.png", "Generate deliverables", [(1, .28, .35), (2, .73, .35), (3, .50, .78)], ["Review blockers and warnings before generating final deliverables.", "Select the workbook, Word plan, framework, consolidated, traceability, or package output.", "Use document history to confirm version, generator, date, and size."]),
+    ("13-risk-register.png", "Use optional risk management", [(1, .30, .35), (2, .70, .35), (3, .86, .20)], ["Review the risk matrix and registered inherent and residual evaluations.", "Open risks to manage treatment, reassessment, acceptance, and closure.", "Add an independent risk only when risk management is enabled for the engagement."]),
+    ("14-framework-catalog.png", "Administer frameworks", [(1, .28, .37), (2, .70, .37), (3, .84, .20)], ["Open a framework to review its governed requirements and versions.", "Use catalog tools for imports, mappings, evidence, sources, and risk relationships.", "Start a governed Excel, CSV, or PDF framework import."]),
+    ("15-notification-policy.png", "Configure notification policy", [(1, .28, .36), (2, .70, .36), (3, .27, .80)], ["Use the master switch to enable or disable organization email automation.", "Choose reminder frequency and escalation recipients.", "Send a test only after protected SMTP configuration is complete."]),
+    ("16-members-access.png", "Manage members and access", [(1, .27, .35), (2, .72, .35), (3, .85, .20)], ["Review active memberships, roles, and account activity.", "Invite users and assign the least-privileged suitable role.", "Export the access review for periodic governance."]),
+]
+WALKTHROUGH_SCREENSHOTS = [SCREENSHOTS[index] for index in (0, 3, 4, 5, 6, 7, 8, 11)]
 
 NAVY = "15324B"
 BLUE = "2E74B5"
@@ -139,6 +161,23 @@ def add_page_number(paragraph) -> None:
     set_run(run, size=9, color=MID_GRAY)
 
 
+def add_inline_page_number(paragraph) -> None:
+    run = paragraph.add_run()
+    begin = OxmlElement("w:fldChar")
+    begin.set(qn("w:fldCharType"), "begin")
+    instr = OxmlElement("w:instrText")
+    instr.set(qn("xml:space"), "preserve")
+    instr.text = " PAGE "
+    separate = OxmlElement("w:fldChar")
+    separate.set(qn("w:fldCharType"), "separate")
+    value = OxmlElement("w:t")
+    value.text = "1"
+    end = OxmlElement("w:fldChar")
+    end.set(qn("w:fldCharType"), "end")
+    run._r.extend([begin, instr, separate, value, end])
+    set_run(run, size=8, color=MID_GRAY)
+
+
 def configure_document(doc: Document) -> None:
     section = doc.sections[0]
     section.page_width = Inches(8.5)
@@ -216,21 +255,11 @@ def configure_document(doc: Document) -> None:
     r = p.add_run("OMNI  |  USER AND ADMINISTRATOR MANUAL")
     set_run(r, size=8.5, color=MID_GRAY, bold=True)
     footer = section.footer
-    table = footer.add_table(rows=1, cols=2, width=Inches(6.7))
-    set_table_geometry(table, [6500, 2860])
-    table.style = "Table Grid"
-    for cell in table.rows[0].cells:
-        tc_pr = cell._tc.get_or_add_tcPr()
-        borders = OxmlElement("w:tcBorders")
-        for edge in ("top", "left", "bottom", "right", "insideH", "insideV"):
-            node = OxmlElement(f"w:{edge}")
-            node.set(qn("w:val"), "nil")
-            borders.append(node)
-        tc_pr.append(borders)
-    p1 = table.cell(0, 0).paragraphs[0]
-    r1 = p1.add_run("Omni by R!SC  |  Version 1.0  |  August 2026")
+    p1 = footer.paragraphs[0]
+    p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r1 = p1.add_run("Omni by R!SC  |  Version 1.1  |  August 2026  |  Page ")
     set_run(r1, size=8, color=MID_GRAY)
-    add_page_number(table.cell(0, 1).paragraphs[0])
+    add_inline_page_number(p1)
 
 
 def add_callout(doc, label: str, text: str, kind="note") -> None:
@@ -379,6 +408,44 @@ def create_workflow_image() -> None:
     image.save(WORKFLOW_IMAGE, dpi=(180, 180))
 
 
+def create_annotated_screenshots() -> None:
+    """Create public manual figures from the committed synthetic screenshots."""
+    ANNOTATED_SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        badge_font = ImageFont.truetype("arialbd.ttf", 34)
+    except OSError:
+        badge_font = ImageFont.load_default()
+    for filename, _title, callouts, _legend in SCREENSHOTS:
+        source = SCREENSHOT_DIR / filename
+        if not source.exists():
+            raise FileNotFoundError(f"Missing manual screenshot: {source}")
+        with Image.open(source).convert("RGB") as screenshot:
+            screenshot.thumbnail((1200, 760), Image.Resampling.LANCZOS)
+            draw = ImageDraw.Draw(screenshot)
+            radius = max(24, round(screenshot.width * .020))
+            for number, x_ratio, y_ratio in callouts:
+                x, y = round(screenshot.width * x_ratio), round(screenshot.height * y_ratio)
+                draw.ellipse((x-radius, y-radius, x+radius, y+radius), fill="#15324B", outline="white", width=5)
+                draw.text((x, y+1), str(number), fill="white", font=badge_font, anchor="mm")
+            screenshot.save(ANNOTATED_SCREENSHOT_DIR / filename, dpi=(144, 144), optimize=True)
+
+
+def add_screenshot_figure(doc: Document, filename: str, title: str, legend: list[str]) -> None:
+    doc.add_page_break()
+    doc.add_heading(title, 2)
+    doc.add_picture(str(ANNOTATED_SCREENSHOT_DIR / filename), width=Inches(6.65))
+    caption = doc.add_paragraph(f"Illustration: {title}")
+    caption.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    set_run(caption.runs[0], size=9, color=MID_GRAY, italic=True)
+    for number, text in enumerate(legend, start=1):
+        p = doc.add_paragraph()
+        p.paragraph_format.left_indent = Inches(.18)
+        p.paragraph_format.first_line_indent = Inches(-.18)
+        badge = p.add_run(f"{number}  ")
+        set_run(badge, size=10, color=NAVY, bold=True)
+        set_run(p.add_run(text), size=10, color=BLACK)
+
+
 def cover(doc: Document) -> None:
     for _ in range(5):
         doc.add_paragraph()
@@ -398,9 +465,9 @@ def cover(doc: Document) -> None:
     p.add_run("Framework-agnostic guidance for planning, executing, governing, and reporting assessments")
     doc.add_paragraph()
     add_table(doc, ["Document", "Value"], [
-        ["Version", "1.0"],
+        ["Version", "1.1"],
         ["Release date", "August 14, 2026"],
-        ["Applies to", "Omni local web application through Sprint 18.2"],
+        ["Applies to", "Omni local web application through Sprint 18.3.1"],
         ["Audience", "Assessors, control owners, organization administrators, reviewers, and platform administrators"],
         ["Classification", "Public product documentation - contains no client or organization data"],
     ], [2500, 6860])
@@ -411,6 +478,7 @@ def cover(doc: Document) -> None:
 def front_matter(doc: Document) -> None:
     doc.add_heading("Revision history", 1)
     add_table(doc, ["Version", "Date", "Change", "Owner"], [
+        ["1.1", "August 14, 2026", "Added synthetic, annotated application screenshots for Sprint 18.3.1", "R!SC"],
         ["1.0", "August 14, 2026", "Initial comprehensive user and administrator manual for Sprint 18.3", "R!SC"],
     ], [1100, 1900, 4860, 1500])
     doc.add_heading("How to use this manual", 1)
@@ -483,6 +551,11 @@ def section_2(doc: Document) -> None:
         ["Create a finding response", "Control result or Remediation", "Set the control to Not Met, then create and track a remediation plan"],
         ["Generate deliverables", "Assessment dashboard > Reports", "Resolve readiness blockers, then select the required output"],
     ], [2300, 2900, 4160])
+    doc.add_heading("2.4 Illustrated end-to-end walkthrough", 2)
+    add_callout(doc, "Synthetic data", "Every screenshot in this manual was captured from an isolated demonstration database containing fictional names, accounts, systems, controls, evidence, remediation, and risk records. No client or organization data is shown.", "note")
+    doc.add_paragraph("Follow the numbered markers in each illustration and the matching instructions below it. Screen contents vary by role, assessment state, selected frameworks, and whether optional risk management is enabled.")
+    for filename, title, _callouts, legend in WALKTHROUGH_SCREENSHOTS:
+        add_screenshot_figure(doc, filename, title, legend)
 
 
 def section_3(doc: Document) -> None:
@@ -821,9 +894,11 @@ def appendices(doc: Document) -> None:
 
 
 def set_alt_text_for_image(doc: Document) -> None:
-    for drawing in doc.element.body.iter(qn("w:drawing")):
+    descriptions = ["Eight-stage Omni assessment lifecycle from context and planning through reporting and monitoring"]
+    descriptions.extend(f"Annotated Omni application screenshot: {title}; contains synthetic demonstration data" for _filename, title, _callouts, _legend in WALKTHROUGH_SCREENSHOTS)
+    for index, drawing in enumerate(doc.element.body.iter(qn("w:drawing"))):
         for doc_pr in drawing.iter(qn("wp:docPr")):
-            doc_pr.set("descr", "Eight-stage Omni assessment lifecycle from context and planning through reporting and monitoring")
+            doc_pr.set("descr", descriptions[index] if index < len(descriptions) else "Omni product documentation illustration")
 
 
 def set_core_properties(doc: Document) -> None:
@@ -838,6 +913,7 @@ def set_core_properties(doc: Document) -> None:
 
 def build() -> Path:
     create_workflow_image()
+    create_annotated_screenshots()
     doc = Document()
     configure_document(doc)
     set_core_properties(doc)

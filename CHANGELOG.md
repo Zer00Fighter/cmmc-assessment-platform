@@ -1,5 +1,13 @@
 # Changelog
 
+## Sprint 18.3.1 — Illustrated user manual
+
+- Expanded the Word manual with eight annotated walkthrough figures selected from 16 synthetic screen captures.
+- Added an isolated synthetic demonstration-data command for safe, reproducible documentation capture.
+- Documented numbered screen callouts for sign-in, setup, planning, execution, evidence, remediation,
+  review, reporting, optional risk, framework administration, notifications, and access.
+- Corrected assessment-execution rendering when an objective does not yet have an assigned assessor.
+
 ## Sprint 18.3 — Comprehensive user and administrator manual
 
 - Added a 14-page, framework-agnostic Word manual for Omni's implemented web application.
