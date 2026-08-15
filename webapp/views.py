@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import csv
+import calendar
 import hashlib
 import secrets
-from datetime import timedelta
+from datetime import date, timedelta
 from io import StringIO
 from pathlib import Path
 
@@ -23,6 +24,8 @@ from django.utils import timezone
 
 from .forms import (
     AssessmentForm,
+    AssessmentTemplateForm,
+    TemplateAssessmentForm,
     AssessmentPlanForm,
     AssessmentSampleForm,
     AssessmentTeamForm,
@@ -40,6 +43,7 @@ from .forms import (
     ObjectiveAssessmentForm,
     NotificationPreferenceForm,
     NotificationPolicyForm,
+    IntegrationPolicyForm,
     QualityReviewForm,
     ReopenAssessmentForm,
     RemediationMilestoneForm,
@@ -68,6 +72,7 @@ from .models import (
     AssessmentProcedure,
     AssessmentSample,
     AssessmentTeamMember,
+    AssessmentTemplate,
     AuditEvent,
     ControlAssessment,
     EvidenceArtifact,
@@ -84,6 +89,8 @@ from .models import (
     OmniEvidenceSourceRequest,
     NotificationPreference,
     NotificationPolicy,
+    IntegrationPolicy,
+    OutboundWorkItem,
     InterviewSession,
     ObjectiveAssessment,
     Organization,
@@ -738,6 +745,7 @@ def assessment_list(
             "organization": organization,
             "system": system,
             "assessments": assessments,
+            "assessment_templates": organization.assessment_templates.filter(active=True).prefetch_related("frameworks"),
             "can_admin": _is_org_admin(request.user, organization),
             "can_edit": _can_edit(request.user, organization),
             "can_admin": _is_org_admin(request.user, organization),
@@ -802,6 +810,210 @@ def assessment_create(
         "webapp/assessment_form.html",
         {"organization": organization, "system": system, "form": form},
     )
+
+
+def _advance_template_date(start: date, recurrence: str) -> date:
+    months = {
+        AssessmentTemplate.Recurrence.MONTHLY: 1,
+        AssessmentTemplate.Recurrence.QUARTERLY: 3,
+        AssessmentTemplate.Recurrence.SEMIANNUAL: 6,
+        AssessmentTemplate.Recurrence.ANNUAL: 12,
+    }.get(recurrence, 0)
+    if not months:
+        return start
+    month_index = start.month - 1 + months
+    year, month = start.year + month_index // 12, month_index % 12 + 1
+    return date(year, month, min(start.day, calendar.monthrange(year, month)[1]))
+
+
+@login_required
+def assessment_template_list(request: HttpRequest, org_slug: str) -> HttpResponse:
+    organization = _organization_for(request.user, org_slug)
+    return render(request, "webapp/assessment_template_list.html", {
+        "organization": organization,
+        "templates": organization.assessment_templates.prefetch_related("frameworks"),
+        "can_edit": _can_edit(request.user, organization),
+    })
+
+
+@login_required
+@transaction.atomic
+def assessment_template_create(request: HttpRequest, org_slug: str) -> HttpResponse:
+    organization = _organization_for(request.user, org_slug)
+    if not _can_edit(request.user, organization):
+        raise Http404
+    source_id = request.POST.get("source_assessment") or request.GET.get("from_assessment")
+    source = None
+    if source_id:
+        source = get_object_or_404(
+            Assessment, id=source_id, system__organization=organization
+        )
+    if request.method == "POST":
+        form = AssessmentTemplateForm(request.POST)
+        if form.is_valid():
+            template = form.save(commit=False)
+            template.organization = organization
+            template.created_by = request.user
+            template.created_from = source
+            if source:
+                template.evidence_request_blueprints = [
+                    {
+                        "evidence_code": item.evidence_code,
+                        "title": item.title,
+                        "description": item.description,
+                        "controls": [
+                            f"{control.requirement.framework.code}:{control.requirement.requirement_id}"
+                            for control in item.controls.select_related("requirement__framework")
+                        ],
+                    }
+                    for item in source.evidence_requests.prefetch_related("controls__requirement__framework")
+                ]
+            template.save()
+            form.save_m2m()
+            AuditEvent.objects.create(
+                organization=organization, actor=request.user,
+                action="assessment_template.created", object_type="AssessmentTemplate",
+                object_id=str(template.id), detail={
+                    "source_assessment": source.id if source else None,
+                    "frameworks": list(template.frameworks.values_list("code", flat=True)),
+                },
+            )
+            return redirect("assessment-template-list", org_slug=org_slug)
+    else:
+        initial = {}
+        if source:
+            initial = {
+                "name": f"{source.name} template",
+                "description": f"Reusable configuration derived from {source.name}.",
+                "primary_framework": source.framework,
+                "frameworks": list(_selected_frameworks(source)),
+                "scope_boundaries": source.scope_boundaries,
+                "assessment_locations": source.assessment_locations,
+                "sampling_methodology": source.sampling_methodology,
+                "notifications_enabled": source.notifications_enabled,
+                "email_notifications_enabled": source.email_notifications_enabled,
+                "risk_management_enabled": source.risk_management_enabled,
+                "include_risk_in_reports": source.include_risk_in_reports,
+            }
+        form = AssessmentTemplateForm(initial=initial)
+    return render(request, "webapp/assessment_template_form.html", {
+        "organization": organization, "form": form, "source": source,
+    })
+
+
+@login_required
+@transaction.atomic
+def assessment_from_template(
+    request: HttpRequest, org_slug: str, system_id: int, template_id: int
+) -> HttpResponse:
+    organization = _organization_for(request.user, org_slug)
+    system = get_object_or_404(System, id=system_id, organization=organization)
+    template = get_object_or_404(
+        AssessmentTemplate, id=template_id, organization=organization, active=True
+    )
+    if not _can_edit(request.user, organization):
+        raise Http404
+    initial_start = template.next_start_date or timezone.localdate()
+    initial = {
+        "name": f"{template.name} - {initial_start:%Y-%m}",
+        "engagement_start": initial_start,
+        "engagement_end": initial_start + timedelta(days=template.default_duration_days),
+    }
+    if request.method == "POST":
+        form = TemplateAssessmentForm(request.POST, system=system)
+        if form.is_valid():
+            assessment = Assessment.objects.create(
+                system=system, framework=template.primary_framework,
+                name=form.cleaned_data["name"], status=Assessment.Status.IN_PROGRESS,
+                created_by=request.user, engagement_start=form.cleaned_data["engagement_start"],
+                engagement_end=form.cleaned_data["engagement_end"],
+                scope_boundaries=template.scope_boundaries,
+                assessment_locations=template.assessment_locations,
+                sampling_methodology=template.sampling_methodology,
+                notifications_enabled=template.notifications_enabled,
+                email_notifications_enabled=template.email_notifications_enabled,
+                risk_management_enabled=template.risk_management_enabled,
+                include_risk_in_reports=template.include_risk_in_reports,
+                source_template=template,
+                prior_assessment=form.cleaned_data.get("prior_assessment"),
+            )
+            frameworks = list(template.frameworks.all())
+            AssessmentFramework.objects.bulk_create([
+                AssessmentFramework(
+                    assessment=assessment, framework=framework,
+                    is_primary=framework == template.primary_framework, added_by=request.user,
+                ) for framework in frameworks
+            ])
+            ControlAssessment.objects.bulk_create([
+                ControlAssessment(assessment=assessment, requirement=requirement)
+                for framework in frameworks for requirement in framework.requirements.all()
+            ])
+            for result in assessment.control_results.select_related("requirement"):
+                ObjectiveAssessment.objects.bulk_create([
+                    ObjectiveAssessment(control_result=result, objective=objective)
+                    for objective in result.requirement.objectives.all()
+                ])
+            result_lookup = {
+                f"{result.requirement.framework.code}:{result.requirement.requirement_id}": result
+                for result in assessment.control_results.select_related("requirement__framework")
+            }
+            for blueprint in template.evidence_request_blueprints:
+                evidence_request = EvidenceRequest.objects.create(
+                    assessment=assessment, evidence_code=blueprint.get("evidence_code", ""),
+                    title=blueprint.get("title", "Evidence request"),
+                    description=blueprint.get("description", ""), created_by=request.user,
+                )
+                evidence_request.controls.set([
+                    result_lookup[key] for key in blueprint.get("controls", []) if key in result_lookup
+                ])
+            if template.recurrence != AssessmentTemplate.Recurrence.NONE:
+                template.next_start_date = _advance_template_date(
+                    form.cleaned_data["engagement_start"], template.recurrence
+                )
+                template.save(update_fields=("next_start_date", "updated_at"))
+            AuditEvent.objects.create(
+                organization=organization, actor=request.user,
+                action="assessment.created_from_template", object_type="Assessment",
+                object_id=str(assessment.id), detail={
+                    "template": template.id,
+                    "prior_assessment": assessment.prior_assessment_id,
+                    "conclusions_copied": False,
+                },
+            )
+            return redirect("assessment-dashboard", org_slug=org_slug, assessment_id=assessment.id)
+    else:
+        form = TemplateAssessmentForm(initial=initial, system=system)
+    return render(request, "webapp/assessment_from_template.html", {
+        "organization": organization, "system": system, "template": template, "form": form,
+    })
+
+
+@login_required
+def integration_settings(request: HttpRequest, org_slug: str) -> HttpResponse:
+    organization = _organization_for(request.user, org_slug)
+    if not _is_org_admin(request.user, organization):
+        raise Http404
+    policy, _ = IntegrationPolicy.objects.get_or_create(organization=organization)
+    if request.method == "POST":
+        form = IntegrationPolicyForm(request.POST, instance=policy)
+        if form.is_valid():
+            form.save()
+            AuditEvent.objects.create(
+                organization=organization, actor=request.user,
+                action="integration_policy.updated", object_type="IntegrationPolicy",
+                object_id=str(policy.id), detail={
+                    "delivery": policy.delivery, "provider": policy.provider,
+                    "connector_active": False,
+                },
+            )
+            messages.success(request, "Integration policy saved. Connectors remain inactive until configured in a later sprint.")
+            return redirect("integration-settings", org_slug=org_slug)
+    else:
+        form = IntegrationPolicyForm(instance=policy)
+    return render(request, "webapp/integration_settings.html", {
+        "organization": organization, "form": form,
+        "work_items": organization.outbound_work_items.select_related("assessment", "assignee__user")[:50],
+    })
 
 
 def _selected_frameworks(assessment: Assessment):

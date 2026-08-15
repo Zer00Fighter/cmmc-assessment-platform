@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Create from {{ template.name }}{% endblock %}
+{% block content %}
+<nav class="crumb"><a href="{% url 'assessment-list' organization.slug system.id %}">{{ system.name }}</a> / Create from template</nav>
+<div class="two-column"><section class="form-card"><p class="eyebrow">Continuous assessment</p><h1>Create from {{ template.name }}</h1><form method="post" class="stack">{% csrf_token %}{{ form.as_p }}<button class="primary" type="submit">Create fresh assessment</button></form></section><aside class="detail-card"><h2>Clean carry-forward rule</h2><p>Omni copies framework selection, scope, planning settings, and evidence-request definitions.</p><p><strong>Omni does not copy:</strong> control or objective conclusions, findings, scores, assessor notes, evidence files, approvals, sign-off, remediation decisions, or risk conclusions.</p><h3>Frameworks</h3><p>{% for framework in template.frameworks.all %}<span class="tag">{{ framework.code }}</span>{% endfor %}</p></aside></div>
+{% endblock %}

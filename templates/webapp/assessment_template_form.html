@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}New assessment template{% endblock %}
+{% block content %}
+<nav class="crumb"><a href="{% url 'assessment-template-list' organization.slug %}">Assessment templates</a> / New</nav>
+<section class="form-card"><p class="eyebrow">Reusable assessment configuration</p><h1>Create assessment template</h1>{% if source %}<p class="muted">Configuration and evidence-request definitions will be copied from {{ source.name }}. Results, findings, evidence files, scores, approvals, and conclusions will not be copied.</p>{% endif %}<form method="post" class="stack">{% csrf_token %}{% if source %}<input type="hidden" name="source_assessment" value="{{ source.id }}">{% endif %}{{ form.as_p }}<button class="primary" type="submit">Save template</button></form></section>
+{% endblock %}

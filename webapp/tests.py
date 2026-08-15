@@ -27,6 +27,7 @@ from .models import (
     AssessmentProcedure,
     AssessmentSample,
     AssessmentTeamMember,
+    AssessmentTemplate,
     AuditEvent,
     AuthoritativeDocument,
     ControlAssessment,
@@ -47,6 +48,8 @@ from .models import (
     OmniEvidenceSourceRequest,
     NotificationPolicy,
     NotificationPreference,
+    IntegrationPolicy,
+    OutboundWorkItem,
     ObjectiveAssessment,
     Organization,
     OrganizationInvitation,
@@ -2337,3 +2340,104 @@ class SprintSeventeenPointFiveEvidenceCatalogTests(TestCase):
         user = get_user_model().objects.create_user("catalog-reader", password="test-password")
         self.client.login(username="catalog-reader", password="test-password")
         self.assertEqual(self.client.get(reverse("omni-evidence-catalog")).status_code, 404)
+
+
+class SprintNineteenFoundationTests(TestCase):
+    def setUp(self):
+        self.admin = get_user_model().objects.create_user(
+            "s19-admin", password="test-password"
+        )
+        self.organization = Organization.objects.create(name="Synthetic S19", slug="s19")
+        Membership.objects.create(
+            user=self.admin, organization=self.organization, role=Membership.Role.ADMIN
+        )
+        self.system = System.objects.create(
+            organization=self.organization, name="S19 Synthetic System"
+        )
+        self.framework = Framework.objects.create(
+            code="S19-FW", name="Sprint Nineteen Framework", version="1"
+        )
+        self.requirement = Requirement.objects.create(
+            framework=self.framework, requirement_id="S19-1", domain="Governance",
+            title="Synthetic requirement", statement="Maintain a synthetic control."
+        )
+        self.objective = AssessmentObjective.objects.create(
+            requirement=self.requirement, objective_id="a", text="Evaluate the synthetic control."
+        )
+        self.assessment = Assessment.objects.create(
+            system=self.system, framework=self.framework, name="Prior S19 Assessment",
+            created_by=self.admin, scope_boundaries="Synthetic boundary",
+        )
+        AssessmentFramework.objects.create(
+            assessment=self.assessment, framework=self.framework,
+            is_primary=True, added_by=self.admin,
+        )
+        result = ControlAssessment.objects.create(
+            assessment=self.assessment, requirement=self.requirement,
+            status=ControlAssessment.Status.MET, assessor_notes_findings="Prior conclusion",
+        )
+        ObjectiveAssessment.objects.create(
+            control_result=result, objective=self.objective,
+            status=ObjectiveAssessment.Status.MET, assessor_notes="Prior objective conclusion",
+        )
+        request = EvidenceRequest.objects.create(
+            assessment=self.assessment, title="Synthetic policy", created_by=self.admin
+        )
+        request.controls.add(result)
+        self.client.login(username="s19-admin", password="test-password")
+
+    def test_template_creates_fresh_assessment_without_conclusions(self):
+        create_url = reverse("assessment-template-create", args=(self.organization.slug,))
+        response = self.client.post(create_url, {
+            "source_assessment": self.assessment.id,
+            "name": "Annual synthetic review", "description": "Reusable configuration",
+            "primary_framework": self.framework.id, "frameworks": [self.framework.id],
+            "scope_boundaries": "Synthetic boundary", "assessment_locations": "Remote",
+            "sampling_methodology": "Representative sample",
+            "notifications_enabled": "on", "email_notifications_enabled": "on",
+            "recurrence": AssessmentTemplate.Recurrence.ANNUAL,
+            "next_start_date": "2026-09-01", "default_duration_days": 30, "active": "on",
+        })
+        self.assertRedirects(response, reverse(
+            "assessment-template-list", args=(self.organization.slug,)
+        ))
+        template = AssessmentTemplate.objects.get(name="Annual synthetic review")
+        self.assertEqual(len(template.evidence_request_blueprints), 1)
+        instantiate_url = reverse(
+            "assessment-from-template",
+            args=(self.organization.slug, self.system.id, template.id),
+        )
+        response = self.client.post(instantiate_url, {
+            "name": "2027 Synthetic Review", "engagement_start": "2026-09-01",
+            "engagement_end": "2026-09-30", "prior_assessment": self.assessment.id,
+        })
+        created = Assessment.objects.get(name="2027 Synthetic Review")
+        self.assertRedirects(response, reverse(
+            "assessment-dashboard", args=(self.organization.slug, created.id)
+        ))
+        self.assertEqual(created.prior_assessment, self.assessment)
+        self.assertEqual(created.source_template, template)
+        self.assertFalse(created.control_results.exclude(
+            status=ControlAssessment.Status.NOT_ASSESSED
+        ).exists())
+        self.assertFalse(ObjectiveAssessment.objects.filter(
+            control_result__assessment=created
+        ).exclude(status=ObjectiveAssessment.Status.NOT_ASSESSED).exists())
+        self.assertEqual(created.evidence_requests.count(), 1)
+        self.assertEqual(created.evidence_artifacts.count(), 0)
+        template.refresh_from_db()
+        self.assertEqual(template.next_start_date, date(2027, 9, 1))
+
+    def test_integration_policy_is_admin_scoped_and_connector_stays_inactive(self):
+        url = reverse("integration-settings", args=(self.organization.slug,))
+        response = self.client.post(url, {
+            "delivery": IntegrationPolicy.Delivery.EXTERNAL,
+            "provider": IntegrationPolicy.Provider.JIRA,
+            "external_ticketing_enabled": "on", "create_for_remediation": "on",
+        }, follow=True)
+        self.assertEqual(response.status_code, 200)
+        policy = IntegrationPolicy.objects.get(organization=self.organization)
+        self.assertEqual(policy.provider, IntegrationPolicy.Provider.JIRA)
+        self.assertTrue(policy.external_ticketing_enabled)
+        self.assertEqual(OutboundWorkItem.objects.count(), 0)
+        self.assertContains(response, "Foundation only")

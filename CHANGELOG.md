@@ -1,5 +1,12 @@
 # Changelog
 
+## Sprint 19.1 — Assessment templates and integration foundation
+
+- Added organization-scoped assessment templates with recurrence, framework, planning, and evidence-request blueprints.
+- Added fresh assessment creation from templates with explicit prior-assessment lineage and no copied conclusions.
+- Added a connector-neutral integration policy and outbound work-item synchronization ledger for future Jira and ServiceNow connectors.
+- Preserved Omni as the authoritative system for conclusions, evidence acceptance, risk decisions, review, and sign-off.
+
 ## Sprint 18.3.1 — Illustrated user manual
 
 - Expanded the Word manual with eight annotated walkthrough figures selected from 16 synthetic screen captures.

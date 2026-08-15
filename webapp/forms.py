@@ -9,11 +9,11 @@ from django.utils.text import slugify
 from src.evidence.evidence_knowledge import EVIDENCE_KNOWLEDGE
 
 from .models import (
-    Assessment, AssessmentAccess, AssessmentFramework, AssessmentProcedure, AssessmentReuseDecision, AssessmentSample, AssessmentTeamMember,
+    Assessment, AssessmentAccess, AssessmentFramework, AssessmentProcedure, AssessmentReuseDecision, AssessmentSample, AssessmentTeamMember, AssessmentTemplate,
     ControlAssessment, EvidenceApplicability, EvidenceArtifact, EvidenceRequest, Framework, MappingReference,
     InterviewSession, Membership, ObjectiveAssessment, Organization,
     NotificationPreference,
-    NotificationPolicy,
+    NotificationPolicy, IntegrationPolicy,
     OrganizationInvitation, UserProfile,
     LoginAttempt,
     RemediationMilestone, RemediationPlan, RequirementMapping, RequirementRiskMapping,
@@ -660,6 +660,84 @@ class AssessmentForm(forms.ModelForm):
         primary = cleaned.get("primary_framework")
         if frameworks is not None and primary is not None and primary not in frameworks:
             self.add_error("primary_framework", "The primary framework must also be selected.")
+        return cleaned
+
+
+class AssessmentTemplateForm(forms.ModelForm):
+    class Meta:
+        model = AssessmentTemplate
+        fields = (
+            "name", "description", "primary_framework", "frameworks",
+            "scope_boundaries", "assessment_locations", "sampling_methodology",
+            "notifications_enabled", "email_notifications_enabled",
+            "risk_management_enabled", "include_risk_in_reports", "recurrence",
+            "next_start_date", "default_duration_days", "active",
+        )
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 3}),
+            "scope_boundaries": forms.Textarea(attrs={"rows": 4}),
+            "assessment_locations": forms.Textarea(attrs={"rows": 3}),
+            "sampling_methodology": forms.Textarea(attrs={"rows": 4}),
+            "frameworks": forms.CheckboxSelectMultiple(),
+            "next_start_date": forms.DateInput(attrs={"type": "date"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        frameworks = Framework.objects.filter(active=True).order_by("name", "version")
+        self.fields["primary_framework"].queryset = frameworks
+        self.fields["frameworks"].queryset = frameworks
+
+    def clean(self):
+        cleaned = super().clean()
+        frameworks, primary = cleaned.get("frameworks"), cleaned.get("primary_framework")
+        if frameworks is not None and primary is not None and primary not in frameworks:
+            self.add_error("primary_framework", "The primary framework must also be selected.")
+        if cleaned.get("include_risk_in_reports") and not cleaned.get("risk_management_enabled"):
+            self.add_error("include_risk_in_reports", "Enable risk management before including it in reports.")
+        if cleaned.get("recurrence") != AssessmentTemplate.Recurrence.NONE and not cleaned.get("next_start_date"):
+            self.add_error("next_start_date", "Set the first start date for a recurring template.")
+        return cleaned
+
+
+class TemplateAssessmentForm(forms.Form):
+    name = forms.CharField(max_length=200)
+    engagement_start = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    engagement_end = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    prior_assessment = forms.ModelChoiceField(
+        queryset=Assessment.objects.none(), required=False,
+        help_text="Optional lineage only. Prior conclusions and evidence are not copied.",
+    )
+
+    def __init__(self, *args, system, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["prior_assessment"].queryset = system.assessments.order_by("-created_at")
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("engagement_end") and cleaned.get("engagement_start") and cleaned["engagement_end"] < cleaned["engagement_start"]:
+            self.add_error("engagement_end", "Cannot precede the engagement start.")
+        return cleaned
+
+
+class IntegrationPolicyForm(forms.ModelForm):
+    class Meta:
+        model = IntegrationPolicy
+        fields = (
+            "delivery", "provider", "external_ticketing_enabled", "create_for_evidence",
+            "create_for_findings", "create_for_remediation", "create_for_risk_treatment",
+            "create_for_monitoring",
+        )
+
+    def clean(self):
+        cleaned = super().clean()
+        external = cleaned.get("external_ticketing_enabled")
+        delivery = cleaned.get("delivery")
+        provider = cleaned.get("provider")
+        if external and provider == IntegrationPolicy.Provider.NONE:
+            self.add_error("provider", "Choose the future ticketing provider.")
+        if delivery in (IntegrationPolicy.Delivery.EXTERNAL, IntegrationPolicy.Delivery.BOTH) and not external:
+            self.add_error("external_ticketing_enabled", "Enable external ticketing for this delivery method.")
         return cleaned
 
 

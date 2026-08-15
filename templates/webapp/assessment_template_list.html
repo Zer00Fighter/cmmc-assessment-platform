@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Assessment templates{% endblock %}
+{% block content %}
+<nav class="crumb"><a href="{% url 'system-list' organization.slug %}">{{ organization.name }}</a> / Assessment templates</nav>
+<div class="page-head"><div><p class="eyebrow">Continuous compliance</p><h1>Assessment templates</h1><p class="muted">Reuse scope, framework, planning, and request configuration without copying conclusions.</p></div>{% if can_edit %}<a class="primary button" href="{% url 'assessment-template-create' organization.slug %}">New template</a>{% endif %}</div>
+<div class="card-grid">{% for template in templates %}<article class="card"><span class="pill">{{ template.get_recurrence_display }}</span><h2>{{ template.name }}</h2><p>{{ template.description|default:"Reusable assessment configuration." }}</p><p>{% for framework in template.frameworks.all %}<span class="tag">{{ framework.code }}</span>{% endfor %}</p><small>Next start: {{ template.next_start_date|date:"M j, Y"|default:"On demand" }} · {{ template.evidence_request_blueprints|length }} request blueprint{{ template.evidence_request_blueprints|length|pluralize }}</small><p class="muted">Open a system to create an assessment from this template.</p></article>{% empty %}<div class="empty"><h2>No assessment templates</h2><p>Create a blank template or save an existing assessment configuration as a template.</p></div>{% endfor %}</div>
+{% endblock %}

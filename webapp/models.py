@@ -577,6 +577,14 @@ class Assessment(models.Model):
     email_notifications_enabled = models.BooleanField(default=True)
     risk_management_enabled = models.BooleanField(default=False)
     include_risk_in_reports = models.BooleanField(default=False)
+    source_template = models.ForeignKey(
+        "AssessmentTemplate", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="assessments",
+    )
+    prior_assessment = models.ForeignKey(
+        "self", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="successor_assessments",
+    )
 
     class Meta:
         ordering = ("-updated_at",)
@@ -622,6 +630,58 @@ class AssessmentFramework(models.Model):
 
     def __str__(self) -> str:
         return f"{self.assessment}: {self.framework}"
+
+
+class AssessmentTemplate(models.Model):
+    class Recurrence(models.TextChoices):
+        NONE = "NONE", "Not recurring"
+        MONTHLY = "MONTHLY", "Monthly"
+        QUARTERLY = "QUARTERLY", "Quarterly"
+        SEMIANNUAL = "SEMIANNUAL", "Every six months"
+        ANNUAL = "ANNUAL", "Annual"
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="assessment_templates"
+    )
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    primary_framework = models.ForeignKey(
+        Framework, on_delete=models.PROTECT, related_name="primary_assessment_templates"
+    )
+    frameworks = models.ManyToManyField(Framework, related_name="assessment_templates")
+    scope_boundaries = models.TextField(blank=True)
+    assessment_locations = models.TextField(blank=True)
+    sampling_methodology = models.TextField(blank=True)
+    evidence_request_blueprints = models.JSONField(default=list, blank=True)
+    notifications_enabled = models.BooleanField(default=True)
+    email_notifications_enabled = models.BooleanField(default=True)
+    risk_management_enabled = models.BooleanField(default=False)
+    include_risk_in_reports = models.BooleanField(default=False)
+    recurrence = models.CharField(
+        max_length=12, choices=Recurrence.choices, default=Recurrence.NONE
+    )
+    next_start_date = models.DateField(null=True, blank=True)
+    default_duration_days = models.PositiveSmallIntegerField(default=30)
+    active = models.BooleanField(default=True)
+    created_from = models.ForeignKey(
+        Assessment, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="derived_templates",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="created_assessment_templates",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("name",)
+        constraints = [models.UniqueConstraint(
+            fields=("organization", "name"), name="unique_assessment_template_per_org"
+        )]
+
+    def __str__(self) -> str:
+        return self.name
 
 
 class AssessmentReuseDecision(models.Model):
@@ -1619,6 +1679,90 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ("-created_at",)
+
+    def __str__(self) -> str:
+        return self.title
+
+
+class IntegrationPolicy(models.Model):
+    class Delivery(models.TextChoices):
+        IN_APP = "IN_APP", "In-app only"
+        EMAIL = "EMAIL", "Email"
+        EXTERNAL = "EXTERNAL", "External ticket"
+        BOTH = "BOTH", "Email and external ticket"
+
+    class Provider(models.TextChoices):
+        NONE = "NONE", "Not configured"
+        JIRA = "JIRA", "Jira"
+        SERVICENOW = "SERVICENOW", "ServiceNow"
+        OTHER = "OTHER", "Other ticketing platform"
+
+    organization = models.OneToOneField(
+        Organization, on_delete=models.CASCADE, related_name="integration_policy"
+    )
+    delivery = models.CharField(max_length=12, choices=Delivery.choices, default=Delivery.IN_APP)
+    provider = models.CharField(max_length=15, choices=Provider.choices, default=Provider.NONE)
+    external_ticketing_enabled = models.BooleanField(default=False)
+    create_for_evidence = models.BooleanField(default=False)
+    create_for_findings = models.BooleanField(default=False)
+    create_for_remediation = models.BooleanField(default=False)
+    create_for_risk_treatment = models.BooleanField(default=False)
+    create_for_monitoring = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"Integration policy for {self.organization}"
+
+
+class OutboundWorkItem(models.Model):
+    class EventType(models.TextChoices):
+        EVIDENCE = "EVIDENCE", "Evidence request"
+        FINDING = "FINDING", "Finding"
+        REMEDIATION = "REMEDIATION", "Remediation action"
+        RISK = "RISK", "Risk treatment"
+        MONITORING = "MONITORING", "Monitoring or reassessment"
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        NOT_CONFIGURED = "NOT_CONFIGURED", "Connector not configured"
+        QUEUED = "QUEUED", "Queued"
+        SYNCED = "SYNCED", "Synchronized"
+        FAILED = "FAILED", "Failed"
+        CLOSED = "CLOSED", "Closed"
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="outbound_work_items")
+    assessment = models.ForeignKey(
+        Assessment, on_delete=models.CASCADE, related_name="outbound_work_items", null=True, blank=True
+    )
+    event_type = models.CharField(max_length=15, choices=EventType.choices)
+    title = models.CharField(max_length=250)
+    description = models.TextField(blank=True)
+    object_type = models.CharField(max_length=100)
+    object_id = models.CharField(max_length=100)
+    assignee = models.ForeignKey(
+        Membership, on_delete=models.SET_NULL, null=True, blank=True, related_name="outbound_work_items"
+    )
+    provider = models.CharField(
+        max_length=15, choices=IntegrationPolicy.Provider.choices, default=IntegrationPolicy.Provider.NONE
+    )
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    external_ticket_id = models.CharField(max_length=100, blank=True)
+    external_ticket_url = models.URLField(blank=True, max_length=1000)
+    last_sync_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.CharField(max_length=500, blank=True)
+    retry_count = models.PositiveSmallIntegerField(default=0)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_outbound_work_items"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        constraints = [models.UniqueConstraint(
+            fields=("organization", "event_type", "object_type", "object_id"),
+            name="unique_outbound_work_item_source",
+        )]
 
     def __str__(self) -> str:
         return self.title

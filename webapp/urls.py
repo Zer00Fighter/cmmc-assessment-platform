@@ -11,6 +11,9 @@ urlpatterns = [
     path("profile/", views.user_profile, name="user-profile"),
     path("invitations/<str:token>/accept/", views.invitation_accept, name="invitation-accept"),
     path("organizations/<slug:org_slug>/notification-policy/", views.notification_policy, name="notification-policy"),
+    path("organizations/<slug:org_slug>/integrations/", views.integration_settings, name="integration-settings"),
+    path("organizations/<slug:org_slug>/assessment-templates/", views.assessment_template_list, name="assessment-template-list"),
+    path("organizations/<slug:org_slug>/assessment-templates/new/", views.assessment_template_create, name="assessment-template-create"),
     path("organizations/<slug:org_slug>/notification-policy/test/", views.notification_test_email, name="notification-test-email"),
     path("organizations/<slug:org_slug>/system-health/", views.system_health, name="system-health"),
     path("frameworks/", views.framework_catalog, name="framework-catalog"),
@@ -42,6 +45,11 @@ urlpatterns = [
         "organizations/<slug:org_slug>/systems/<int:system_id>/assessments/new/",
         views.assessment_create,
         name="assessment-create",
+    ),
+    path(
+        "organizations/<slug:org_slug>/systems/<int:system_id>/assessments/from-template/<int:template_id>/",
+        views.assessment_from_template,
+        name="assessment-from-template",
     ),
     path(
         "organizations/<slug:org_slug>/assessments/<int:assessment_id>/",
