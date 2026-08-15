@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Control reassessment{% endblock %}
+{% block content %}
+<nav class="crumb"><a href="{% url 'control-monitoring' organization.slug assessment.id %}">Control monitoring</a> / {{ task.control_result.requirement.requirement_id }}</nav>
+<div class="control-layout"><section><p class="eyebrow">{{ task.event.get_event_type_display }} · {{ task.event.get_severity_display }}</p><h1>{{ task.control_result.requirement.requirement_id }} reassessment</h1><p>{{ task.reason }}</p><section class="linked-evidence"><h2>Preserved prior conclusion</h2><p><strong>Status:</strong> {{ task.prior_conclusion.status }}</p><p><strong>Implementation:</strong> {{ task.prior_conclusion.implementation_state }}</p><p><strong>Assessor Notes / Findings:</strong> {{ task.prior_conclusion.assessor_notes_findings|default:"None recorded" }}</p></section><a class="secondary button" href="{% url 'control-edit' organization.slug assessment.id task.control_result.id %}">Open control assessment</a></section><section class="form-card"><h2>Reassessment disposition</h2><p class="muted">Update the control separately if retesting changes its conclusion, then document the outcome here.</p><form method="post" class="stack">{% csrf_token %}{{ form.as_p }}<button class="primary" type="submit">Save reassessment task</button></form></section></div>
+{% endblock %}

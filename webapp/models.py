@@ -1649,6 +1649,116 @@ class RevalidationTask(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
+class ControlMonitoringProfile(models.Model):
+    control_result = models.OneToOneField(
+        ControlAssessment, on_delete=models.CASCADE, related_name="monitoring_profile"
+    )
+    enabled = models.BooleanField(default=False)
+    review_frequency_days = models.PositiveSmallIntegerField(default=90)
+    next_review_date = models.DateField(null=True, blank=True)
+    owner = models.ForeignKey(
+        Membership, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="control_monitoring_profiles",
+    )
+    monitoring_notes = models.TextField(blank=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="updated_control_monitoring_profiles",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("next_review_date", "control_result__requirement__requirement_id")
+
+
+class ControlMonitoringEvent(models.Model):
+    class EventType(models.TextChoices):
+        SCHEDULED = "SCHEDULED", "Scheduled review"
+        EVIDENCE = "EVIDENCE", "Evidence freshness"
+        CHANGE = "CHANGE", "System or process change"
+        INCIDENT = "INCIDENT", "Security or privacy incident"
+        VULNERABILITY = "VULNERABILITY", "Vulnerability or threat"
+        AUDIT = "AUDIT", "Audit or assessment finding"
+        MANUAL = "MANUAL", "Manual observation"
+
+    class Severity(models.TextChoices):
+        LOW = "LOW", "Low"
+        MODERATE = "MODERATE", "Moderate"
+        HIGH = "HIGH", "High"
+        CRITICAL = "CRITICAL", "Critical"
+
+    class Status(models.TextChoices):
+        OPEN = "OPEN", "Open"
+        REVIEWED = "REVIEWED", "Reviewed"
+        DISMISSED = "DISMISSED", "Dismissed"
+
+    assessment = models.ForeignKey(
+        Assessment, on_delete=models.CASCADE, related_name="monitoring_events"
+    )
+    title = models.CharField(max_length=250)
+    event_type = models.CharField(max_length=20, choices=EventType.choices)
+    severity = models.CharField(
+        max_length=12, choices=Severity.choices, default=Severity.MODERATE
+    )
+    occurred_on = models.DateField(default=timezone.localdate)
+    description = models.TextField()
+    source_reference = models.CharField(max_length=500, blank=True)
+    source_key = models.CharField(max_length=200, blank=True)
+    controls = models.ManyToManyField(
+        ControlAssessment, related_name="monitoring_events"
+    )
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.OPEN)
+    reported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="reported_control_monitoring_events",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-occurred_on", "-created_at")
+        constraints = [models.UniqueConstraint(
+            fields=("assessment", "source_key"),
+            condition=~models.Q(source_key=""), name="unique_monitoring_source_per_assessment",
+        )]
+
+
+class ControlReassessmentTask(models.Model):
+    class Status(models.TextChoices):
+        OPEN = "OPEN", "Open"
+        IN_PROGRESS = "IN_PROGRESS", "In progress"
+        COMPLETED = "COMPLETED", "Reassessed"
+        NO_ACTION = "NO_ACTION", "No action required"
+
+    event = models.ForeignKey(
+        ControlMonitoringEvent, on_delete=models.CASCADE, related_name="reassessment_tasks"
+    )
+    control_result = models.ForeignKey(
+        ControlAssessment, on_delete=models.CASCADE, related_name="reassessment_tasks"
+    )
+    assigned_to = models.ForeignKey(
+        Membership, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="control_reassessment_tasks",
+    )
+    due_date = models.DateField(null=True, blank=True)
+    reason = models.TextField()
+    prior_conclusion = models.JSONField(default=dict)
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.OPEN)
+    resolution = models.TextField(blank=True)
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="completed_control_reassessment_tasks",
+    )
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("status", "due_date", "control_result__requirement__requirement_id")
+        constraints = [models.UniqueConstraint(
+            fields=("event", "control_result"), name="unique_reassessment_task_per_event_control"
+        )]
+
+
 class AuditEvent(models.Model):
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="audit_events"

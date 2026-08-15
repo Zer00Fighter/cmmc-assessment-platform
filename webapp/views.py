@@ -32,6 +32,9 @@ from .forms import (
     AssessmentTeamForm,
     BulkControlOwnerForm,
     ControlAssessmentForm,
+    ControlMonitoringEventForm,
+    ControlMonitoringProfileForm,
+    ControlReassessmentTaskForm,
     EvidenceArtifactForm,
     EvidenceRequestForm,
     MembershipForm,
@@ -76,6 +79,9 @@ from .models import (
     AssessmentTemplate,
     AuditEvent,
     ControlAssessment,
+    ControlMonitoringEvent,
+    ControlMonitoringProfile,
+    ControlReassessmentTask,
     EvidenceArtifact,
     EvidenceApplicability,
     EvidenceRequest,
@@ -1208,6 +1214,11 @@ def assessment_dashboard(
         all_results.values_list("requirement__domain", flat=True).distinct().order_by("requirement__domain")
     )
     today = timezone.localdate()
+    open_reassessments = ControlReassessmentTask.objects.filter(
+        control_result__assessment=assessment,
+        status__in=(ControlReassessmentTask.Status.OPEN,
+                    ControlReassessmentTask.Status.IN_PROGRESS),
+    )
     open_evidence = assessment.evidence_requests.exclude(status=EvidenceRequest.Status.ACCEPTED)
     evidence_overdue = open_evidence.filter(due_date__lt=today).count()
     remediation_active = assessment.remediation_plans.exclude(
@@ -1240,6 +1251,8 @@ def assessment_dashboard(
         blockers.append(f'Quality review is {assessment.get_quality_review_status_display().lower()}')
     if evidence_overdue:
         blockers.append(f'{evidence_overdue} evidence requests are overdue')
+    if open_reassessments.exists():
+        blockers.append(f'{open_reassessments.count()} control reassessments remain open')
     readiness = round(max(0, 100 - (len(blockers) * 20)), 0)
     timeline = [
         {"label": "Engagement starts", "date": assessment.engagement_start},
@@ -1252,6 +1265,13 @@ def assessment_dashboard(
     timeline.extend(
         {"label": f"Remediation: {item.remediation_id}", "date": item.planned_completion}
         for item in remediation_active.filter(planned_completion__isnull=False).order_by("planned_completion")[:5]
+    )
+    timeline.extend(
+        {"label": f"Reassess: {item.control_result.requirement.requirement_id}",
+         "date": item.due_date}
+        for item in open_reassessments.filter(due_date__isnull=False).select_related(
+            "control_result__requirement"
+        ).order_by("due_date")[:5]
     )
     timeline = sorted((item for item in timeline if item["date"]), key=lambda item: item["date"])[:8]
     risk_heatmap = build_weighted_risk_heatmap(results) if assessment.risk_management_enabled else {"available": False, "cells": [], "sources": ""}
@@ -1312,6 +1332,7 @@ def assessment_dashboard(
             "all_domains": all_domains,
             "domain_filter": domain_filter,
             "evidence_overdue": evidence_overdue,
+            "monitoring_open": open_reassessments.count(),
             "high_risk_remediation": high_risk,
             "owner_workload": owner_workload,
             "readiness_score": readiness,
@@ -2016,6 +2037,163 @@ def evidence_list(request: HttpRequest, org_slug: str, assessment_id: int) -> Ht
         "freshness_metrics": freshness_metrics,
         "can_edit": _can_edit(request.user, organization),
         "can_manage_evidence": _can_manage_evidence(request.user, organization),
+    })
+
+
+@login_required
+def control_monitoring(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    events = assessment.monitoring_events.prefetch_related(
+        "controls__requirement__framework", "reassessment_tasks__assigned_to__user",
+        "reassessment_tasks__control_result__requirement__framework",
+    )
+    tasks = ControlReassessmentTask.objects.filter(
+        control_result__assessment=assessment
+    ).select_related(
+        "event", "control_result__requirement__framework", "assigned_to__user"
+    )
+    profiles = ControlMonitoringProfile.objects.filter(
+        control_result__assessment=assessment
+    ).select_related("control_result__requirement__framework", "owner__user")
+    return render(request, "webapp/control_monitoring.html", {
+        "organization": organization, "assessment": assessment,
+        "events": events[:50], "tasks": tasks, "profiles": profiles,
+        "metrics": {
+            "open_events": events.filter(status=ControlMonitoringEvent.Status.OPEN).count(),
+            "open_tasks": tasks.filter(status__in=(
+                ControlReassessmentTask.Status.OPEN,
+                ControlReassessmentTask.Status.IN_PROGRESS,
+            )).count(),
+            "overdue": tasks.filter(due_date__lt=timezone.localdate()).exclude(
+                status__in=(ControlReassessmentTask.Status.COMPLETED,
+                            ControlReassessmentTask.Status.NO_ACTION)
+            ).count(),
+            "enabled_controls": profiles.filter(enabled=True).count(),
+        },
+        "unconfigured_controls": assessment.control_results.exclude(
+            monitoring_profile__isnull=False
+        ).select_related("requirement__framework")[:100],
+        "can_edit": _can_edit(request.user, organization),
+    })
+
+
+@login_required
+def control_monitoring_event_create(
+    request: HttpRequest, org_slug: str, assessment_id: int
+) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    if not _can_edit(request.user, organization):
+        raise Http404
+    form = ControlMonitoringEventForm(
+        request.POST or None, assessment=assessment,
+        initial={"occurred_on": timezone.localdate()},
+    )
+    if request.method == "POST" and form.is_valid():
+        event = form.save(commit=False)
+        event.assessment, event.reported_by = assessment, request.user
+        event.save(); form.save_m2m()
+        from .control_monitoring import create_reassessment_tasks
+        tasks = create_reassessment_tasks(event)
+        for task in tasks:
+            if task.assigned_to:
+                notify(
+                    recipients=[task.assigned_to.user], organization=organization,
+                    assessment=assessment, category=Notification.Category.ASSIGNMENT,
+                    title="Control reassessment assigned",
+                    message=f'{task.control_result.requirement.requirement_id}: {event.title}',
+                    action_url=assessment_url(assessment, "control-monitoring"), actor=request.user,
+                    object_type="ControlReassessmentTask", object_id=task.id,
+                    event="monitoring.reassessment_assigned", new_status=task.status,
+                )
+        AuditEvent.objects.create(
+            organization=organization, actor=request.user, action="monitoring_event.created",
+            object_type="ControlMonitoringEvent", object_id=str(event.id),
+            detail={"type": event.event_type, "controls": event.controls.count(),
+                    "tasks": len(tasks)},
+        )
+        messages.success(request, f"Monitoring event created with {len(tasks)} reassessment task(s).")
+        return redirect("control-monitoring", org_slug=org_slug, assessment_id=assessment.id)
+    return render(request, "webapp/entity_form.html", {
+        "form": form, "title": "Record monitoring event", "organization": organization,
+        "eyebrow": assessment.name, "submit_label": "Create event and reassessment tasks",
+    })
+
+
+@login_required
+def control_monitoring_profile_edit(
+    request: HttpRequest, org_slug: str, assessment_id: int, control_id: int
+) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    if not _can_edit(request.user, organization):
+        raise Http404
+    control = get_object_or_404(assessment.control_results, id=control_id)
+    profile, _ = ControlMonitoringProfile.objects.get_or_create(
+        control_result=control, defaults={"updated_by": request.user}
+    )
+    form = ControlMonitoringProfileForm(
+        request.POST or None, instance=profile, assessment=assessment,
+        organization=organization,
+    )
+    if request.method == "POST" and form.is_valid():
+        profile = form.save(commit=False); profile.updated_by = request.user; profile.save()
+        AuditEvent.objects.create(
+            organization=organization, actor=request.user, action="monitoring_profile.updated",
+            object_type="ControlMonitoringProfile", object_id=str(profile.id),
+            detail={"control": control.requirement.requirement_id,
+                    "enabled": profile.enabled, "next_review_date": str(profile.next_review_date or "")},
+        )
+        messages.success(request, "Control monitoring schedule updated.")
+        return redirect("control-monitoring", org_slug=org_slug, assessment_id=assessment.id)
+    return render(request, "webapp/entity_form.html", {
+        "form": form, "title": f"Monitor {control.requirement.requirement_id}",
+        "organization": organization, "eyebrow": assessment.name,
+        "submit_label": "Save monitoring schedule",
+    })
+
+
+@login_required
+def control_reassessment_task_edit(
+    request: HttpRequest, org_slug: str, assessment_id: int, task_id: int
+) -> HttpResponse:
+    organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
+    if not _can_edit(request.user, organization):
+        raise Http404
+    task = get_object_or_404(
+        ControlReassessmentTask.objects.select_related("event", "control_result__requirement"),
+        id=task_id, control_result__assessment=assessment,
+    )
+    previous_status = task.status
+    form = ControlReassessmentTaskForm(
+        request.POST or None, instance=task, organization=organization
+    )
+    if request.method == "POST" and form.is_valid():
+        task = form.save(commit=False)
+        if task.status in (ControlReassessmentTask.Status.COMPLETED,
+                           ControlReassessmentTask.Status.NO_ACTION):
+            task.completed_by, task.completed_at = request.user, timezone.now()
+        else:
+            task.completed_by, task.completed_at = None, None
+        task.save()
+        if not task.event.reassessment_tasks.exclude(
+            status__in=(ControlReassessmentTask.Status.COMPLETED,
+                        ControlReassessmentTask.Status.NO_ACTION)
+        ).exists():
+            task.event.status = ControlMonitoringEvent.Status.REVIEWED
+            task.event.save(update_fields=("status",))
+        elif task.event.status == ControlMonitoringEvent.Status.REVIEWED:
+            task.event.status = ControlMonitoringEvent.Status.OPEN
+            task.event.save(update_fields=("status",))
+        AuditEvent.objects.create(
+            organization=organization, actor=request.user,
+            action="control_reassessment.updated", object_type="ControlReassessmentTask",
+            object_id=str(task.id), detail={"previous_status": previous_status,
+                                            "status": task.status},
+        )
+        messages.success(request, "Reassessment task updated; control history was preserved.")
+        return redirect("control-monitoring", org_slug=org_slug, assessment_id=assessment.id)
+    return render(request, "webapp/reassessment_task_form.html", {
+        "form": form, "task": task, "assessment": assessment,
+        "organization": organization,
     })
 
 

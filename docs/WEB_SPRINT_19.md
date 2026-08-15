@@ -45,12 +45,30 @@ Renewal creates a new request; it never overwrites or copies an evidence file.
 When replacement evidence is accepted, the prior artifact can be linked through
 the existing supersession field, retaining a defensible evidence history.
 
+## Sprint 19.3 delivered continuous control monitoring
+
+- Optional control-level periodic review schedules, frequencies, owners, and notes
+- Monitoring events for scheduled reviews, stale evidence, system changes,
+  incidents, vulnerabilities, audit findings, and manual observations
+- One governed reassessment task for every affected control
+- Immutable snapshots of the prior conclusion, implementation state, score
+  deduction, findings, and update timestamp
+- Reassessment ownership, due dates, workflow status, resolution, and completion
+  attribution
+- Automatic reassessment triggers for scheduled reviews and expired evidence
+- Duplicate-safe scheduled processing, reassessment assignment notifications,
+  deadline reminders, audit events, and event history
+
+Monitoring never changes a control conclusion automatically. The assessor opens
+the control, performs and records the necessary assessment work, and then closes
+the reassessment task with a documented outcome. This preserves decision authority
+and makes the before-and-after trail explicit.
+
 ## Remaining Sprint 19 workstreams
 
-1. Continuous control monitoring and reassessment triggers
-2. Approved baselines and period-over-period comparison
-3. Program and portfolio dashboard
-4. Compliance calendar and scheduled workflow automation
-5. Continuous compliance reports and exports
-6. External ticket event routing and later connector implementation
-7. Security, regression, and synthetic acceptance testing
+1. Approved baselines and period-over-period comparison
+2. Program and portfolio dashboard
+3. Compliance calendar and scheduled workflow automation
+4. Continuous compliance reports and exports
+5. External ticket event routing and later connector implementation
+6. Security, regression, and synthetic acceptance testing

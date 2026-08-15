@@ -1,5 +1,13 @@
 # Changelog
 
+## Sprint 19.3 — Continuous control monitoring
+
+- Added optional control-level periodic monitoring schedules and ownership.
+- Added monitoring events for changes, incidents, vulnerabilities, audits, stale evidence, and scheduled reviews.
+- Added immutable prior-conclusion snapshots and governed control reassessment tasks.
+- Added duplicate-safe automated triggers, assignment notifications, deadline reminders, and audit history.
+- Preserved assessor authority by preventing monitoring events from silently changing control conclusions.
+
 ## Sprint 19.2 — Evidence freshness and renewal
 
 - Added request-level validity periods, renewal lead times, and automatic-renewal policies.

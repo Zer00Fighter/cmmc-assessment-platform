@@ -31,6 +31,9 @@ from .models import (
     AuditEvent,
     AuthoritativeDocument,
     ControlAssessment,
+    ControlMonitoringEvent,
+    ControlMonitoringProfile,
+    ControlReassessmentTask,
     EvidenceArtifact,
     EvidenceApplicability,
     EvidenceRequest,
@@ -2505,3 +2508,72 @@ class SprintNineteenFoundationTests(TestCase):
         call_command("send_workflow_reminders")
         call_command("send_workflow_reminders")
         self.assertEqual(evidence_request.renewal_requests.count(), 1)
+
+    def test_monitoring_event_creates_reassessment_without_changing_conclusion(self):
+        control = self.assessment.control_results.get()
+        url = reverse("control-monitoring-event-create", args=(
+            self.organization.slug, self.assessment.id,
+        ))
+        response = self.client.post(url, {
+            "title": "Material authentication change",
+            "event_type": ControlMonitoringEvent.EventType.CHANGE,
+            "severity": ControlMonitoringEvent.Severity.HIGH,
+            "occurred_on": timezone.localdate(),
+            "description": "The identity provider configuration changed.",
+            "source_reference": "CHG-SYNTHETIC-1",
+            "controls": [control.id],
+        })
+        self.assertRedirects(response, reverse(
+            "control-monitoring", args=(self.organization.slug, self.assessment.id)
+        ))
+        task = ControlReassessmentTask.objects.get()
+        self.assertEqual(task.prior_conclusion["status"], ControlAssessment.Status.MET)
+        control.refresh_from_db()
+        self.assertEqual(control.status, ControlAssessment.Status.MET)
+        task_url = reverse("control-reassessment-task-edit", args=(
+            self.organization.slug, self.assessment.id, task.id,
+        ))
+        invalid = self.client.post(task_url, {
+            "status": ControlReassessmentTask.Status.COMPLETED,
+            "due_date": task.due_date,
+        })
+        self.assertEqual(invalid.status_code, 200)
+        self.client.post(task_url, {
+            "status": ControlReassessmentTask.Status.COMPLETED,
+            "due_date": task.due_date,
+            "resolution": "Retested; the existing conclusion remains supported.",
+        })
+        task.refresh_from_db(); task.event.refresh_from_db()
+        self.assertEqual(task.status, ControlReassessmentTask.Status.COMPLETED)
+        self.assertEqual(task.event.status, ControlMonitoringEvent.Status.REVIEWED)
+
+    def test_scheduler_creates_duplicate_safe_periodic_reassessment(self):
+        control = self.assessment.control_results.get()
+        ControlMonitoringProfile.objects.create(
+            control_result=control, enabled=True, review_frequency_days=30,
+            next_review_date=timezone.localdate(), updated_by=self.admin,
+        )
+        call_command("send_workflow_reminders")
+        call_command("send_workflow_reminders")
+        self.assertEqual(ControlMonitoringEvent.objects.filter(
+            event_type=ControlMonitoringEvent.EventType.SCHEDULED
+        ).count(), 1)
+        self.assertEqual(ControlReassessmentTask.objects.count(), 1)
+        profile = control.monitoring_profile
+        profile.refresh_from_db()
+        self.assertEqual(profile.next_review_date, timezone.localdate() + timedelta(days=30))
+
+    def test_expired_evidence_triggers_affected_controls_only(self):
+        control = self.assessment.control_results.get()
+        artifact = EvidenceArtifact.objects.create(
+            organization=self.organization, assessment=self.assessment,
+            title="Expired configuration", external_reference="https://example.invalid/config",
+            expires_on=timezone.localdate() - timedelta(days=1), uploaded_by=self.admin,
+        )
+        artifact.controls.add(control)
+        call_command("send_workflow_reminders")
+        event = ControlMonitoringEvent.objects.get(
+            event_type=ControlMonitoringEvent.EventType.EVIDENCE
+        )
+        self.assertEqual(list(event.controls.all()), [control])
+        self.assertEqual(event.reassessment_tasks.count(), 1)

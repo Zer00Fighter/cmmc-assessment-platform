@@ -10,7 +10,8 @@ from src.evidence.evidence_knowledge import EVIDENCE_KNOWLEDGE
 
 from .models import (
     Assessment, AssessmentAccess, AssessmentFramework, AssessmentProcedure, AssessmentReuseDecision, AssessmentSample, AssessmentTeamMember, AssessmentTemplate,
-    ControlAssessment, EvidenceApplicability, EvidenceArtifact, EvidenceRequest, Framework, MappingReference,
+    ControlAssessment, ControlMonitoringEvent, ControlMonitoringProfile,
+    ControlReassessmentTask, EvidenceApplicability, EvidenceArtifact, EvidenceRequest, Framework, MappingReference,
     InterviewSession, Membership, ObjectiveAssessment, Organization,
     NotificationPreference,
     NotificationPolicy, IntegrationPolicy,
@@ -373,6 +374,78 @@ class EvidenceArtifactForm(forms.ModelForm):
         if (cleaned.get("review_status") == EvidenceArtifact.ReviewStatus.REJECTED
                 and not (cleaned.get("assessor_notes") or "").strip()):
             self.add_error("assessor_notes", "Explain why the evidence was rejected.")
+        return cleaned
+
+
+class ControlMonitoringEventForm(forms.ModelForm):
+    class Meta:
+        model = ControlMonitoringEvent
+        fields = (
+            "title", "event_type", "severity", "occurred_on", "description",
+            "source_reference", "controls",
+        )
+        widgets = {
+            "occurred_on": forms.DateInput(attrs={"type": "date"}),
+            "description": forms.Textarea(attrs={"rows": 4}),
+            "controls": forms.CheckboxSelectMultiple(),
+        }
+
+    def __init__(self, *args, assessment, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["controls"].queryset = assessment.control_results.select_related(
+            "requirement__framework"
+        )
+
+
+class ControlMonitoringProfileForm(forms.ModelForm):
+    class Meta:
+        model = ControlMonitoringProfile
+        fields = (
+            "enabled", "review_frequency_days", "next_review_date", "owner",
+            "monitoring_notes",
+        )
+        widgets = {
+            "next_review_date": forms.DateInput(attrs={"type": "date"}),
+            "monitoring_notes": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, assessment, organization, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["owner"].queryset = organization.memberships.filter(
+            active=True
+        ).select_related("user")
+
+    def clean(self):
+        cleaned = super().clean()
+        if (cleaned.get("review_frequency_days") or 0) < 1:
+            self.add_error("review_frequency_days", "Review frequency must be at least one day.")
+        if cleaned.get("enabled") and not cleaned.get("next_review_date"):
+            self.add_error("next_review_date", "Set the first review date when monitoring is enabled.")
+        return cleaned
+
+
+class ControlReassessmentTaskForm(forms.ModelForm):
+    class Meta:
+        model = ControlReassessmentTask
+        fields = ("status", "assigned_to", "due_date", "resolution")
+        widgets = {
+            "due_date": forms.DateInput(attrs={"type": "date"}),
+            "resolution": forms.Textarea(attrs={"rows": 4}),
+        }
+
+    def __init__(self, *args, organization, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["assigned_to"].queryset = organization.memberships.filter(
+            active=True
+        ).select_related("user")
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("status") in {
+            ControlReassessmentTask.Status.COMPLETED,
+            ControlReassessmentTask.Status.NO_ACTION,
+        } and not (cleaned.get("resolution") or "").strip():
+            self.add_error("resolution", "Document the reassessment outcome or no-action rationale.")
         return cleaned
 
 

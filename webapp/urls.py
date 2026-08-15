@@ -91,6 +91,22 @@ urlpatterns = [
         views.evidence_list, name="evidence-list",
     ),
     path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/monitoring/",
+        views.control_monitoring, name="control-monitoring",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/monitoring/events/new/",
+        views.control_monitoring_event_create, name="control-monitoring-event-create",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/monitoring/controls/<int:control_id>/",
+        views.control_monitoring_profile_edit, name="control-monitoring-profile-edit",
+    ),
+    path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/monitoring/tasks/<int:task_id>/",
+        views.control_reassessment_task_edit, name="control-reassessment-task-edit",
+    ),
+    path(
         "organizations/<slug:org_slug>/assessments/<int:assessment_id>/evidence/requests/new/",
         views.evidence_request_create, name="evidence-request-create",
     ),
