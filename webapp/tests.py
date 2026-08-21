@@ -32,6 +32,8 @@ from .models import (
     AuditEvent,
     AuthoritativeDocument,
     ControlAssessment,
+    ComplianceAutomationPolicy,
+    ComplianceAutomationRun,
     ControlMonitoringEvent,
     ControlMonitoringProfile,
     ControlReassessmentTask,
@@ -2749,3 +2751,133 @@ class SprintNineteenPointFivePortfolioTests(TestCase):
         self.client.login(username="portfolio-viewer", password="test-password")
         response = self.client.get(reverse("portfolio-dashboard", args=(self.outside.slug,)))
         self.assertEqual(response.status_code, 404)
+
+
+class SprintNineteenPointSixAutomationTests(TestCase):
+    def setUp(self):
+        users = get_user_model()
+        self.admin = users.objects.create_user("calendar-admin", password="test-password")
+        self.viewer = users.objects.create_user("calendar-viewer", password="test-password")
+        self.restricted_user = users.objects.create_user(
+            "calendar-restricted", password="test-password"
+        )
+        self.org_a = Organization.objects.create(name="Calendar Alpha", slug="calendar-alpha")
+        self.org_b = Organization.objects.create(name="Calendar Beta", slug="calendar-beta")
+        self.admin_a = Membership.objects.create(
+            user=self.admin, organization=self.org_a, role=Membership.Role.ADMIN
+        )
+        self.admin_b = Membership.objects.create(
+            user=self.admin, organization=self.org_b, role=Membership.Role.ADMIN
+        )
+        self.viewer_a = Membership.objects.create(
+            user=self.viewer, organization=self.org_a, role=Membership.Role.VIEWER
+        )
+        self.restricted_a = Membership.objects.create(
+            user=self.restricted_user, organization=self.org_a, role=Membership.Role.VIEWER
+        )
+        self.framework = Framework.objects.create(
+            code="CAL-FW", name="Calendar Framework", version="1"
+        )
+        requirement = Requirement.objects.create(
+            framework=self.framework, requirement_id="CAL-1", domain="Governance",
+            title="Calendar requirement", statement="Synthetic calendar control",
+        )
+        self.assessments = {}
+        for organization, membership, suffix in (
+            (self.org_a, self.admin_a, "Alpha"), (self.org_b, self.admin_b, "Beta")
+        ):
+            system = System.objects.create(
+                organization=organization, name=f"{suffix} Calendar System"
+            )
+            assessment = Assessment.objects.create(
+                system=system, framework=self.framework,
+                name=f"{suffix} Calendar Assessment", created_by=self.admin,
+                engagement_start=timezone.localdate(),
+                engagement_end=timezone.localdate() + timedelta(days=30),
+            )
+            AssessmentFramework.objects.create(
+                assessment=assessment, framework=self.framework,
+                is_primary=True, added_by=self.admin,
+            )
+            result = ControlAssessment.objects.create(
+                assessment=assessment, requirement=requirement
+            )
+            evidence = EvidenceRequest.objects.create(
+                assessment=assessment, title=f"{suffix} evidence due",
+                owner=membership, due_date=timezone.localdate(), created_by=self.admin,
+            )
+            evidence.controls.add(result)
+            self.assessments[organization.slug] = assessment
+        hidden = Assessment.objects.create(
+            system=self.assessments[self.org_a.slug].system, framework=self.framework,
+            name="Restricted Calendar Assessment", created_by=self.admin,
+            engagement_end=timezone.localdate() + timedelta(days=2),
+        )
+        AssessmentFramework.objects.create(
+            assessment=hidden, framework=self.framework, is_primary=True, added_by=self.admin
+        )
+        AssessmentAccess.objects.create(
+            assessment=hidden, membership=self.restricted_a,
+            access=AssessmentAccess.Access.VIEW, granted_by=self.admin,
+        )
+        EvidenceRequest.objects.create(
+            assessment=hidden, title="Restricted calendar evidence",
+            due_date=timezone.localdate(), created_by=self.admin,
+        )
+        self.hidden = hidden
+
+    def test_calendar_and_export_are_tenant_and_grant_scoped(self):
+        self.client.login(username="calendar-viewer", password="test-password")
+        url = reverse("compliance-calendar", args=(self.org_a.slug,))
+        response = self.client.get(url, {"category": "EVIDENCE"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Alpha evidence due")
+        self.assertNotContains(response, "Beta evidence due")
+        self.assertNotContains(response, "Restricted calendar evidence")
+        export = self.client.get(
+            reverse("compliance-calendar-export", args=(self.org_a.slug,)),
+            {"category": "EVIDENCE"},
+        )
+        self.assertIn(b"Alpha evidence due", export.content)
+        self.assertNotIn(b"Beta evidence due", export.content)
+        self.assertNotIn(b"Restricted calendar evidence", export.content)
+        self.assertTrue(AuditEvent.objects.filter(
+            organization=self.org_a, action="compliance_calendar.exported"
+        ).exists())
+
+    def test_automation_runner_is_organization_scoped_and_audited(self):
+        for organization in (self.org_a, self.org_b):
+            ComplianceAutomationPolicy.objects.create(
+                organization=organization, enabled=True,
+                next_run_on=timezone.localdate(), updated_by=self.admin,
+            )
+        call_command(
+            "run_compliance_automation", organization_slug=self.org_a.slug, force=True
+        )
+        self.assertEqual(ComplianceAutomationRun.objects.filter(
+            policy__organization=self.org_a,
+            status=ComplianceAutomationRun.Status.SUCCESS,
+        ).count(), 1)
+        self.assertEqual(ComplianceAutomationRun.objects.filter(
+            policy__organization=self.org_b
+        ).count(), 0)
+        self.assertTrue(Notification.objects.filter(
+            organization=self.org_a, title__contains="due today"
+        ).exists())
+        self.assertFalse(Notification.objects.filter(organization=self.org_b).exists())
+        self.assertTrue(AuditEvent.objects.filter(
+            organization=self.org_a, action="compliance_automation.completed"
+        ).exists())
+
+    def test_automation_settings_are_admin_only_and_disabled_by_default(self):
+        self.client.login(username="calendar-viewer", password="test-password")
+        self.assertEqual(self.client.get(reverse(
+            "compliance-automation-settings", args=(self.org_a.slug,)
+        )).status_code, 404)
+        self.client.login(username="calendar-admin", password="test-password")
+        response = self.client.get(reverse(
+            "compliance-automation-settings", args=(self.org_a.slug,)
+        ))
+        self.assertEqual(response.status_code, 200)
+        policy = ComplianceAutomationPolicy.objects.get(organization=self.org_a)
+        self.assertFalse(policy.enabled)

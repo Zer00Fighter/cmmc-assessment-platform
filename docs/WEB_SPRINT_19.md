@@ -95,9 +95,21 @@ Reopening or changing the source assessment cannot rewrite the captured baseline
 Portfolio analytics are calculated from Omni's authoritative records at request
 time. No copied executive-data store can drift from the underlying assessment work.
 
+## Sprint 19.6 delivered calendar and scheduled automation
+
+- Unified, filterable compliance calendar across assessment, evidence,
+  remediation, monitoring, recurrence, and optional-risk obligations
+- Assessment-grant-aware calendar visibility and filter-preserving CSV export
+- Disabled-by-default organization automation policy with daily or weekly cadence
+- Organization-scoped runner for reminders, renewals, reassessments, and risk dates
+- Duplicate-safe execution, run-now administration, run history, and audit events
+- Safe Windows Task Scheduler launcher and configuration guidance without secrets
+
+The operating-system task runs daily, while Omni determines which enabled
+organizations are due. Existing notification and email policies remain authoritative.
+
 ## Remaining Sprint 19 workstreams
 
-1. Compliance calendar and scheduled workflow automation
-2. Continuous compliance reports and exports
-3. External ticket event routing and later connector implementation
-4. Security, regression, and synthetic acceptance testing
+1. Continuous compliance reports and exports
+2. External ticket event routing and later connector implementation
+3. Security, regression, and synthetic acceptance testing

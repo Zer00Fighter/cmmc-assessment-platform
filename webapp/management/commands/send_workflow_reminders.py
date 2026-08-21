@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from webapp.models import (
     AuditEvent, ControlReassessmentTask, EvidenceArtifact, EvidenceRequest, Notification,
-    NotificationPolicy, RemediationMilestone, RemediationPlan,
+    NotificationPolicy, Organization, RemediationMilestone, RemediationPlan,
     RiskRegisterEntry, RiskRegisterHistory, RiskTreatmentAction,
 )
 from webapp.notifications import client_escalation_email, escalation_users, notify
@@ -16,8 +16,17 @@ from webapp.control_monitoring import generate_automated_monitoring_events
 class Command(BaseCommand):
     help = "Send policy-governed due-soon, due-date, and overdue workflow reminders."
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--organization", dest="organization_slug",
+            help="Limit workflow processing to one organization slug.",
+        )
+
     def handle(self, *args, **options):
         today = timezone.localdate()
+        organization = None
+        if options.get("organization_slug"):
+            organization = Organization.objects.get(slug=options["organization_slug"])
         created = 0
         renewals_created = 0
         monitoring_events_created = 0
@@ -84,6 +93,8 @@ class Command(BaseCommand):
         ).select_related("assessment__system__organization", "uploaded_by").prefetch_related(
             "requests__owner__user", "requests__controls"
         ).distinct()
+        if organization is not None:
+            artifacts = artifacts.filter(organization=organization)
         for artifact in artifacts:
             if artifact.freshness not in {"AGING", "EXPIRED"}:
                 continue
@@ -103,7 +114,9 @@ class Command(BaseCommand):
                         new_status=renewal.status,
                     )
 
-        monitoring_events, reassessment_tasks = generate_automated_monitoring_events(today)
+        monitoring_events, reassessment_tasks = generate_automated_monitoring_events(
+            today, organization=organization
+        )
         monitoring_events_created = len(monitoring_events)
         reassessments_created = len(reassessment_tasks)
         for event in monitoring_events:
@@ -131,6 +144,8 @@ class Command(BaseCommand):
         requests = EvidenceRequest.objects.filter(due_date__isnull=False).exclude(
             status=EvidenceRequest.Status.ACCEPTED
         ).select_related("owner__user", "assessment__system__organization", "created_by")
+        if organization is not None:
+            requests = requests.filter(assessment__system__organization=organization)
         for item in requests:
             deliver(
                 owner=item.owner.user if item.owner else None, assessment=item.assessment,
@@ -149,6 +164,10 @@ class Command(BaseCommand):
             "control_result__assessment__system__organization",
             "control_result__requirement",
         )
+        if organization is not None:
+            reassessments = reassessments.filter(
+                control_result__assessment__system__organization=organization
+            )
         for item in reassessments:
             assessment = item.control_result.assessment
             deliver(
@@ -164,6 +183,8 @@ class Command(BaseCommand):
         plans = RemediationPlan.objects.filter(planned_completion__isnull=False).exclude(
             status__in=(RemediationPlan.Status.CLOSED, RemediationPlan.Status.RISK_ACCEPTED)
         ).select_related("owner__user", "assessment__system__organization", "created_by")
+        if organization is not None:
+            plans = plans.filter(assessment__system__organization=organization)
         for item in plans:
             deliver(
                 owner=item.owner.user if item.owner else None, assessment=item.assessment,
@@ -176,6 +197,8 @@ class Command(BaseCommand):
         milestones = RemediationMilestone.objects.filter(due_date__isnull=False).exclude(
             status=RemediationMilestone.Status.COMPLETE
         ).select_related("owner__user", "plan__assessment__system__organization", "plan__created_by")
+        if organization is not None:
+            milestones = milestones.filter(plan__assessment__system__organization=organization)
         for item in milestones:
             assessment = item.plan.assessment
             deliver(
@@ -191,6 +214,8 @@ class Command(BaseCommand):
         ).exclude(status=RiskTreatmentAction.Status.COMPLETE).select_related(
             "owner__user", "risk__assessment__system__organization", "risk__created_by"
         )
+        if organization is not None:
+            actions = actions.filter(risk__assessment__system__organization=organization)
         for item in actions:
             assessment = item.risk.assessment
             deliver(owner=item.owner.user if item.owner else None, assessment=assessment,
@@ -203,6 +228,8 @@ class Command(BaseCommand):
         ).exclude(status=RiskRegisterEntry.Status.CLOSED).select_related(
             "owner__user", "assessment__system__organization", "created_by", "accepted_by"
         )
+        if organization is not None:
+            risks = risks.filter(assessment__system__organization=organization)
         for risk in risks:
             risk_policy = getattr(risk.organization, "risk_tolerance_policy", None)
             if risk.next_review_date:

@@ -42,7 +42,7 @@ def create_reassessment_tasks(event: ControlMonitoringEvent) -> list[ControlReas
 
 
 @transaction.atomic
-def generate_automated_monitoring_events(today=None) -> tuple[list, list]:
+def generate_automated_monitoring_events(today=None, organization=None) -> tuple[list, list]:
     """Create duplicate-safe events for scheduled reviews and stale evidence."""
     today = today or timezone.localdate()
     events, tasks = [], []
@@ -52,6 +52,8 @@ def generate_automated_monitoring_events(today=None) -> tuple[list, list]:
         "control_result__assessment__system__organization",
         "control_result__assessment__created_by",
     )
+    if organization is not None:
+        profiles = profiles.filter(control_result__assessment__system__organization=organization)
     for profile in profiles:
         control = profile.control_result
         source_key = f"schedule:{profile.id}:{profile.next_review_date.isoformat()}"
@@ -79,6 +81,8 @@ def generate_automated_monitoring_events(today=None) -> tuple[list, list]:
     ).select_related("assessment__created_by", "uploaded_by").prefetch_related(
         "controls", "requests"
     )
+    if organization is not None:
+        artifacts = artifacts.filter(organization=organization)
     for artifact in artifacts:
         if artifact.freshness != "EXPIRED" or not artifact.controls.exists():
             continue

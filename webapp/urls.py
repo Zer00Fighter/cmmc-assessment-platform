@@ -42,6 +42,22 @@ urlpatterns = [
         "organizations/<slug:org_slug>/portfolio/export/",
         views.portfolio_export, name="portfolio-export",
     ),
+    path(
+        "organizations/<slug:org_slug>/calendar/",
+        views.compliance_calendar, name="compliance-calendar",
+    ),
+    path(
+        "organizations/<slug:org_slug>/calendar/export/",
+        views.compliance_calendar_export, name="compliance-calendar-export",
+    ),
+    path(
+        "organizations/<slug:org_slug>/automation/",
+        views.compliance_automation_settings, name="compliance-automation-settings",
+    ),
+    path(
+        "organizations/<slug:org_slug>/automation/run/",
+        views.compliance_automation_run_now, name="compliance-automation-run-now",
+    ),
     path("organizations/<slug:org_slug>/systems/new/", views.system_create, name="system-create"),
     path("organizations/<slug:org_slug>/systems/<int:system_id>/edit/", views.system_edit, name="system-edit"),
     path(

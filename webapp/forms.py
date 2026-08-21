@@ -10,7 +10,7 @@ from src.evidence.evidence_knowledge import EVIDENCE_KNOWLEDGE
 
 from .models import (
     Assessment, AssessmentAccess, AssessmentBaseline, AssessmentFramework, AssessmentProcedure, AssessmentReuseDecision, AssessmentSample, AssessmentTeamMember, AssessmentTemplate,
-    ControlAssessment, ControlMonitoringEvent, ControlMonitoringProfile,
+    ComplianceAutomationPolicy, ControlAssessment, ControlMonitoringEvent, ControlMonitoringProfile,
     ControlReassessmentTask, EvidenceApplicability, EvidenceArtifact, EvidenceRequest, Framework, MappingReference,
     InterviewSession, Membership, ObjectiveAssessment, Organization,
     NotificationPreference,
@@ -402,6 +402,19 @@ class AssessmentBaselineForm(forms.ModelForm):
         model = AssessmentBaseline
         fields = ("name", "description")
         widgets = {"description": forms.Textarea(attrs={"rows": 3})}
+
+
+class ComplianceAutomationPolicyForm(forms.ModelForm):
+    class Meta:
+        model = ComplianceAutomationPolicy
+        fields = ("enabled", "frequency", "next_run_on")
+        widgets = {"next_run_on": forms.DateInput(attrs={"type": "date"})}
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("enabled") and not cleaned.get("next_run_on"):
+            self.add_error("next_run_on", "Set the first automation run date.")
+        return cleaned
 
 
 class ControlMonitoringProfileForm(forms.ModelForm):

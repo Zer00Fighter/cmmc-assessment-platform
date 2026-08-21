@@ -1,5 +1,12 @@
 # Changelog
 
+## Sprint 19.6 — Compliance calendar and scheduled workflow automation
+
+- Added an access-aware calendar for assessment, evidence, remediation, monitoring, recurrence, and risk dates.
+- Added disabled-by-default organization automation policies with daily or weekly cadence.
+- Added organization-scoped, duplicate-safe workflow execution and auditable run history.
+- Added filtered calendar CSV export and a credential-free Windows Task Scheduler launcher.
+
 ## Sprint 19.5 — Program and portfolio dashboard
 
 - Added tenant- and assessment-grant-aware executive analytics across systems and assessments.

@@ -60,6 +60,58 @@ class NotificationPolicy(models.Model):
         return f"Notification policy for {self.organization}"
 
 
+class ComplianceAutomationPolicy(models.Model):
+    class Frequency(models.TextChoices):
+        DAILY = "DAILY", "Daily"
+        WEEKLY = "WEEKLY", "Weekly"
+
+    class LastStatus(models.TextChoices):
+        NEVER = "NEVER", "Never run"
+        SUCCESS = "SUCCESS", "Successful"
+        FAILED = "FAILED", "Failed"
+
+    organization = models.OneToOneField(
+        Organization, on_delete=models.CASCADE, related_name="compliance_automation_policy"
+    )
+    enabled = models.BooleanField(default=False)
+    frequency = models.CharField(
+        max_length=10, choices=Frequency.choices, default=Frequency.DAILY
+    )
+    next_run_on = models.DateField(null=True, blank=True)
+    last_run_at = models.DateTimeField(null=True, blank=True)
+    last_status = models.CharField(
+        max_length=10, choices=LastStatus.choices, default=LastStatus.NEVER
+    )
+    last_error = models.TextField(blank=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="updated_compliance_automation_policies",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"Compliance automation for {self.organization}"
+
+
+class ComplianceAutomationRun(models.Model):
+    class Status(models.TextChoices):
+        RUNNING = "RUNNING", "Running"
+        SUCCESS = "SUCCESS", "Successful"
+        FAILED = "FAILED", "Failed"
+
+    policy = models.ForeignKey(
+        ComplianceAutomationPolicy, on_delete=models.CASCADE, related_name="runs"
+    )
+    status = models.CharField(max_length=10, choices=Status.choices)
+    started_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    summary = models.TextField(blank=True)
+    error = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ("-started_at",)
+
+
 class Membership(models.Model):
     class Role(models.TextChoices):
         ADMIN = "ADMIN", "Administrator"

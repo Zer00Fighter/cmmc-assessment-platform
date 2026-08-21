@@ -14,6 +14,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.mail import send_mail
+from django.core.management import call_command
 from django.db import transaction
 from django.db import connection
 from django.db.models import Count, Q, Sum
@@ -36,6 +37,7 @@ from .forms import (
     ControlMonitoringEventForm,
     ControlMonitoringProfileForm,
     ControlReassessmentTaskForm,
+    ComplianceAutomationPolicyForm,
     EvidenceArtifactForm,
     EvidenceRequestForm,
     MembershipForm,
@@ -80,6 +82,8 @@ from .models import (
     AssessmentTeamMember,
     AssessmentTemplate,
     AuditEvent,
+    ComplianceAutomationPolicy,
+    ComplianceAutomationRun,
     ControlAssessment,
     ControlMonitoringEvent,
     ControlMonitoringProfile,
@@ -571,6 +575,144 @@ def portfolio_export(request: HttpRequest, org_slug: str) -> HttpResponse:
     response = HttpResponse(output.getvalue(), content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="omni-{organization.slug}-portfolio.csv"'
     return response
+
+
+def _calendar_data(request, organization):
+    from .portfolio import authorized_assessments
+    from .compliance_calendar import CATEGORIES, compliance_calendar_events
+    today = timezone.localdate()
+    try:
+        date_from = date.fromisoformat(request.GET.get("from", ""))
+    except ValueError:
+        date_from = today - timedelta(days=30)
+    try:
+        date_to = date.fromisoformat(request.GET.get("to", ""))
+    except ValueError:
+        date_to = today + timedelta(days=120)
+    if date_to < date_from:
+        date_from, date_to = date_to, date_from
+    if (date_to - date_from).days > 730:
+        date_to = date_from + timedelta(days=730)
+    assessments = authorized_assessments(request.user, organization)
+    visible_assessments = assessments
+    system_id = request.GET.get("system", "").strip()
+    category = request.GET.get("category", "").strip().upper()
+    if system_id.isdigit():
+        assessments = assessments.filter(system_id=int(system_id))
+    events = compliance_calendar_events(
+        assessments, organization=organization, date_from=date_from, date_to=date_to,
+        include_templates=_is_org_admin(request.user, organization),
+    )
+    if category:
+        events = [item for item in events if item["category"] == category]
+    systems = System.objects.filter(
+        organization=organization, id__in=visible_assessments.values("system_id")
+    ).order_by("name")
+    return {
+        "events": events, "systems": systems, "categories": CATEGORIES,
+        "filters": {"from": date_from, "to": date_to,
+                    "system": system_id, "category": category},
+        "metrics": {
+            "total": len(events),
+            "overdue": sum(item["timing"] == "OVERDUE" for item in events),
+            "today": sum(item["timing"] == "TODAY" for item in events),
+            "upcoming": sum(item["timing"] == "UPCOMING" for item in events),
+        },
+    }
+
+
+@login_required
+def compliance_calendar(request: HttpRequest, org_slug: str) -> HttpResponse:
+    organization = _organization_for(request.user, org_slug)
+    context = _calendar_data(request, organization)
+    context.update({"organization": organization,
+                    "can_admin": _is_org_admin(request.user, organization)})
+    return render(request, "webapp/compliance_calendar.html", context)
+
+
+@login_required
+def compliance_calendar_export(request: HttpRequest, org_slug: str) -> HttpResponse:
+    organization = _organization_for(request.user, org_slug)
+    data = _calendar_data(request, organization)
+    output = StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow(["Omni Compliance Calendar"])
+    writer.writerow(["Organization", organization.name])
+    writer.writerow(["From", data["filters"]["from"]])
+    writer.writerow(["To", data["filters"]["to"]])
+    writer.writerow([])
+    writer.writerow(["Date", "Timing", "Category", "System", "Assessment",
+                     "Item", "Status", "Detail"])
+    for item in data["events"]:
+        writer.writerow([
+            item["date"], item["timing"], item["category"],
+            item["system"].name if item["system"] else "",
+            item["assessment"].name if item["assessment"] else "",
+            item["title"], item["status"], item["detail"],
+        ])
+    AuditEvent.objects.create(
+        organization=organization, actor=request.user, action="compliance_calendar.exported",
+        object_type="Organization", object_id=str(organization.id),
+        detail={"events": len(data["events"]),
+                "from": str(data["filters"]["from"]), "to": str(data["filters"]["to"])},
+    )
+    response = HttpResponse(output.getvalue(), content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="omni-{organization.slug}-calendar.csv"'
+    return response
+
+
+@login_required
+def compliance_automation_settings(request: HttpRequest, org_slug: str) -> HttpResponse:
+    organization = _organization_for(request.user, org_slug)
+    if not _is_org_admin(request.user, organization):
+        raise Http404
+    policy, _ = ComplianceAutomationPolicy.objects.get_or_create(
+        organization=organization,
+        defaults={"updated_by": request.user,
+                  "next_run_on": timezone.localdate() + timedelta(days=1)},
+    )
+    form = ComplianceAutomationPolicyForm(request.POST or None, instance=policy)
+    if request.method == "POST" and form.is_valid():
+        policy = form.save(commit=False); policy.updated_by = request.user; policy.save()
+        AuditEvent.objects.create(
+            organization=organization, actor=request.user,
+            action="compliance_automation.policy_updated",
+            object_type="ComplianceAutomationPolicy", object_id=str(policy.id),
+            detail={"enabled": policy.enabled, "frequency": policy.frequency,
+                    "next_run_on": str(policy.next_run_on or "")},
+        )
+        messages.success(request, "Compliance automation policy saved.")
+        return redirect("compliance-automation-settings", org_slug=org_slug)
+    return render(request, "webapp/compliance_automation_settings.html", {
+        "organization": organization, "policy": policy, "form": form,
+        "runs": policy.runs.all()[:25],
+    })
+
+
+@login_required
+@require_POST
+def compliance_automation_run_now(request: HttpRequest, org_slug: str) -> HttpResponse:
+    organization = _organization_for(request.user, org_slug)
+    if not _is_org_admin(request.user, organization):
+        raise Http404
+    policy, _ = ComplianceAutomationPolicy.objects.get_or_create(
+        organization=organization,
+        defaults={"updated_by": request.user,
+                  "next_run_on": timezone.localdate() + timedelta(days=1)},
+    )
+    policy.updated_by = request.user
+    policy.save(update_fields=("updated_by", "updated_at"))
+    output = StringIO()
+    try:
+        call_command(
+            "run_compliance_automation", organization_slug=organization.slug,
+            force=True, stdout=output,
+        )
+    except Exception as exc:
+        messages.error(request, f"Compliance automation failed: {exc}")
+    else:
+        messages.success(request, output.getvalue().strip() or "Compliance automation completed.")
+    return redirect("compliance-automation-settings", org_slug=org_slug)
     return render(
         request,
         "webapp/system_list.html",
