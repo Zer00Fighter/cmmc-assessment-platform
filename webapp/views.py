@@ -30,6 +30,7 @@ from .forms import (
     AssessmentTemplateForm,
     TemplateAssessmentForm,
     AssessmentPlanForm,
+    AssessmentProcedureCustomizationForm,
     Soc2AssessmentProfileForm,
     AssessmentSampleForm,
     AssessmentTeamForm,
@@ -1750,6 +1751,7 @@ def assessment_execution(request: HttpRequest, org_slug: str, assessment_id: int
     results = assessment.control_results.select_related(
         "requirement__framework"
     ).prefetch_related("objective_results__objective", "objective_results__evidence")
+    results = results.filter(in_scope=True)
     method = request.GET.get("method", "").upper()
     framework = request.GET.get("framework", "")
     assessor = request.GET.get("assessor", "")
@@ -1757,7 +1759,7 @@ def assessment_execution(request: HttpRequest, org_slug: str, assessment_id: int
         results = results.filter(requirement__framework__code=framework)
     objectives = ObjectiveAssessment.objects.filter(control_result__in=results).select_related(
         "objective", "control_result__requirement__framework", "assessed_by"
-    ).prefetch_related("objective__procedures", "evidence")
+    ).prefetch_related("objective__procedures", "evidence", "procedure_customizations")
     if method:
         objectives = objectives.filter(objective__procedures__method=method).distinct()
     if assessor.isdigit():
@@ -1898,7 +1900,26 @@ def objective_edit(
         ), id=objective_result_id, control_result__assessment=assessment,
     )
     form = ObjectiveAssessmentForm(request.POST or None, instance=result, assessment=assessment)
-    if request.method == "POST" and form.is_valid():
+    customization_form = AssessmentProcedureCustomizationForm(
+        request.POST or None, objective_result=result, prefix="procedure"
+    )
+    if (request.method == "POST" and request.POST.get("action") == "procedure"
+            and customization_form.is_valid()):
+        customization = customization_form.save(commit=False)
+        customization.objective_result = result
+        customization.updated_by = request.user
+        customization.save()
+        AuditEvent.objects.create(
+            organization=organization, actor=request.user,
+            action="assessment.procedure_customized",
+            object_type="AssessmentProcedureCustomization",
+            object_id=str(customization.id), detail={"method": customization.method},
+        )
+        messages.success(request, "Customized assessment procedure saved.")
+        return redirect("objective-edit", org_slug=org_slug, assessment_id=assessment.id,
+                        objective_result_id=result.id)
+    if (request.method == "POST" and request.POST.get("action", "objective") == "objective"
+            and form.is_valid()):
         result = form.save(commit=False)
         result.assessed_by = request.user
         result.assessed_at = timezone.now()
@@ -1923,6 +1944,9 @@ def objective_edit(
         return redirect("assessment-execution", org_slug=org_slug, assessment_id=assessment.id)
     return render(request, "webapp/objective_form.html", {
         "organization": organization, "assessment": assessment, "result": result, "form": form,
+        "customization_form": customization_form,
+        "customizations": result.procedure_customizations.select_related("base_procedure"),
+        "points_of_focus": result.control_result.requirement.soc2_points_of_focus.filter(active=True),
     })
 
 

@@ -1140,6 +1140,7 @@ class AssessmentProcedure(models.Model):
         INTERVIEW = "INTERVIEW", "Interview"
         TEST = "TEST", "Test"
         OBSERVE = "OBSERVE", "Observe"
+        REPERFORM = "REPERFORM", "Reperform"
 
     requirement = models.ForeignKey(
         Requirement, on_delete=models.CASCADE, related_name="assessment_procedures"
@@ -1169,6 +1170,19 @@ class ObjectiveAssessment(models.Model):
         NOT_APPLICABLE = "NOT_APPLICABLE", "NOT APPLICABLE"
         NOT_ASSESSED = "NOT_ASSESSED", "NOT ASSESSED"
 
+    class Conclusion(models.TextChoices):
+        NOT_ASSESSED = "NOT_ASSESSED", "Not assessed"
+        EFFECTIVE = "EFFECTIVE", "Effective"
+        DEFICIENT = "DEFICIENT", "Deficient"
+        NOT_APPLICABLE = "NOT_APPLICABLE", "Not applicable"
+
+    class OperatingConclusion(models.TextChoices):
+        NOT_TESTED = "NOT_TESTED", "Not tested"
+        EFFECTIVE = "EFFECTIVE", "Effective"
+        EXCEPTION = "EXCEPTION", "Exception identified"
+        DEFICIENT = "DEFICIENT", "Deficient"
+        NOT_APPLICABLE = "NOT_APPLICABLE", "Not applicable"
+
     control_result = models.ForeignKey(
         ControlAssessment, on_delete=models.CASCADE, related_name="objective_results"
     )
@@ -1176,6 +1190,16 @@ class ObjectiveAssessment(models.Model):
         AssessmentObjective, on_delete=models.PROTECT, related_name="assessment_results"
     )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.NOT_ASSESSED)
+    design_conclusion = models.CharField(
+        max_length=20, choices=Conclusion.choices, default=Conclusion.NOT_ASSESSED
+    )
+    implementation_conclusion = models.CharField(
+        max_length=20, choices=Conclusion.choices, default=Conclusion.NOT_ASSESSED
+    )
+    operating_effectiveness_conclusion = models.CharField(
+        max_length=20, choices=OperatingConclusion.choices,
+        default=OperatingConclusion.NOT_TESTED,
+    )
     assessor_notes = models.TextField(blank=True)
     evidence = models.ManyToManyField(
         "EvidenceArtifact", related_name="objective_results", blank=True
@@ -1214,11 +1238,61 @@ class AssessmentSample(models.Model):
     name = models.CharField(max_length=250)
     population_description = models.TextField()
     population_size = models.PositiveIntegerField()
+    period_start = models.DateField(null=True, blank=True)
+    period_end = models.DateField(null=True, blank=True)
     sample_size = models.PositiveIntegerField()
     selection_method = models.TextField()
     rationale = models.TextField(blank=True)
     selected_items = models.TextField(blank=True)
     objectives = models.ManyToManyField(ObjectiveAssessment, related_name="samples", blank=True)
+
+
+class Soc2PointOfFocus(models.Model):
+    """Licensed AICPA content imported privately by an authorized user."""
+
+    requirement = models.ForeignKey(
+        Requirement, on_delete=models.CASCADE, related_name="soc2_points_of_focus"
+    )
+    point_id = models.CharField(max_length=50)
+    licensed_text = models.TextField()
+    source_filename = models.CharField(max_length=255)
+    source_sha256 = models.CharField(max_length=64)
+    source_reference = models.CharField(max_length=500, blank=True)
+    source_row = models.PositiveIntegerField(null=True, blank=True)
+    source_page = models.PositiveIntegerField(null=True, blank=True)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ("requirement__requirement_id", "point_id")
+        constraints = [models.UniqueConstraint(
+            fields=("requirement", "point_id", "source_sha256"),
+            name="unique_soc2_point_source_version",
+        )]
+
+    def __str__(self):
+        return f"{self.requirement.requirement_id} — {self.point_id}"
+
+
+class AssessmentProcedureCustomization(models.Model):
+    objective_result = models.ForeignKey(
+        ObjectiveAssessment, on_delete=models.CASCADE,
+        related_name="procedure_customizations",
+    )
+    base_procedure = models.ForeignKey(
+        AssessmentProcedure, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="customizations",
+    )
+    method = models.CharField(max_length=12, choices=AssessmentProcedure.Method.choices)
+    procedure_text = models.TextField()
+    enabled = models.BooleanField(default=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="updated_procedure_customizations",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("method", "id")
 
 
 class TestExecution(models.Model):

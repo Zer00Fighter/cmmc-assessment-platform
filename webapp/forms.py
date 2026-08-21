@@ -9,7 +9,7 @@ from django.utils.text import slugify
 from src.evidence.evidence_knowledge import EVIDENCE_KNOWLEDGE
 
 from .models import (
-    Assessment, AssessmentAccess, AssessmentBaseline, AssessmentFramework, AssessmentProcedure, AssessmentReuseDecision, AssessmentSample, AssessmentTeamMember, AssessmentTemplate,
+    Assessment, AssessmentAccess, AssessmentBaseline, AssessmentFramework, AssessmentProcedure, AssessmentProcedureCustomization, AssessmentReuseDecision, AssessmentSample, AssessmentTeamMember, AssessmentTemplate,
     ComplianceAutomationPolicy, ControlAssessment, ControlMonitoringEvent, ControlMonitoringProfile,
     ControlReassessmentTask, EvidenceApplicability, EvidenceArtifact, EvidenceRequest, Framework, MappingReference,
     InterviewSession, Membership, ObjectiveAssessment, Organization,
@@ -979,7 +979,10 @@ class AssessmentTeamForm(forms.ModelForm):
 class ObjectiveAssessmentForm(forms.ModelForm):
     class Meta:
         model = ObjectiveAssessment
-        fields = ("status", "assessor_notes", "evidence")
+        fields = (
+            "status", "design_conclusion", "implementation_conclusion",
+            "operating_effectiveness_conclusion", "assessor_notes", "evidence",
+        )
         widgets = {
             "assessor_notes": forms.Textarea(attrs={"rows": 5}),
             "evidence": forms.CheckboxSelectMultiple(),
@@ -987,7 +990,23 @@ class ObjectiveAssessmentForm(forms.ModelForm):
 
     def __init__(self, *args, assessment, **kwargs):
         super().__init__(*args, **kwargs)
+        self.assessment = assessment
         self.fields["evidence"].queryset = assessment.evidence_artifacts.all()
+        self.is_soc2 = self.instance.control_result.requirement.framework.code == "AICPA-TSC-2017-RPOF-2022"
+        self.soc2_type = getattr(getattr(assessment, "soc2_profile", None), "examination_type", None)
+        # These conclusions extend SOC 2 execution. Keep the established,
+        # framework-neutral objective form backward compatible for every other
+        # framework; SOC 2 completeness is enforced explicitly in clean().
+        for field_name in (
+            "design_conclusion", "implementation_conclusion",
+            "operating_effectiveness_conclusion",
+        ):
+            self.fields[field_name].required = False
+        if self.is_soc2 and self.soc2_type == Soc2AssessmentProfile.ExaminationType.TYPE_I:
+            self.fields["operating_effectiveness_conclusion"].disabled = True
+            self.fields["operating_effectiveness_conclusion"].initial = (
+                ObjectiveAssessment.OperatingConclusion.NOT_APPLICABLE
+            )
 
     def clean(self):
         cleaned = super().clean()
@@ -995,7 +1014,42 @@ class ObjectiveAssessmentForm(forms.ModelForm):
             cleaned.get("assessor_notes") or ""
         ).strip():
             self.add_error("assessor_notes", "Document the objective-level conclusion.")
+        if self.is_soc2 and cleaned.get("status") != ObjectiveAssessment.Status.NOT_ASSESSED:
+            if cleaned.get("design_conclusion") == ObjectiveAssessment.Conclusion.NOT_ASSESSED:
+                self.add_error("design_conclusion", "Record the design conclusion.")
+            if cleaned.get("implementation_conclusion") == ObjectiveAssessment.Conclusion.NOT_ASSESSED:
+                self.add_error("implementation_conclusion", "Record the implementation conclusion.")
+            if (self.soc2_type == Soc2AssessmentProfile.ExaminationType.TYPE_II
+                    and cleaned.get("operating_effectiveness_conclusion") == ObjectiveAssessment.OperatingConclusion.NOT_TESTED):
+                self.add_error(
+                    "operating_effectiveness_conclusion",
+                    "Type II requires an operating-effectiveness conclusion.",
+                )
         return cleaned
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.is_soc2 and self.soc2_type == Soc2AssessmentProfile.ExaminationType.TYPE_I:
+            instance.operating_effectiveness_conclusion = (
+                ObjectiveAssessment.OperatingConclusion.NOT_APPLICABLE
+            )
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
+
+
+class AssessmentProcedureCustomizationForm(forms.ModelForm):
+    class Meta:
+        model = AssessmentProcedureCustomization
+        fields = ("base_procedure", "method", "procedure_text", "enabled")
+        widgets = {"procedure_text": forms.Textarea(attrs={"rows": 4})}
+
+    def __init__(self, *args, objective_result, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["base_procedure"].queryset = AssessmentProcedure.objects.filter(
+            requirement=objective_result.control_result.requirement
+        ).order_by("method", "sequence")
 
 
 class InterviewSessionForm(forms.ModelForm):
@@ -1025,6 +1079,7 @@ class AssessmentSampleForm(forms.ModelForm):
         model = AssessmentSample
         fields = (
             "name", "population_description", "population_size", "sample_size",
+            "period_start", "period_end",
             "selection_method", "rationale", "selected_items", "objectives",
         )
         widgets = {
@@ -1032,11 +1087,14 @@ class AssessmentSampleForm(forms.ModelForm):
             "selection_method": forms.Textarea(attrs={"rows": 3}),
             "rationale": forms.Textarea(attrs={"rows": 3}),
             "selected_items": forms.Textarea(attrs={"rows": 4}),
+            "period_start": forms.DateInput(attrs={"type": "date"}),
+            "period_end": forms.DateInput(attrs={"type": "date"}),
             "objectives": forms.CheckboxSelectMultiple(),
         }
 
     def __init__(self, *args, assessment, **kwargs):
         super().__init__(*args, **kwargs)
+        self.assessment = assessment
         self.fields["objectives"].queryset = ObjectiveAssessment.objects.filter(
             control_result__assessment=assessment
         ).select_related("objective")
@@ -1045,6 +1103,19 @@ class AssessmentSampleForm(forms.ModelForm):
         cleaned = super().clean()
         if cleaned.get("sample_size", 0) > cleaned.get("population_size", 0):
             self.add_error("sample_size", "Cannot exceed the population size.")
+        start, end = cleaned.get("period_start"), cleaned.get("period_end")
+        if start and end and end < start:
+            self.add_error("period_end", "Cannot precede the sample period start.")
+        profile = getattr(self.assessment, "soc2_profile", None)
+        if profile and profile.examination_type == Soc2AssessmentProfile.ExaminationType.TYPE_II:
+            if not start:
+                self.add_error("period_start", "Type II samples require a population period start.")
+            if not end:
+                self.add_error("period_end", "Type II samples require a population period end.")
+            if start and profile.period_start and start < profile.period_start:
+                self.add_error("period_start", "Cannot precede the Type II examination period.")
+            if end and profile.period_end and end > profile.period_end:
+                self.add_error("period_end", "Cannot extend beyond the Type II examination period.")
         return cleaned
 
 
@@ -1071,7 +1142,7 @@ class TestExecutionForm(forms.ModelForm):
         self.fields["objective_result"].queryset = objectives
         self.fields["procedure"].queryset = AssessmentProcedure.objects.filter(
             requirement__assessment_results__assessment=assessment,
-            method=AssessmentProcedure.Method.TEST,
+            method__in=(AssessmentProcedure.Method.TEST, AssessmentProcedure.Method.REPERFORM),
         ).distinct()
         self.fields["performed_by"].queryset = organization.memberships.filter(active=True)
         self.fields["evidence"].queryset = assessment.evidence_artifacts.all()

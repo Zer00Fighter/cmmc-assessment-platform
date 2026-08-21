@@ -1,1 +1,18 @@
-{% extends "base.html" %}{% block title %}{{ result.objective }}{% endblock %}{% block content %}<nav class="crumb"><a href="{% url 'assessment-execution' organization.slug assessment.id %}">Assessment execution</a> / {{ result.objective }}</nav><div class="control-layout"><section><p class="eyebrow">{{ result.control_result.requirement.framework.code }} · {{ result.control_result.requirement.requirement_id }}[{{ result.objective.objective_id }}]</p><h1>Assessment objective</h1><p class="statement">{{ result.objective.text }}</p><h2>Potential procedures</h2>{% for procedure in result.objective.requirement.assessment_procedures.all %}<div class="linked-item"><span>{{ procedure.assessment_object }}</span><span class="pill">{{ procedure.get_method_display }}</span></div>{% endfor %}</section><section class="form-card"><h2>Objective result</h2><form method="post" class="stack">{% csrf_token %}{{ form.as_p }}<button class="primary" type="submit">Save and derive control result</button></form></section></div>{% endblock %}
+{% extends "base.html" %}
+{% block title %}{{ result.objective }}{% endblock %}
+{% block content %}
+<nav class="crumb"><a href="{% url 'assessment-execution' organization.slug assessment.id %}">Assessment execution</a> / {{ result.objective }}</nav>
+<div class="control-layout">
+  <section>
+    <p class="eyebrow">{{ result.control_result.requirement.framework.code }} · {{ result.control_result.requirement.requirement_id }}[{{ result.objective.objective_id }}]</p>
+    <h1>Assessment objective</h1>
+    <p class="statement">{{ result.objective.text }}</p>
+    {% if points_of_focus %}<h2>Licensed Points of Focus</h2><p class="muted">Considerations supporting professional judgment; they are not separate mandatory criteria.</p>{% for point in points_of_focus %}<div class="linked-item"><span><strong>{{ point.point_id }}</strong> {{ point.licensed_text }}</span></div>{% endfor %}{% endif %}
+    <h2>Suggested procedures</h2>
+    {% for procedure in result.objective.requirement.assessment_procedures.all %}<div class="linked-item"><span>{{ procedure.assessment_object }}</span><span class="pill">{{ procedure.get_method_display }}</span></div>{% endfor %}
+    {% if customizations %}<h2>Customized procedures</h2>{% for procedure in customizations %}<div class="linked-item"><span>{{ procedure.procedure_text }}</span><span class="pill">{{ procedure.get_method_display }} · {% if procedure.enabled %}Enabled{% else %}Disabled{% endif %}</span></div>{% endfor %}{% endif %}
+    <section class="form-card compact"><h2>Add customized procedure</h2><form method="post" class="stack">{% csrf_token %}<input type="hidden" name="action" value="procedure">{{ customization_form.as_p }}<button class="secondary" type="submit">Save customized procedure</button></form></section>
+  </section>
+  <section class="form-card"><h2>Objective result</h2><form method="post" class="stack">{% csrf_token %}<input type="hidden" name="action" value="objective">{{ form.as_p }}<button class="primary" type="submit">Save and derive control result</button></form></section>
+</div>
+{% endblock %}

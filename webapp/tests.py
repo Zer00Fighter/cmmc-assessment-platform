@@ -26,6 +26,7 @@ from .models import (
     AssessmentReuseDecision,
     AssessmentObjective,
     AssessmentProcedure,
+    AssessmentProcedureCustomization,
     AssessmentSample,
     AssessmentTeamMember,
     AssessmentTemplate,
@@ -74,6 +75,7 @@ from .models import (
     RiskTolerancePolicy,
     RiskTreatmentAction,
     Soc2AssessmentProfile,
+    Soc2PointOfFocus,
     System,
     WorkflowHistory,
     UserProfile,
@@ -87,6 +89,8 @@ from .risk_heatmap import build_weighted_risk_heatmap
 from .risk_catalog import import_risk_catalog
 from .soc2_tsc import EXPECTED_BY_DOMAIN, install_baseline, load_catalog, validate_catalog
 from .soc2_activity_import import ACTIVITY_TARGETS, MIRROR_SHEETS, REQUIRED_COLUMNS, import_activities, normalize_workbook
+from .soc2_points_of_focus import import_points_of_focus
+from .soc2_procedures import ensure_soc2_execution_catalog
 
 
 class Soc2TscBaselineTests(TestCase):
@@ -303,6 +307,138 @@ class Soc2AssessmentModelTests(TestCase):
         response = self.client.get(reverse("assessment-dashboard", args=("soc2", assessment.id)))
         self.assertContains(response, "Type II")
         self.assertContains(response, "Security (required), Confidentiality")
+
+
+class Soc2ExecutionProcedureTests(TestCase):
+    def setUp(self):
+        users = get_user_model()
+        self.assessor = users.objects.create_user("soc2-executor", password="test-password")
+        self.organization = Organization.objects.create(name="SOC 2 Execution", slug="soc2-exec")
+        self.member = Membership.objects.create(
+            user=self.assessor, organization=self.organization, role=Membership.Role.ASSESSOR
+        )
+        self.system = System.objects.create(organization=self.organization, name="Execution System")
+        self.framework, _, _ = install_baseline()
+        ensure_soc2_execution_catalog()
+        self.client.login(username="soc2-executor", password="test-password")
+
+    def create_assessment(self, examination_type="TYPE_II"):
+        data = {
+            "name": f"SOC 2 {examination_type}", "frameworks": [self.framework.id],
+            "primary_framework": self.framework.id, "examination_type": examination_type,
+        }
+        if examination_type == "TYPE_I":
+            data["as_of_date"] = "2026-06-30"
+        else:
+            data.update({"period_start": "2026-01-01", "period_end": "2026-06-30"})
+        response = self.client.post(
+            reverse("assessment-create", args=(self.organization.slug, self.system.id)), data
+        )
+        assessment = Assessment.objects.get(name=f"SOC 2 {examination_type}")
+        self.assertEqual(response.status_code, 302)
+        return assessment
+
+    def test_catalog_creates_five_omni_procedures_per_criterion(self):
+        result = ensure_soc2_execution_catalog()
+        self.assertEqual(result["requirements"], 61)
+        self.assertEqual(AssessmentObjective.objects.filter(
+            requirement__framework=self.framework, objective_id="OMNI-SOC2-CRITERION"
+        ).count(), 61)
+        self.assertEqual(AssessmentProcedure.objects.filter(
+            requirement__framework=self.framework
+        ).count(), 305)
+        self.assertEqual(set(AssessmentProcedure.objects.filter(
+            requirement__framework=self.framework
+        ).values_list("method", flat=True)), {"EXAMINE", "INTERVIEW", "OBSERVE", "TEST", "REPERFORM"})
+
+    def test_type_two_requires_all_three_conclusions(self):
+        assessment = self.create_assessment()
+        result = assessment.control_results.filter(in_scope=True).first().objective_results.get()
+        url = reverse("objective-edit", args=(self.organization.slug, assessment.id, result.id))
+        invalid = self.client.post(url, {
+            "action": "objective", "status": "MET",
+            "design_conclusion": "EFFECTIVE", "implementation_conclusion": "EFFECTIVE",
+            "operating_effectiveness_conclusion": "NOT_TESTED",
+            "assessor_notes": "Designed and implemented.",
+        })
+        self.assertContains(invalid, "Type II requires an operating-effectiveness conclusion")
+        valid = self.client.post(url, {
+            "action": "objective", "status": "MET",
+            "design_conclusion": "EFFECTIVE", "implementation_conclusion": "EFFECTIVE",
+            "operating_effectiveness_conclusion": "EFFECTIVE",
+            "assessor_notes": "Designed, implemented, and operating effectively.",
+        })
+        self.assertRedirects(valid, reverse("assessment-execution", args=(self.organization.slug, assessment.id)))
+
+    def test_type_one_forces_operating_effectiveness_not_applicable(self):
+        assessment = self.create_assessment("TYPE_I")
+        result = assessment.control_results.filter(in_scope=True).first().objective_results.get()
+        response = self.client.post(
+            reverse("objective-edit", args=(self.organization.slug, assessment.id, result.id)),
+            {"action": "objective", "status": "MET", "design_conclusion": "EFFECTIVE",
+             "implementation_conclusion": "EFFECTIVE",
+             "operating_effectiveness_conclusion": "EFFECTIVE",
+             "assessor_notes": "Suitably designed and implemented as of the date."},
+        )
+        self.assertEqual(response.status_code, 302)
+        result.refresh_from_db()
+        self.assertEqual(result.operating_effectiveness_conclusion, "NOT_APPLICABLE")
+
+    def test_custom_procedure_is_assessment_specific(self):
+        assessment = self.create_assessment()
+        result = assessment.control_results.filter(in_scope=True).first().objective_results.get()
+        base = result.objective.procedures.first()
+        response = self.client.post(
+            reverse("objective-edit", args=(self.organization.slug, assessment.id, result.id)),
+            {"action": "procedure", "procedure-base_procedure": base.id,
+             "procedure-method": "REPERFORM",
+             "procedure-procedure_text": "Reperform the selected access review sample.",
+             "procedure-enabled": "on"},
+        )
+        self.assertEqual(response.status_code, 302)
+        customization = AssessmentProcedureCustomization.objects.get()
+        self.assertEqual(customization.objective_result, result)
+        self.assertEqual(customization.updated_by, self.assessor)
+
+    def test_type_two_sample_tracks_population_and_period(self):
+        assessment = self.create_assessment()
+        objective = assessment.control_results.filter(in_scope=True).first().objective_results.get()
+        url = reverse("sample-create", args=(self.organization.slug, assessment.id))
+        invalid = self.client.post(url, {
+            "name": "Outside period", "population_description": "Access changes",
+            "population_size": 20, "sample_size": 5, "period_start": "2025-12-01",
+            "period_end": "2026-06-30", "selection_method": "Random",
+            "selected_items": "1, 2, 3, 4, 5", "objectives": [objective.id],
+        })
+        self.assertContains(invalid, "Cannot precede the Type II examination period")
+        valid = self.client.post(url, {
+            "name": "Valid population", "population_description": "Access changes",
+            "population_size": 20, "sample_size": 5, "period_start": "2026-01-01",
+            "period_end": "2026-06-30", "selection_method": "Random",
+            "selected_items": "1, 2, 3, 4, 5", "objectives": [objective.id],
+        })
+        self.assertEqual(valid.status_code, 302)
+        sample = AssessmentSample.objects.get(name="Valid population")
+        self.assertEqual(sample.population_size, 20)
+        self.assertEqual(sample.period_start.isoformat(), "2026-01-01")
+
+    def test_authorized_points_of_focus_import_retains_provenance(self):
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Licensed POF"
+        sheet.append(["Criterion ID", "Point of Focus ID", "Point of Focus Text", "Source Reference", "Page"])
+        sheet.append(["CC1.1", "POF-1", "Authorized synthetic point text.", "Licensed test source", 10])
+        path = Path(tempfile.mkdtemp()) / "licensed-pof.xlsx"
+        self.addCleanup(lambda: path.unlink(missing_ok=True))
+        workbook.save(path)
+        workbook.close()
+        result, report = import_points_of_focus(path)
+        self.assertTrue(report["valid"])
+        self.assertEqual(result["created"], 1)
+        point = Soc2PointOfFocus.objects.get()
+        self.assertEqual(point.requirement.requirement_id, "CC1.1")
+        self.assertEqual(point.source_row, 2)
+        self.assertEqual(point.source_page, 10)
 
 
 class SprintSeventeenPointSevenRiskHeatmapTests(TestCase):
