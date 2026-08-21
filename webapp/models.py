@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils import timezone
@@ -721,6 +722,71 @@ class Assessment(models.Model):
         )
 
 
+class Soc2AssessmentProfile(models.Model):
+    class ExaminationType(models.TextChoices):
+        TYPE_I = "TYPE_I", "Type I — design as of a specified date"
+        TYPE_II = "TYPE_II", "Type II — design and operating effectiveness over a period"
+
+    class Category(models.TextChoices):
+        SECURITY = "SECURITY", "Security (required)"
+        AVAILABILITY = "AVAILABILITY", "Availability"
+        PROCESSING_INTEGRITY = "PROCESSING_INTEGRITY", "Processing Integrity"
+        CONFIDENTIALITY = "CONFIDENTIALITY", "Confidentiality"
+        PRIVACY = "PRIVACY", "Privacy"
+
+    assessment = models.OneToOneField(
+        Assessment, on_delete=models.CASCADE, related_name="soc2_profile"
+    )
+    examination_type = models.CharField(max_length=10, choices=ExaminationType.choices)
+    included_categories = models.JSONField(default=list)
+    as_of_date = models.DateField(null=True, blank=True)
+    period_start = models.DateField(null=True, blank=True)
+    period_end = models.DateField(null=True, blank=True)
+    scope_notes = models.TextField(blank=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="updated_soc2_profiles",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("assessment__name",)
+
+    @property
+    def included_category_labels(self):
+        labels = dict(self.Category.choices)
+        return [labels.get(item, item) for item in self.included_categories]
+
+    def clean(self):
+        errors = {}
+        categories = set(self.included_categories or [])
+        valid_categories = set(self.Category.values)
+        if self.Category.SECURITY not in categories:
+            errors["included_categories"] = "Security is required for every SOC 2 assessment."
+        if categories - valid_categories:
+            errors["included_categories"] = "One or more selected SOC 2 categories are invalid."
+        if self.examination_type == self.ExaminationType.TYPE_I:
+            if not self.as_of_date:
+                errors["as_of_date"] = "Type I requires an as-of date."
+            if self.period_start or self.period_end:
+                errors["period_start"] = "Type I does not use an examination period."
+        elif self.examination_type == self.ExaminationType.TYPE_II:
+            if not self.period_start:
+                errors["period_start"] = "Type II requires a period start."
+            if not self.period_end:
+                errors["period_end"] = "Type II requires a period end."
+            if self.period_start and self.period_end and self.period_end < self.period_start:
+                errors["period_end"] = "The Type II period end cannot precede its start."
+            if self.as_of_date:
+                errors["as_of_date"] = "Type II uses a period, not an as-of date."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
 class AssessmentFramework(models.Model):
     assessment = models.ForeignKey(
         Assessment, on_delete=models.CASCADE, related_name="framework_selections"
@@ -973,6 +1039,8 @@ class ControlAssessment(models.Model):
     implementation_state = models.CharField(
         max_length=30, choices=Implementation.choices, default=Implementation.UNASSESSED
     )
+    in_scope = models.BooleanField(default=True)
+    scope_rationale = models.TextField(blank=True)
     assessor_notes_findings = models.TextField(blank=True)
     control_owner = models.CharField(max_length=200, blank=True)
     primary_owner = models.ForeignKey(

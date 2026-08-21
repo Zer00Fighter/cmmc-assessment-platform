@@ -73,6 +73,7 @@ from .models import (
     RiskReassessment,
     RiskTolerancePolicy,
     RiskTreatmentAction,
+    Soc2AssessmentProfile,
     System,
     WorkflowHistory,
     UserProfile,
@@ -218,6 +219,90 @@ class Soc2ActivityNormalizationTests(TestCase):
         ).exists())
         again, _ = import_activities(path)
         self.assertEqual(again, {"created": 0, "existing": 60, "mappings_created": 0})
+
+
+class Soc2AssessmentModelTests(TestCase):
+    def setUp(self):
+        users = get_user_model()
+        self.assessor = users.objects.create_user("soc2-assessor", password="test-password")
+        self.organization = Organization.objects.create(name="Synthetic SOC 2", slug="soc2")
+        Membership.objects.create(
+            user=self.assessor, organization=self.organization, role=Membership.Role.ASSESSOR
+        )
+        self.system = System.objects.create(organization=self.organization, name="SOC 2 System")
+        self.framework, _, _ = install_baseline()
+        self.client.login(username="soc2-assessor", password="test-password")
+
+    def create_type_two(self, optional_categories=None):
+        response = self.client.post(
+            reverse("assessment-create", args=("soc2", self.system.id)),
+            {
+                "name": "SOC 2 Type II Assessment",
+                "frameworks": [self.framework.id],
+                "primary_framework": self.framework.id,
+                "examination_type": Soc2AssessmentProfile.ExaminationType.TYPE_II,
+                "optional_categories": optional_categories or [],
+                "period_start": "2026-01-01", "period_end": "2026-06-30",
+                "scope_notes": "Synthetic service scope.",
+            },
+        )
+        return response, Assessment.objects.filter(name="SOC 2 Type II Assessment").first()
+
+    def test_type_two_creation_requires_security_and_scopes_optional_categories(self):
+        response, assessment = self.create_type_two([
+            Soc2AssessmentProfile.Category.PRIVACY
+        ])
+        self.assertIsNotNone(assessment)
+        self.assertRedirects(response, reverse("assessment-dashboard", args=("soc2", assessment.id)))
+        profile = assessment.soc2_profile
+        self.assertEqual(profile.included_categories, ["SECURITY", "PRIVACY"])
+        self.assertEqual(assessment.control_results.filter(in_scope=True).count(), 51)
+        excluded = assessment.control_results.filter(in_scope=False)
+        self.assertEqual(excluded.count(), 10)
+        self.assertFalse(excluded.exclude(
+            status=ControlAssessment.Status.NOT_APPLICABLE,
+            implementation_state=ControlAssessment.Implementation.NA,
+        ).exists())
+
+    def test_type_one_requires_as_of_date_and_rejects_period(self):
+        response = self.client.post(
+            reverse("assessment-create", args=("soc2", self.system.id)),
+            {
+                "name": "Invalid Type I", "frameworks": [self.framework.id],
+                "primary_framework": self.framework.id,
+                "examination_type": Soc2AssessmentProfile.ExaminationType.TYPE_I,
+                "period_start": "2026-01-01", "period_end": "2026-01-31",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Type I requires an as-of date")
+        self.assertFalse(Assessment.objects.filter(name="Invalid Type I").exists())
+
+    def test_plan_can_expand_scope_without_retaining_auto_na_conclusions(self):
+        _, assessment = self.create_type_two()
+        self.assertEqual(assessment.control_results.filter(in_scope=True).count(), 33)
+        response = self.client.post(
+            reverse("assessment-plan", args=("soc2", assessment.id)),
+            {
+                "action": "soc2",
+                "soc2-examination_type": Soc2AssessmentProfile.ExaminationType.TYPE_II,
+                "soc2-optional_categories": [Soc2AssessmentProfile.Category.AVAILABILITY],
+                "soc2-period_start": "2026-01-01", "soc2-period_end": "2026-06-30",
+            },
+        )
+        self.assertRedirects(response, reverse("assessment-plan", args=("soc2", assessment.id)))
+        availability = assessment.control_results.filter(requirement__domain="Availability")
+        self.assertEqual(availability.filter(in_scope=True).count(), 3)
+        self.assertFalse(availability.exclude(
+            status=ControlAssessment.Status.NOT_ASSESSED,
+            implementation_state=ControlAssessment.Implementation.UNASSESSED,
+        ).exists())
+
+    def test_dashboard_displays_soc2_profile(self):
+        _, assessment = self.create_type_two([Soc2AssessmentProfile.Category.CONFIDENTIALITY])
+        response = self.client.get(reverse("assessment-dashboard", args=("soc2", assessment.id)))
+        self.assertContains(response, "Type II")
+        self.assertContains(response, "Security (required), Confidentiality")
 
 
 class SprintSeventeenPointSevenRiskHeatmapTests(TestCase):

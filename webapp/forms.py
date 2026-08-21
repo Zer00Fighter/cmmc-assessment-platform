@@ -19,8 +19,9 @@ from .models import (
     LoginAttempt,
     RemediationMilestone, RemediationPlan, RequirementMapping, RequirementRiskMapping,
     MappingChangeRequest, RiskAcceptanceRequest, RiskReassessment, RiskRegisterEntry,
-    RiskTolerancePolicy, RiskTreatmentAction, System, TestExecution,
+    RiskTolerancePolicy, RiskTreatmentAction, Soc2AssessmentProfile, System, TestExecution,
 )
+from .soc2_assessment import synchronize_soc2_scope
 
 
 class OrganizationForm(forms.ModelForm):
@@ -767,6 +768,97 @@ class AssessmentForm(forms.ModelForm):
         return cleaned
 
 
+class Soc2AssessmentProfileForm(forms.Form):
+    examination_type = forms.ChoiceField(
+        choices=Soc2AssessmentProfile.ExaminationType.choices, required=False,
+        initial=Soc2AssessmentProfile.ExaminationType.TYPE_II,
+        label="SOC 2 examination type",
+    )
+    optional_categories = forms.MultipleChoiceField(
+        choices=(
+            (Soc2AssessmentProfile.Category.AVAILABILITY, "Availability"),
+            (Soc2AssessmentProfile.Category.PROCESSING_INTEGRITY, "Processing Integrity"),
+            (Soc2AssessmentProfile.Category.CONFIDENTIALITY, "Confidentiality"),
+            (Soc2AssessmentProfile.Category.PRIVACY, "Privacy"),
+        ), required=False, widget=forms.CheckboxSelectMultiple,
+        help_text="Security is always included. Select any additional categories in scope.",
+    )
+    as_of_date = forms.DateField(
+        required=False, widget=forms.DateInput(attrs={"type": "date"}),
+        help_text="Required only for Type I.",
+    )
+    period_start = forms.DateField(
+        required=False, widget=forms.DateInput(attrs={"type": "date"}),
+        help_text="Required only for Type II.",
+    )
+    period_end = forms.DateField(
+        required=False, widget=forms.DateInput(attrs={"type": "date"}),
+        help_text="Required only for Type II.",
+    )
+    scope_notes = forms.CharField(
+        required=False, widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Document service commitments, system boundaries, and category-scoping rationale.",
+    )
+
+    def __init__(self, *args, profile=None, required_profile=False, **kwargs):
+        self.profile = profile
+        self.required_profile = required_profile
+        if profile and not args and "initial" not in kwargs:
+            kwargs["initial"] = {
+                "examination_type": profile.examination_type,
+                "optional_categories": [item for item in profile.included_categories
+                                        if item != Soc2AssessmentProfile.Category.SECURITY],
+                "as_of_date": profile.as_of_date,
+                "period_start": profile.period_start,
+                "period_end": profile.period_end,
+                "scope_notes": profile.scope_notes,
+            }
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned = super().clean()
+        if not self.required_profile:
+            return cleaned
+        examination_type = cleaned.get("examination_type")
+        if not examination_type:
+            self.add_error("examination_type", "Choose Type I or Type II.")
+        if examination_type == Soc2AssessmentProfile.ExaminationType.TYPE_I:
+            if not cleaned.get("as_of_date"):
+                self.add_error("as_of_date", "Type I requires an as-of date.")
+            if cleaned.get("period_start") or cleaned.get("period_end"):
+                self.add_error("period_start", "Type I does not use an examination period.")
+        if examination_type == Soc2AssessmentProfile.ExaminationType.TYPE_II:
+            start, end = cleaned.get("period_start"), cleaned.get("period_end")
+            if not start:
+                self.add_error("period_start", "Type II requires a period start.")
+            if not end:
+                self.add_error("period_end", "Type II requires a period end.")
+            if start and end and end < start:
+                self.add_error("period_end", "The Type II period end cannot precede its start.")
+            if cleaned.get("as_of_date"):
+                self.add_error("as_of_date", "Type II uses a period, not an as-of date.")
+        return cleaned
+
+    def save(self, assessment, user):
+        examination_type = self.cleaned_data["examination_type"]
+        categories = [Soc2AssessmentProfile.Category.SECURITY]
+        categories.extend(self.cleaned_data.get("optional_categories") or [])
+        profile = self.profile or Soc2AssessmentProfile(assessment=assessment)
+        profile.examination_type = examination_type
+        profile.included_categories = categories
+        profile.as_of_date = (self.cleaned_data.get("as_of_date")
+                              if examination_type == Soc2AssessmentProfile.ExaminationType.TYPE_I else None)
+        profile.period_start = (self.cleaned_data.get("period_start")
+                                if examination_type == Soc2AssessmentProfile.ExaminationType.TYPE_II else None)
+        profile.period_end = (self.cleaned_data.get("period_end")
+                              if examination_type == Soc2AssessmentProfile.ExaminationType.TYPE_II else None)
+        profile.scope_notes = self.cleaned_data.get("scope_notes", "")
+        profile.updated_by = user
+        profile.save()
+        synchronize_soc2_scope(profile)
+        return profile
+
+
 class AssessmentTemplateForm(forms.ModelForm):
     class Meta:
         model = AssessmentTemplate
@@ -1025,11 +1117,19 @@ class NotificationPolicyForm(forms.ModelForm):
 
 
 class ControlAssessmentForm(forms.ModelForm):
+    in_scope = forms.TypedChoiceField(
+        choices=((True, "In scope"), (False, "Outside scope")),
+        coerce=lambda value: str(value).casefold() == "true",
+        widget=forms.Select,
+    )
+
     class Meta:
         model = ControlAssessment
         fields = (
             "status",
             "implementation_state",
+            "in_scope",
+            "scope_rationale",
             "assessor_notes_findings",
             "primary_owner",
             "supporting_owners",
@@ -1037,6 +1137,7 @@ class ControlAssessmentForm(forms.ModelForm):
         )
         widgets = {
             "assessor_notes_findings": forms.Textarea(attrs={"rows": 6}),
+            "scope_rationale": forms.Textarea(attrs={"rows": 3}),
             "supporting_owners": forms.CheckboxSelectMultiple(),
             "ssp_reference": forms.TextInput(
                 attrs={"placeholder": "SSP section/reference"}
@@ -1045,6 +1146,11 @@ class ControlAssessmentForm(forms.ModelForm):
 
     def __init__(self, *args, organization=None, **kwargs):
         super().__init__(*args, **kwargs)
+        field_name = self.add_prefix("in_scope")
+        if self.is_bound and field_name not in self.data:
+            data = self.data.copy()
+            data[field_name] = str(self.instance.in_scope if self.instance.pk else True)
+            self.data = data
         owners = Membership.objects.none()
         if organization is not None:
             owners = Membership.objects.filter(
@@ -1057,9 +1163,21 @@ class ControlAssessmentForm(forms.ModelForm):
         cleaned = super().clean()
         status = cleaned.get("status")
         notes = (cleaned.get("assessor_notes_findings") or "").strip()
+        if not cleaned.get("in_scope") and not (cleaned.get("scope_rationale") or "").strip():
+            self.add_error("scope_rationale", "Explain why this criterion is outside scope.")
         if status != ControlAssessment.Status.NOT_ASSESSED and not notes:
             self.add_error(
                 "assessor_notes_findings",
                 "A conformity statement, finding, or N/A justification is required.",
             )
         return cleaned
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if not instance.in_scope:
+            instance.status = ControlAssessment.Status.NOT_APPLICABLE
+            instance.implementation_state = ControlAssessment.Implementation.NA
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance

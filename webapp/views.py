@@ -30,6 +30,7 @@ from .forms import (
     AssessmentTemplateForm,
     TemplateAssessmentForm,
     AssessmentPlanForm,
+    Soc2AssessmentProfileForm,
     AssessmentSampleForm,
     AssessmentTeamForm,
     BulkControlOwnerForm,
@@ -119,6 +120,7 @@ from .models import (
     RiskReassessment,
     RiskTolerancePolicy,
     RiskTreatmentAction,
+    Soc2AssessmentProfile,
     System,
     TestExecution,
     EvidenceReviewHistory,
@@ -130,6 +132,7 @@ from .mapping_governance import review_change
 from .notifications import assessment_url, notify, notify_assessment_team, organization_users
 from .risk_heatmap import build_weighted_risk_heatmap
 from .risk_workflow import finding_risk_suggestions
+from .soc2_activity_import import TSC_FRAMEWORK_CODE
 
 
 def _organizations_for(user):
@@ -993,7 +996,15 @@ def assessment_create(
         raise Http404
     if request.method == "POST":
         form = AssessmentForm(request.POST)
-        if form.is_valid():
+        form_valid = form.is_valid()
+        soc2_selected = form_valid and any(
+            framework.code == TSC_FRAMEWORK_CODE
+            for framework in form.cleaned_data["frameworks"]
+        )
+        soc2_form = Soc2AssessmentProfileForm(
+            request.POST, required_profile=soc2_selected
+        )
+        if form_valid and soc2_form.is_valid():
             assessment = form.save(commit=False)
             assessment.system = system
             assessment.framework = form.cleaned_data["primary_framework"]
@@ -1019,6 +1030,7 @@ def assessment_create(
                     ObjectiveAssessment(control_result=result, objective=objective)
                     for objective in result.requirement.objectives.all()
                 ])
+            soc2_profile = soc2_form.save(assessment, request.user) if soc2_selected else None
             AuditEvent.objects.create(
                 organization=organization,
                 actor=request.user,
@@ -1028,6 +1040,12 @@ def assessment_create(
                 detail={
                     "primary_framework": assessment.framework.code,
                     "frameworks": [item.code for item in form.cleaned_data["frameworks"]],
+                    "soc2_examination_type": (
+                        soc2_profile.examination_type if soc2_profile else None
+                    ),
+                    "soc2_categories": (
+                        soc2_profile.included_categories if soc2_profile else []
+                    ),
                 },
             )
             return redirect(
@@ -1035,10 +1053,12 @@ def assessment_create(
             )
     else:
         form = AssessmentForm()
+        soc2_form = Soc2AssessmentProfileForm()
     return render(
         request,
         "webapp/assessment_form.html",
-        {"organization": organization, "system": system, "form": form},
+        {"organization": organization, "system": system, "form": form,
+         "soc2_form": soc2_form},
     )
 
 
@@ -1358,6 +1378,11 @@ def assessment_dashboard(
         "requirement__framework", "primary_owner__user"
     ).prefetch_related("supporting_owners")
     selected_frameworks = list(_selected_frameworks(assessment))
+    try:
+        soc2_profile = assessment.soc2_profile
+    except Soc2AssessmentProfile.DoesNotExist:
+        soc2_profile = None
+    soc2_selected = any(item.code == TSC_FRAMEWORK_CODE for item in selected_frameworks)
     framework_code = request.GET.get("framework", "").strip()
     active_framework = next(
         (item for item in selected_frameworks if item.code == framework_code), None
@@ -1534,6 +1559,8 @@ def assessment_dashboard(
             "completion": round(assessed / total * 100, 1) if total else 0,
             "framework_metrics": framework_metrics,
             "selected_frameworks": selected_frameworks,
+            "soc2_selected": soc2_selected,
+            "soc2_profile": soc2_profile,
             "active_framework": active_framework,
             "can_edit": _can_edit(request.user, organization),
             "can_manage_evidence": _can_manage_evidence(request.user, organization),
@@ -1667,6 +1694,17 @@ def assessment_plan(request: HttpRequest, org_slug: str, assessment_id: int) -> 
     if request.method == "POST":
         _require_unlocked(assessment)
     plan_form = AssessmentPlanForm(request.POST or None, instance=assessment)
+    soc2_selected = _selected_frameworks(assessment).filter(
+        code=TSC_FRAMEWORK_CODE
+    ).exists()
+    try:
+        soc2_profile = assessment.soc2_profile
+    except Soc2AssessmentProfile.DoesNotExist:
+        soc2_profile = None
+    soc2_form = Soc2AssessmentProfileForm(
+        request.POST or None, profile=soc2_profile,
+        required_profile=soc2_selected, prefix="soc2",
+    )
     team_form = AssessmentTeamForm(
         request.POST or None, organization=organization, prefix="team"
     )
@@ -1684,10 +1722,25 @@ def assessment_plan(request: HttpRequest, org_slug: str, assessment_id: int) -> 
         member.save()
         messages.success(request, "Assessment team member added.")
         return redirect("assessment-plan", org_slug=org_slug, assessment_id=assessment.id)
+    if (request.method == "POST" and request.POST.get("action") == "soc2"
+            and soc2_selected and soc2_form.is_valid()):
+        profile = soc2_form.save(assessment, request.user)
+        AuditEvent.objects.create(
+            organization=organization, actor=request.user,
+            action="assessment.soc2_scope_updated", object_type="Assessment",
+            object_id=str(assessment.id), detail={
+                "examination_type": profile.examination_type,
+                "categories": profile.included_categories,
+            },
+        )
+        messages.success(request, "SOC 2 examination scope updated.")
+        return redirect("assessment-plan", org_slug=org_slug, assessment_id=assessment.id)
     return render(request, "webapp/assessment_plan.html", {
         "organization": organization, "assessment": assessment,
         "plan_form": plan_form, "team_form": team_form,
         "team": assessment.team_members.select_related("membership__user"),
+        "soc2_selected": soc2_selected, "soc2_profile": soc2_profile,
+        "soc2_form": soc2_form,
     })
 
 
