@@ -82,6 +82,63 @@ from .omni_evidence_catalog import import_catalog, normalize_cmmc
 from .authoritative_sources import import_authoritative_sources
 from .risk_heatmap import build_weighted_risk_heatmap
 from .risk_catalog import import_risk_catalog
+from .soc2_tsc import EXPECTED_BY_DOMAIN, install_baseline, load_catalog, validate_catalog
+
+
+class Soc2TscBaselineTests(TestCase):
+    def test_catalog_has_exact_authoritative_identifier_inventory(self):
+        catalog, _ = load_catalog()
+        report = validate_catalog(catalog)
+        self.assertTrue(report["valid"], report["errors"])
+        self.assertEqual(report["criterion_count"], 61)
+        self.assertEqual(report["domain_counts"], {
+            "Security — Common Criteria": 33,
+            "Availability": 3,
+            "Processing Integrity": 5,
+            "Confidentiality": 2,
+            "Privacy": 18,
+        })
+        actual = {row[0] for row in catalog["criteria"]}
+        expected = {identifier for identifiers in EXPECTED_BY_DOMAIN.values() for identifier in identifiers}
+        self.assertEqual(actual, expected)
+        self.assertNotIn("CC8.2", actual)
+        self.assertNotIn("CC9.3", actual)
+
+    def test_installer_creates_immutable_idempotent_framework(self):
+        framework, created, report = install_baseline()
+        self.assertTrue(created)
+        self.assertEqual(report["criterion_count"], 61)
+        self.assertEqual(framework.requirements.count(), 61)
+        self.assertEqual(framework.scoring_method, Framework.ScoringMethod.NONE)
+        self.assertTrue(framework.requirements.filter(requirement_id="CC3.4").exists())
+        self.assertTrue(framework.requirements.filter(requirement_id="P8.1").exists())
+        same, created_again, _ = install_baseline()
+        self.assertFalse(created_again)
+        self.assertEqual(same.pk, framework.pk)
+
+    def test_validator_rejects_missing_and_invented_identifiers(self):
+        catalog, _ = load_catalog()
+        catalog["criteria"] = [row for row in catalog["criteria"] if row[0] != "CC7.5"]
+        catalog["criteria"].append(["CC8.2", "Security — Common Criteria", "Invented"])
+        report = validate_catalog(catalog)
+        self.assertFalse(report["valid"])
+        self.assertTrue(any("CC7.5" in error for error in report["errors"]))
+        self.assertTrue(any("CC8.2" in error for error in report["errors"]))
+
+    def test_existing_version_with_different_digest_is_rejected(self):
+        framework, _, _ = install_baseline()
+        framework.source_sha256 = "0" * 64
+        framework.save(update_fields=("source_sha256",))
+        with self.assertRaisesRegex(ValueError, "immutable"):
+            install_baseline()
+
+    def test_catalog_metadata_does_not_claim_to_reproduce_aicpa_text(self):
+        catalog, _ = load_catalog()
+        metadata = catalog["framework"]
+        self.assertIn("not reproduced", metadata["content_scope"])
+        self.assertIn("copyrighted", metadata["copyright_notice"])
+        for _, _, label in catalog["criteria"]:
+            self.assertTrue(label.strip())
 
 
 class SprintSeventeenPointSevenRiskHeatmapTests(TestCase):
