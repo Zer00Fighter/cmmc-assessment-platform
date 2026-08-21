@@ -324,7 +324,10 @@ class Soc2ExecutionProcedureTests(TestCase):
         self.member = Membership.objects.create(
             user=self.assessor, organization=self.organization, role=Membership.Role.ASSESSOR
         )
-        self.system = System.objects.create(organization=self.organization, name="Execution System")
+        self.system = System.objects.create(
+            organization=self.organization, name="Execution System",
+            description="Production services and supporting operational processes.",
+        )
         self.framework, _, _ = install_baseline()
         ensure_soc2_execution_catalog()
         self.client.login(username="soc2-executor", password="test-password")
@@ -334,7 +337,6 @@ class Soc2ExecutionProcedureTests(TestCase):
             "name": f"SOC 2 {examination_type}", "frameworks": [self.framework.id],
             "primary_framework": self.framework.id, "examination_type": examination_type,
             "service_commitments": "Protect customer information and maintain reliable service.",
-            "system_boundaries": "Production services, supporting people, processes, and data.",
         }
         if examination_type == "TYPE_I":
             data["as_of_date"] = "2026-06-30"
@@ -579,7 +581,7 @@ class Soc2ExecutionProcedureTests(TestCase):
             self.assertIn("not an AICPA SOC 2 report", text)
             self.assertIn("Security (required)", text)
             self.assertIn("Protect customer information", text)
-            self.assertIn("Production services", text)
+            self.assertIn("Production services and supporting operational processes", text)
             self.assertGreater(len(document.tables[0].rows), 33)
             assessment.delete()
 
@@ -598,7 +600,7 @@ class Soc2ExecutionProcedureTests(TestCase):
         record = GeneratedDocument.objects.get(
             assessment=assessment, kind=GeneratedDocument.Kind.SOC2_REPORT
         )
-        self.assertIn("SOC-2-TYPE-II", record.filename)
+        self.assertIn("SOC-2-TYPE-II-Readiness-Work-Program", record.filename)
         self.assertTrue(record.content_sha256)
         self.assertTrue(AuditEvent.objects.filter(
             action="document.generated", object_id=str(record.id)

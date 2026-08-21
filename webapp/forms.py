@@ -799,10 +799,6 @@ class Soc2AssessmentProfileForm(forms.Form):
         required=False, widget=forms.Textarea(attrs={"rows": 3}),
         help_text="Describe the service commitments and system requirements presented to users.",
     )
-    system_boundaries = forms.CharField(
-        required=False, widget=forms.Textarea(attrs={"rows": 3}),
-        help_text="Describe the services, infrastructure, software, people, procedures, and data in scope.",
-    )
     scope_notes = forms.CharField(
         required=False, widget=forms.Textarea(attrs={"rows": 3}),
         help_text="Document category-scoping rationale and other examination-specific limitations.",
@@ -820,7 +816,6 @@ class Soc2AssessmentProfileForm(forms.Form):
                 "period_start": profile.period_start,
                 "period_end": profile.period_end,
                 "service_commitments": profile.service_commitments,
-                "system_boundaries": profile.system_boundaries,
                 "scope_notes": profile.scope_notes,
             }
         super().__init__(*args, **kwargs)
@@ -863,7 +858,6 @@ class Soc2AssessmentProfileForm(forms.Form):
         profile.period_end = (self.cleaned_data.get("period_end")
                               if examination_type == Soc2AssessmentProfile.ExaminationType.TYPE_II else None)
         profile.service_commitments = self.cleaned_data.get("service_commitments", "")
-        profile.system_boundaries = self.cleaned_data.get("system_boundaries", "")
         profile.scope_notes = self.cleaned_data.get("scope_notes", "")
         profile.updated_by = user
         profile.save()

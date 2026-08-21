@@ -157,8 +157,8 @@ def soc2_report_readiness(assessment) -> dict:
                 "total_criteria": 0, "assessed_criteria": 0, "completion_percent": 0}
     if not profile.service_commitments.strip():
         blockers.append("SOC 2 service commitments are not documented.")
-    if not profile.system_boundaries.strip():
-        blockers.append("SOC 2 system boundaries are not documented.")
+    if not (assessment.system.description.strip() or assessment.system.scope.strip()):
+        blockers.append("A system description or assessment scope is not documented.")
     results = assessment.control_results.filter(
         in_scope=True, requirement__framework__code=TSC_FRAMEWORK_CODE
     ).select_related("requirement").prefetch_related(
@@ -230,13 +230,13 @@ def build_soc2_report(assessment) -> bytes:
         "remediation_plans",
     )
     document = Document()
-    document.add_heading("SOC 2 Readiness and Assessment Report", 0)
+    document.add_heading("SOC 2 Readiness Assessment Work Program", 0)
     document.add_paragraph(f"Organization: {assessment.system.organization.name}")
     document.add_paragraph(f"System: {assessment.system.name}")
     document.add_paragraph(f"Assessment: {assessment.name}")
     document.add_heading("Important limitation", level=1)
     document.add_paragraph(
-        "This Omni-generated deliverable documents assessment readiness and control testing. "
+        "This Omni-generated work program documents readiness-assessment procedures and results. "
         "It is not an AICPA SOC 2 report, attestation opinion, or substitute for an examination "
         "performed and issued by an independent licensed CPA firm."
     )
@@ -252,7 +252,8 @@ def build_soc2_report(assessment) -> bytes:
         f"NOT MET {counts[ControlAssessment.Status.NOT_MET]} · "
         f"N/A {counts[ControlAssessment.Status.NOT_APPLICABLE]}."
     )
-    document.add_heading("System and examination scope", level=1)
+    document.add_heading("System description and readiness-assessment scope", level=1)
+    document.add_paragraph(assessment.system.description or "System description not recorded.")
     document.add_paragraph(assessment.system.scope or "System scope not recorded.")
     document.add_paragraph("Trust Services categories: " + ", ".join(profile.included_category_labels))
     if profile.examination_type == "TYPE_I":
@@ -263,7 +264,16 @@ def build_soc2_report(assessment) -> bytes:
             f"{profile.period_end:%B %d, %Y}"
         )
     document.add_paragraph(f"Service commitments: {profile.service_commitments or 'Not recorded.'}")
-    document.add_paragraph(f"System boundaries: {profile.system_boundaries or 'Not recorded.'}")
+    document.add_heading("Document request list", level=1)
+    if assessment.evidence_requests.exists():
+        for request in assessment.evidence_requests.prefetch_related("controls__requirement"):
+            controls = ", ".join(item.requirement.requirement_id for item in request.controls.all())
+            document.add_paragraph(
+                f"{request.title} · {request.get_status_display()} · {controls or 'General'}",
+                style="List Bullet",
+            )
+    else:
+        document.add_paragraph("No document requests have been recorded.")
     document.add_heading("Criterion results and testing traceability", level=1)
     table = document.add_table(rows=1, cols=8); table.style = "Table Grid"
     labels = ("Criterion", "Category", "Result", "Design", "Implementation",

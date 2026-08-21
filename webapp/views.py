@@ -3663,7 +3663,7 @@ def report_download(
         elif normalized == GeneratedDocument.Kind.SOC2_REPORT:
             readiness = soc2_report_readiness(assessment)
             content = build_soc2_report(assessment)
-            filename = f"Omni-{assessment.id}-SOC-2-{assessment.soc2_profile.examination_type.replace('_', '-')}-Assessment-Report.docx"
+            filename = f"Omni-{assessment.id}-SOC-2-{assessment.soc2_profile.examination_type.replace('_', '-')}-Readiness-Work-Program.docx"
         else:
             content, readiness = build_package(assessment, request.user)
             filename = f"Omni-{assessment.id}-Complete-Assessment-Package.zip"

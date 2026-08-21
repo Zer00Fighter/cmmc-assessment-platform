@@ -743,7 +743,6 @@ class Soc2AssessmentProfile(models.Model):
     period_start = models.DateField(null=True, blank=True)
     period_end = models.DateField(null=True, blank=True)
     service_commitments = models.TextField(blank=True)
-    system_boundaries = models.TextField(blank=True)
     scope_notes = models.TextField(blank=True)
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
@@ -1877,7 +1876,7 @@ class GeneratedDocument(models.Model):
         FRAMEWORK_REPORT = "FRAMEWORK_REPORT", "Framework assessment report"
         CONSOLIDATED_REPORT = "CONSOLIDATED", "Consolidated multi-framework report"
         TRACEABILITY = "TRACEABILITY", "Cross-framework traceability matrix"
-        SOC2_REPORT = "SOC2_REPORT", "SOC 2 assessment report"
+        SOC2_REPORT = "SOC2_REPORT", "SOC 2 readiness work program"
 
     assessment = models.ForeignKey(
         Assessment, on_delete=models.CASCADE, related_name="generated_documents"
