@@ -55,6 +55,8 @@ from .models import (
     NotificationPolicy,
     NotificationPreference,
     IntegrationPolicy,
+    ImplementationActivity,
+    ImplementationActivityMapping,
     OutboundWorkItem,
     ObjectiveAssessment,
     Organization,
@@ -83,6 +85,7 @@ from .authoritative_sources import import_authoritative_sources
 from .risk_heatmap import build_weighted_risk_heatmap
 from .risk_catalog import import_risk_catalog
 from .soc2_tsc import EXPECTED_BY_DOMAIN, install_baseline, load_catalog, validate_catalog
+from .soc2_activity_import import ACTIVITY_TARGETS, MIRROR_SHEETS, REQUIRED_COLUMNS, import_activities, normalize_workbook
 
 
 class Soc2TscBaselineTests(TestCase):
@@ -139,6 +142,82 @@ class Soc2TscBaselineTests(TestCase):
         self.assertIn("copyrighted", metadata["copyright_notice"])
         for _, _, label in catalog["criteria"]:
             self.assertTrue(label.strip())
+
+
+class Soc2ActivityNormalizationTests(TestCase):
+    def setUp(self):
+        install_baseline()
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp_dir.cleanup)
+
+    def workbook_path(self, mutate=None):
+        workbook = Workbook()
+        master = workbook.active
+        master.title = "All Controls"
+        master.append(list(REQUIRED_COLUMNS))
+        rows = {}
+        for identifier in ACTIVITY_TARGETS:
+            if identifier.startswith("CC"):
+                area = "Security (Common Criteria)"
+            elif identifier.startswith("SEC-"):
+                area = "Security Controls"
+            elif identifier.startswith("PRIV-"):
+                area = "Privacy Controls"
+            elif identifier.startswith("CONF-"):
+                area = "Confidentiality Controls"
+            elif identifier.startswith("AVAIL-"):
+                area = "Availability Controls"
+            else:
+                area = "Processing Integrity Controls"
+            row = [identifier, area, "Synthetic category", f"Activity {identifier}",
+                   "Preventive", "", "", "", "", "", "Not Started", "", "", ""]
+            rows[identifier] = row
+            master.append(row)
+        for sheet_name, prefix in MIRROR_SHEETS.items():
+            sheet = workbook.create_sheet(sheet_name)
+            sheet.append(list(REQUIRED_COLUMNS))
+            for identifier, row in rows.items():
+                if identifier.startswith(prefix):
+                    sheet.append(row)
+        if mutate:
+            mutate(workbook)
+        path = Path(self.temp_dir.name) / "soc2-activities.xlsx"
+        workbook.save(path)
+        workbook.close()
+        return path
+
+    def test_normalizer_reads_all_tabs_and_preserves_all_activities(self):
+        normalized, report = normalize_workbook(self.workbook_path())
+        self.assertTrue(report["valid"], report["errors"])
+        self.assertEqual(report["activity_count"], 60)
+        self.assertEqual(len(normalized["activities"]), 60)
+        self.assertEqual(report["mirror_counts"], {
+            "CC-Series (Required)": 32, "Security Controls": 6,
+            "Privacy Controls": 6, "Confidentiality Controls": 5,
+            "Availability Controls": 5, "Processing Integrity": 6,
+        })
+        self.assertGreater(report["mapping_count"], report["activity_count"])
+
+    def test_normalizer_rejects_category_tab_that_differs_from_master(self):
+        def mutate(workbook):
+            workbook["Security Controls"]["D2"] = "Changed activity"
+        _, report = normalize_workbook(self.workbook_path(mutate))
+        self.assertFalse(report["valid"])
+        self.assertTrue(any("differs from master" in error for error in report["errors"]))
+
+    def test_import_creates_proposed_resolved_support_mappings_and_is_idempotent(self):
+        path = self.workbook_path()
+        result, report = import_activities(path)
+        self.assertEqual(result["created"], 60)
+        self.assertEqual(ImplementationActivity.objects.count(), 60)
+        self.assertEqual(ImplementationActivityMapping.objects.count(), report["mapping_count"])
+        self.assertFalse(ImplementationActivityMapping.objects.filter(target_requirement__isnull=True).exists())
+        self.assertFalse(ImplementationActivityMapping.objects.exclude(
+            review_status=ImplementationActivityMapping.ReviewStatus.PROPOSED,
+            relationship=RequirementMapping.Relationship.SUPPORTS,
+        ).exists())
+        again, _ = import_activities(path)
+        self.assertEqual(again, {"created": 0, "existing": 60, "mappings_created": 0})
 
 
 class SprintSeventeenPointSevenRiskHeatmapTests(TestCase):

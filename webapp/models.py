@@ -340,6 +340,73 @@ class RequirementMapping(models.Model):
         return f"{self.source} → {self.target} ({self.get_relationship_display()})"
 
 
+class ImplementationActivity(models.Model):
+    """Practical implementation guidance; never an authoritative requirement."""
+
+    source_identifier = models.CharField(max_length=50)
+    source_area = models.CharField(max_length=150)
+    category = models.CharField(max_length=150, blank=True)
+    activity = models.TextField()
+    control_type = models.CharField(max_length=30, blank=True)
+    source_filename = models.CharField(max_length=255)
+    source_sha256 = models.CharField(max_length=64)
+    source_sheet = models.CharField(max_length=100)
+    source_row = models.PositiveIntegerField()
+    source_metadata = models.JSONField(default=dict, blank=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("source_area", "source_identifier")
+        constraints = [models.UniqueConstraint(
+            fields=("source_sha256", "source_sheet", "source_row"),
+            name="unique_implementation_activity_source_row",
+        )]
+
+    def __str__(self) -> str:
+        return f"{self.source_identifier}: {self.activity[:80]}"
+
+
+class ImplementationActivityMapping(models.Model):
+    """Reviewable relationship from an activity to an authoritative criterion."""
+
+    class ReviewStatus(models.TextChoices):
+        PROPOSED = "PROPOSED", "Proposed"
+        APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
+
+    activity = models.ForeignKey(
+        ImplementationActivity, on_delete=models.CASCADE, related_name="criterion_mappings"
+    )
+    target_framework_code = models.CharField(max_length=50)
+    target_requirement_id_text = models.CharField(max_length=50)
+    target_requirement = models.ForeignKey(
+        Requirement, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="implementation_activity_mappings",
+    )
+    relationship = models.CharField(
+        max_length=15, choices=RequirementMapping.Relationship.choices,
+        default=RequirementMapping.Relationship.SUPPORTS,
+    )
+    review_status = models.CharField(
+        max_length=10, choices=ReviewStatus.choices, default=ReviewStatus.PROPOSED
+    )
+    confidence = models.DecimalField(max_digits=4, decimal_places=3, null=True, blank=True)
+    rationale = models.TextField(blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="reviewed_implementation_activity_mappings",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("activity__source_identifier", "target_requirement_id_text")
+        constraints = [models.UniqueConstraint(
+            fields=("activity", "target_framework_code", "target_requirement_id_text"),
+            name="unique_implementation_activity_target",
+        )]
+
+
 class FrameworkImport(models.Model):
     class SourceFormat(models.TextChoices):
         CSV = "CSV", "CSV"
