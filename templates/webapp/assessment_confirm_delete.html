@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Delete {{ assessment.name }}{% endblock %}
+{% block content %}
+<nav class="crumb"><a href="{% url 'assessment-list' organization.slug assessment.system.id %}">{{ assessment.system.name }}</a> / Delete assessment</nav>
+<section class="form-card compact">
+  <p class="eyebrow">Permanent action</p>
+  <h1>Delete assessment</h1>
+  <p>This permanently deletes <strong>{{ assessment.name }}</strong> and its control results, objective conclusions, evidence requests, uploaded evidence, remediation records, reports, and workflow history.</p>
+  <p>This action cannot be undone. Type the assessment name exactly to confirm.</p>
+  <form method="post" class="stack">
+    {% csrf_token %}
+    <p><label for="id_confirmation">Assessment name:</label><input id="id_confirmation" name="confirmation" required autocomplete="off" value="{{ confirmation }}"></p>
+    {% if confirmation_error %}<ul class="errorlist"><li>{{ confirmation_error }}</li></ul>{% endif %}
+    <div class="actions"><button class="primary" type="submit">Permanently delete assessment</button><a class="secondary button" href="{% url 'assessment-list' organization.slug assessment.system.id %}">Cancel</a></div>
+  </form>
+</section>
+{% endblock %}

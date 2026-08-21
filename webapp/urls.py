@@ -81,6 +81,11 @@ urlpatterns = [
         name="assessment-dashboard",
     ),
     path(
+        "organizations/<slug:org_slug>/assessments/<int:assessment_id>/delete/",
+        views.assessment_delete,
+        name="assessment-delete",
+    ),
+    path(
         "organizations/<slug:org_slug>/assessments/<int:assessment_id>/dashboard/export/",
         views.dashboard_export,
         name="dashboard-export",

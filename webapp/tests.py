@@ -1268,6 +1268,70 @@ class SprintTwoOnboardingTests(TestCase):
             role=Membership.Role.ADMIN,
         ).exists())
 
+    def test_admin_must_confirm_assessment_name_before_permanent_delete(self):
+        organization = Organization.objects.create(name="Delete Test", slug="delete-test")
+        Membership.objects.create(
+            user=self.admin_user, organization=organization, role=Membership.Role.ADMIN
+        )
+        system = System.objects.create(organization=organization, name="Synthetic System")
+        framework = Framework.objects.create(code="DELETE-TEST", name="Delete Test", version="1")
+        assessment = Assessment.objects.create(
+            system=system, framework=framework, name="Synthetic Assessment",
+            created_by=self.admin_user,
+        )
+        url = reverse("assessment-delete", args=(organization.slug, assessment.id))
+        dashboard = self.client.get(reverse(
+            "assessment-dashboard", args=(organization.slug, assessment.id)
+        ))
+        self.assertContains(dashboard, "Delete assessment")
+        response = self.client.get(url)
+        self.assertContains(response, "This action cannot be undone")
+        response = self.client.post(url, {"confirmation": "wrong name"})
+        self.assertContains(response, "Nothing was deleted")
+        self.assertTrue(Assessment.objects.filter(id=assessment.id).exists())
+        response = self.client.post(url, {"confirmation": assessment.name}, follow=True)
+        self.assertContains(response, "permanently deleted")
+        self.assertFalse(Assessment.objects.filter(id=assessment.id).exists())
+        self.assertTrue(AuditEvent.objects.filter(
+            organization=organization, action="assessment.deleted",
+            object_id=str(assessment.id),
+        ).exists())
+
+    def test_non_admin_cannot_delete_assessment(self):
+        organization = Organization.objects.create(name="Restricted", slug="restricted-delete")
+        Membership.objects.create(
+            user=self.admin_user, organization=organization, role=Membership.Role.ASSESSOR
+        )
+        system = System.objects.create(organization=organization, name="Synthetic System")
+        framework = Framework.objects.create(code="NO-DELETE", name="No Delete", version="1")
+        assessment = Assessment.objects.create(
+            system=system, framework=framework, name="Protected Assessment",
+            created_by=self.admin_user,
+        )
+        dashboard = self.client.get(reverse(
+            "assessment-dashboard", args=(organization.slug, assessment.id)
+        ))
+        self.assertNotContains(dashboard, "Delete assessment")
+        response = self.client.post(
+            reverse("assessment-delete", args=(organization.slug, assessment.id)),
+            {"confirmation": assessment.name},
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(Assessment.objects.filter(id=assessment.id).exists())
+
+    @override_settings(OMNI_EMAIL_ENABLED=True)
+    def test_notification_test_is_an_explicit_submit_button(self):
+        organization = Organization.objects.create(name="Notifications", slug="notifications-ui")
+        Membership.objects.create(
+            user=self.admin_user, organization=organization, role=Membership.Role.ADMIN
+        )
+        response = self.client.get(reverse("notification-policy", args=(organization.slug,)))
+        self.assertContains(
+            response,
+            '<button class="secondary" type="submit">Send test email to me</button>',
+            html=True,
+        )
+
     def test_admin_can_onboard_system_and_existing_member(self):
         organization = Organization.objects.create(name="Acme", slug="acme")
         Membership.objects.create(

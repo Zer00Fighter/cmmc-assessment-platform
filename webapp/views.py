@@ -990,9 +990,63 @@ def assessment_list(
             "assessment_templates": organization.assessment_templates.filter(active=True).prefetch_related("frameworks"),
             "can_admin": _is_org_admin(request.user, organization),
             "can_edit": _can_edit(request.user, organization),
-            "can_admin": _is_org_admin(request.user, organization),
         },
     )
+
+
+@login_required
+def assessment_delete(
+    request: HttpRequest, org_slug: str, assessment_id: int
+) -> HttpResponse:
+    organization = _organization_for(request.user, org_slug)
+    if not _is_org_admin(request.user, organization):
+        raise Http404
+    assessment = get_object_or_404(
+        Assessment.objects.select_related("system"),
+        id=assessment_id, system__organization=organization,
+    )
+    confirmation = request.POST.get("confirmation", "") if request.method == "POST" else ""
+    confirmation_error = ""
+    if request.method == "POST":
+        if confirmation != assessment.name:
+            confirmation_error = "The assessment name does not match. Nothing was deleted."
+        else:
+            system_id = assessment.system_id
+            assessment_name = assessment.name
+            assessment_pk = assessment.pk
+            artifacts = [
+                (artifact.file.storage, artifact.file.name)
+                for artifact in assessment.evidence_artifacts.exclude(file="")
+                if artifact.file.name
+            ]
+            counts = {
+                "controls": assessment.control_results.count(),
+                "evidence_artifacts": assessment.evidence_artifacts.count(),
+                "evidence_requests": assessment.evidence_requests.count(),
+            }
+            with transaction.atomic():
+                # Baselines deliberately protect their source assessment during
+                # ordinary model operations; explicit confirmed deletion removes
+                # the complete assessment record, including its snapshots and risks.
+                assessment.baselines.all().delete()
+                assessment.risks.all().delete()
+                assessment.delete()
+                AuditEvent.objects.create(
+                    organization=organization, actor=request.user,
+                    action="assessment.deleted", object_type="Assessment",
+                    object_id=str(assessment_pk),
+                    detail={"name": assessment_name, **counts},
+                )
+                for storage, name in artifacts:
+                    transaction.on_commit(
+                        lambda storage=storage, name=name: storage.delete(name), robust=True
+                    )
+            messages.success(request, f'Assessment "{assessment_name}" permanently deleted.')
+            return redirect("assessment-list", org_slug=org_slug, system_id=system_id)
+    return render(request, "webapp/assessment_confirm_delete.html", {
+        "organization": organization, "assessment": assessment,
+        "confirmation": confirmation, "confirmation_error": confirmation_error,
+    })
 
 
 @login_required
@@ -1572,6 +1626,7 @@ def assessment_dashboard(
             "soc2_profile": soc2_profile,
             "active_framework": active_framework,
             "can_edit": _can_edit(request.user, organization),
+            "can_admin": _is_org_admin(request.user, organization),
             "can_manage_evidence": _can_manage_evidence(request.user, organization),
             "evidence_total": evidence_total,
             "evidence_ready": evidence_ready,

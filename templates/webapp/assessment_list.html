@@ -3,6 +3,13 @@
 {% block content %}
 <nav class="crumb"><a href="{% url 'organization-list' %}">Organizations</a> / <a href="{% url 'system-list' organization.slug %}">{{ organization.name }}</a> / {{ system.name }}</nav>
 <div class="page-head"><div><p class="eyebrow">System</p><h1>{{ system.name }}</h1><p class="muted">{{ system.scope|default:"Assessment scope not yet recorded." }}</p></div><div class="actions">{% if can_admin %}<a class="secondary button" href="{% url 'system-edit' organization.slug system.id %}">Edit system</a>{% endif %}{% if can_edit %}<a class="primary button" href="{% url 'assessment-create' organization.slug system.id %}">New assessment</a>{% endif %}</div></div>
-<div class="list-card">{% for assessment in assessments %}<a class="list-row" href="{% url 'assessment-dashboard' organization.slug assessment.id %}"><div><strong>{{ assessment.name }}</strong><span>Primary: {{ assessment.framework }} · {{ assessment.frameworks.count|default:1 }} framework{{ assessment.frameworks.count|pluralize }}{% if assessment.source_template %} · From {{ assessment.source_template.name }}{% endif %}</span></div><span class="pill">{{ assessment.get_status_display }}</span></a>{% empty %}<div class="empty">No assessments yet. Create the first one.</div>{% endfor %}</div>
+<div class="list-card">
+  {% for assessment in assessments %}
+  <div class="list-row assessment-row">
+    <a class="list-row-main" href="{% url 'assessment-dashboard' organization.slug assessment.id %}"><div><strong>{{ assessment.name }}</strong><span>Primary: {{ assessment.framework }} · {{ assessment.frameworks.count|default:1 }} framework{{ assessment.frameworks.count|pluralize }}{% if assessment.source_template %} · From {{ assessment.source_template.name }}{% endif %}</span></div><span class="pill">{{ assessment.get_status_display }}</span></a>
+    {% if can_admin %}<a class="danger-link" href="{% url 'assessment-delete' organization.slug assessment.id %}" aria-label="Delete {{ assessment.name }}">Delete</a>{% endif %}
+  </div>
+  {% empty %}<div class="empty">No assessments yet. Create the first one.</div>{% endfor %}
+</div>
 {% if assessment_templates %}<section class="section-head"><p class="eyebrow">Reusable configurations</p><h2>Create from a template</h2></section><div class="card-grid">{% for template in assessment_templates %}<article class="card"><span class="pill">{{ template.get_recurrence_display }}</span><h2>{{ template.name }}</h2><p>{% for framework in template.frameworks.all %}<span class="tag">{{ framework.code }}</span>{% endfor %}</p>{% if can_edit %}<a class="primary button" href="{% url 'assessment-from-template' organization.slug system.id template.id %}">Use template</a>{% endif %}</article>{% endfor %}</div>{% endif %}
 {% endblock %}
