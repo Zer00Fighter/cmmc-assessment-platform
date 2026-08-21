@@ -1163,6 +1163,9 @@ class AssessmentProcedure(models.Model):
             name="unique_assessment_procedure",
         )]
 
+    def __str__(self) -> str:
+        return f"{self.get_method_display()}: {self.assessment_object}"
+
 
 class ObjectiveAssessment(models.Model):
     class Status(models.TextChoices):

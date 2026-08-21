@@ -503,6 +503,11 @@ def system_list(request: HttpRequest, org_slug: str) -> HttpResponse:
     systems = organization.systems.filter(active=True).annotate(
         assessment_count=Count("assessments")
     )
+    return render(
+        request, "webapp/system_list.html",
+        {"organization": organization, "systems": systems,
+         "can_admin": _is_org_admin(request.user, organization)},
+    )
 
 
 def _portfolio_assessments(request, organization):
@@ -1942,9 +1947,14 @@ def objective_edit(
             "objective__requirement", "control_result__requirement"
         ), id=objective_result_id, control_result__assessment=assessment,
     )
-    form = ObjectiveAssessmentForm(request.POST or None, instance=result, assessment=assessment)
+    action = request.POST.get("action", "objective") if request.method == "POST" else None
+    form = ObjectiveAssessmentForm(
+        request.POST if action == "objective" else None,
+        instance=result, assessment=assessment,
+    )
     customization_form = AssessmentProcedureCustomizationForm(
-        request.POST or None, objective_result=result, prefix="procedure"
+        request.POST if action == "procedure" else None,
+        objective_result=result, prefix="procedure",
     )
     if (request.method == "POST" and request.POST.get("action") == "procedure"
             and customization_form.is_valid()):

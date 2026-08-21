@@ -365,6 +365,8 @@ class Soc2ExecutionProcedureTests(TestCase):
         self.assertEqual(set(AssessmentProcedure.objects.filter(
             requirement__framework=self.framework
         ).values_list("method", flat=True)), {"EXAMINE", "INTERVIEW", "OBSERVE", "TEST", "REPERFORM"})
+        procedure = AssessmentProcedure.objects.filter(requirement__framework=self.framework).first()
+        self.assertEqual(str(procedure), f"{procedure.get_method_display()}: {procedure.assessment_object}")
 
     def test_type_two_requires_all_three_conclusions(self):
         assessment = self.create_assessment()
@@ -377,6 +379,7 @@ class Soc2ExecutionProcedureTests(TestCase):
             "assessor_notes": "Designed and implemented.",
         })
         self.assertContains(invalid, "Type II requires an operating-effectiveness conclusion")
+        self.assertNotContains(invalid, "This field is required.")
         valid = self.client.post(url, {
             "action": "objective", "status": "MET",
             "design_conclusion": "EFFECTIVE", "implementation_conclusion": "EFFECTIVE",
@@ -1183,6 +1186,9 @@ class SprintOneWorkflowTests(TestCase):
         response = self.client.get(reverse("organization-list"))
         self.assertContains(response, "Acme Defense")
         self.assertNotContains(response, "Other Client")
+        response = self.client.get(reverse("system-list", args=("acme",)))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.system.name)
         response = self.client.get(reverse("system-list", args=("other",)))
         self.assertEqual(response.status_code, 404)
 
