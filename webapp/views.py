@@ -134,6 +134,9 @@ from .notifications import assessment_url, notify, notify_assessment_team, organ
 from .risk_heatmap import build_weighted_risk_heatmap
 from .risk_workflow import finding_risk_suggestions
 from .soc2_activity_import import TSC_FRAMEWORK_CODE
+from .soc2_evidence import (
+    approve_test_reuse, create_soc2_evidence_requests, soc2_evidence_expectations,
+)
 
 
 def _organizations_for(user):
@@ -1867,10 +1870,49 @@ def shared_work_workspace(request: HttpRequest, org_slug: str, assessment_id: in
                 for item in requests[1:]:
                     item.consolidated_into = primary; item.save(update_fields=("consolidated_into",))
                 messages.success(request, f"{len(requests)} requests consolidated into {primary.title}.")
+        elif action == "soc2_requests":
+            mapping_ids = [int(value) for value in request.POST.getlist("evidence_mappings")
+                           if value.isdigit()]
+            result = create_soc2_evidence_requests(assessment, mapping_ids, request.user)
+            AuditEvent.objects.create(
+                organization=organization, actor=request.user,
+                action="soc2.evidence_requests_created", object_type="Assessment",
+                object_id=str(assessment.id), detail=result,
+            )
+            messages.success(
+                request, f"Created {result['created']} evidence request(s) and "
+                f"linked {result['control_links']} criterion relationship(s).",
+            )
+        elif action == "test_reuse":
+            decision = get_object_or_404(
+                assessment.reuse_decisions, pk=request.POST.get("decision_id")
+            )
+            try:
+                reference, created = approve_test_reuse(
+                    decision, request.POST.get("source_test_id"),
+                    request.POST.get("target_objective_id"), request.user,
+                    request.POST.get("limitations", "").strip(),
+                )
+            except ValueError as exc:
+                messages.error(request, str(exc))
+            else:
+                AuditEvent.objects.create(
+                    organization=organization, actor=request.user,
+                    action="assessment.test_reuse_approved", object_type="TestReuseReference",
+                    object_id=str(reference.id), detail={
+                        "decision": decision.id, "created": created,
+                        "compliance_result_propagated": False,
+                    },
+                )
+                messages.success(request, "Prior testing referenced; no objective conclusion was copied.")
         return redirect("shared-work-workspace", org_slug=org_slug, assessment_id=assessment.pk)
     decisions = assessment.reuse_decisions.select_related(
         "source_result__requirement__framework", "target_result__requirement__framework"
-    ).prefetch_related("source_result__evidence_artifacts", "target_result__evidence_artifacts")
+    ).prefetch_related(
+        "source_result__evidence_artifacts", "target_result__evidence_artifacts",
+        "source_result__objective_results__test_executions",
+        "target_result__objective_results__reused_tests",
+    )
     artifacts = assessment.evidence_artifacts.prefetch_related("controls__requirement__framework", "applicability_reviews")
     gaps = assessment.control_results.filter(
         Q(status=ControlAssessment.Status.NOT_ASSESSED) |
@@ -1880,6 +1922,7 @@ def shared_work_workspace(request: HttpRequest, org_slug: str, assessment_id: in
         "organization": organization, "assessment": assessment, "decisions": decisions,
         "artifacts": artifacts, "gaps": gaps, "can_edit": can_edit,
         "requests": assessment.evidence_requests.filter(consolidated_into__isnull=True).prefetch_related("controls"),
+        "soc2_expectations": soc2_evidence_expectations(assessment),
         "metrics": {"reuse": decisions.filter(status=AssessmentReuseDecision.Status.APPROVED).count(),
                     "artifacts": artifacts.count(), "gaps": gaps.count(),
                     "consolidated": assessment.evidence_requests.filter(consolidated_into__isnull=False).count()},

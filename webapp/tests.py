@@ -77,6 +77,8 @@ from .models import (
     Soc2AssessmentProfile,
     Soc2PointOfFocus,
     System,
+    TestExecution,
+    TestReuseReference,
     WorkflowHistory,
     UserProfile,
 )
@@ -91,6 +93,9 @@ from .soc2_tsc import EXPECTED_BY_DOMAIN, install_baseline, load_catalog, valida
 from .soc2_activity_import import ACTIVITY_TARGETS, MIRROR_SHEETS, REQUIRED_COLUMNS, import_activities, normalize_workbook
 from .soc2_points_of_focus import import_points_of_focus
 from .soc2_procedures import ensure_soc2_execution_catalog
+from .soc2_evidence import (
+    approve_test_reuse, create_soc2_evidence_requests, soc2_evidence_expectations,
+)
 
 
 class Soc2TscBaselineTests(TestCase):
@@ -439,6 +444,85 @@ class Soc2ExecutionProcedureTests(TestCase):
         self.assertEqual(point.requirement.requirement_id, "CC1.1")
         self.assertEqual(point.source_row, 2)
         self.assertEqual(point.source_page, 10)
+
+    def test_private_activity_guidance_generates_consolidated_evidence_requests(self):
+        assessment = self.create_assessment()
+        requirement = assessment.control_results.filter(in_scope=True).first().requirement
+        activity = ImplementationActivity.objects.create(
+            source_identifier="SYN-01", source_area="Synthetic", activity="Review access.",
+            source_filename="private.xlsx", source_sha256="a" * 64,
+            source_sheet="All Controls", source_row=2,
+            source_metadata={"Evidence Artifact": "Access review records",
+                             "Evidence Source": "Identity platform", "Frequency": "Quarterly"},
+        )
+        mapping = ImplementationActivityMapping.objects.create(
+            activity=activity, target_framework_code=self.framework.code,
+            target_requirement_id_text=requirement.requirement_id,
+            target_requirement=requirement, review_status="APPROVED",
+        )
+        suggestions = soc2_evidence_expectations(assessment)
+        self.assertEqual(len(suggestions), 1)
+        result = create_soc2_evidence_requests(assessment, [mapping.id], self.assessor)
+        self.assertEqual(result, {"selected": 1, "created": 1, "control_links": 1})
+        evidence_request = EvidenceRequest.objects.get(title="Access review records")
+        self.assertEqual(evidence_request.controls.get().requirement, requirement)
+
+    def test_approved_test_reuse_references_work_without_copying_conclusion(self):
+        assessment = self.create_assessment()
+        source_result = assessment.control_results.filter(in_scope=True).first()
+        target_framework = Framework.objects.create(code="TARGET", name="Target", version="1")
+        target_requirement = Requirement.objects.create(
+            framework=target_framework, requirement_id="T-1", title="Target",
+            statement="Synthetic target requirement.",
+        )
+        target_result = ControlAssessment.objects.create(
+            assessment=assessment, requirement=target_requirement,
+        )
+        target_objective = AssessmentObjective.objects.create(
+            requirement=target_requirement, objective_id="T-1.a", text="Assess target.",
+        )
+        target_objective_result = ObjectiveAssessment.objects.create(
+            control_result=target_result, objective=target_objective,
+        )
+        source_objective_result = source_result.objective_results.get()
+        source_test = TestExecution.objects.create(
+            assessment=assessment, objective_result=source_objective_result,
+            performed_by=self.member, performed_at=timezone.now(),
+            steps_performed="Inspected a synthetic sample.", actual_result="No exceptions.",
+            outcome=TestExecution.Outcome.PASS,
+        )
+        decision = AssessmentReuseDecision.objects.create(
+            assessment=assessment, source_result=source_result, target_result=target_result,
+            basis=AssessmentReuseDecision.Basis.DIRECT, relationship="RELATED",
+            status=AssessmentReuseDecision.Status.APPROVED, reuse_testing=True,
+        )
+        reference, created = approve_test_reuse(
+            decision, source_test.id, target_objective_result.id, self.assessor,
+            "Confirm target-specific language separately.",
+        )
+        self.assertTrue(created)
+        self.assertEqual(TestReuseReference.objects.get(), reference)
+        target_objective_result.refresh_from_db()
+        self.assertEqual(target_objective_result.status, ObjectiveAssessment.Status.NOT_ASSESSED)
+
+    def test_unapproved_mapping_does_not_generate_harmonization_candidate(self):
+        assessment = self.create_assessment()
+        source = assessment.control_results.filter(in_scope=True).first()
+        other_framework = Framework.objects.create(code="DRAFT-MAP", name="Draft", version="1")
+        other_requirement = Requirement.objects.create(
+            framework=other_framework, requirement_id="D-1", title="Draft", statement="Draft.",
+        )
+        other_result = ControlAssessment.objects.create(
+            assessment=assessment, requirement=other_requirement,
+        )
+        RequirementMapping.objects.create(
+            source=source.requirement, target=other_requirement,
+            relationship="RELATED", lifecycle="DRAFT",
+        )
+        self.assertEqual(refresh_harmonization(assessment)["candidates"], 0)
+        self.assertFalse(AssessmentReuseDecision.objects.filter(
+            source_result__in=(source, other_result), target_result__in=(source, other_result)
+        ).exists())
 
 
 class SprintSeventeenPointSevenRiskHeatmapTests(TestCase):

@@ -49,7 +49,8 @@ def refresh_harmonization(assessment: Assessment) -> dict:
     suggestions = {}
 
     direct = RequirementMapping.objects.filter(
-        source_id__in=selected_requirement_ids, target_id__in=selected_requirement_ids
+        source_id__in=selected_requirement_ids, target_id__in=selected_requirement_ids,
+        lifecycle="APPROVED",
     ).select_related("source__framework", "target__framework")
     for mapping in direct:
         left, right = by_requirement[mapping.source_id], by_requirement[mapping.target_id]
@@ -63,7 +64,7 @@ def refresh_harmonization(assessment: Assessment) -> dict:
     hub_mappings = RequirementMapping.objects.filter(
         Q(source__framework__is_omni_control_framework=True)
         | Q(target__framework__is_omni_control_framework=True)
-    ).select_related("source__framework", "target__framework")
+    ).filter(lifecycle="APPROVED").select_related("source__framework", "target__framework")
     spokes = defaultdict(list)
     for mapping in hub_mappings:
         if mapping.source.framework.is_omni_control_framework:
