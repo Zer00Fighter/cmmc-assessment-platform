@@ -3607,6 +3607,8 @@ def _generated_response(assessment, organization, user, kind, filename, content,
         GeneratedDocument.Kind.CONSOLIDATED_REPORT: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         GeneratedDocument.Kind.TRACEABILITY: "text/csv",
         GeneratedDocument.Kind.SOC2_REPORT: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        GeneratedDocument.Kind.SOC2_DRL: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        GeneratedDocument.Kind.SOC2_PACKAGE: "application/zip",
     }[kind])
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
@@ -3621,7 +3623,8 @@ def report_download(
         ReportNotReady, assessment_readiness, build_assessment_workbook,
         build_package, build_word_ssp, build_multi_framework_report,
         build_traceability_csv, multi_framework_readiness,
-        build_soc2_report, soc2_report_readiness,
+        build_soc2_drl, build_soc2_report, soc2_report_readiness,
+        build_soc2_readiness_package,
     )
     from .remediation_export import build_remediation_workbook
     normalized = kind.upper()
@@ -3663,7 +3666,14 @@ def report_download(
         elif normalized == GeneratedDocument.Kind.SOC2_REPORT:
             readiness = soc2_report_readiness(assessment)
             content = build_soc2_report(assessment)
-            filename = f"Omni-{assessment.id}-SOC-2-{assessment.soc2_profile.examination_type.replace('_', '-')}-Readiness-Work-Program.docx"
+            filename = f"Omni-{assessment.id}-SOC-2-{assessment.soc2_profile.examination_type.replace('_', '-')}-Readiness-Report.docx"
+        elif normalized == GeneratedDocument.Kind.SOC2_DRL:
+            readiness = soc2_report_readiness(assessment)
+            content = build_soc2_drl(assessment)
+            filename = f"Omni-{assessment.id}-SOC-2-Document-Request-List.xlsx"
+        elif normalized == GeneratedDocument.Kind.SOC2_PACKAGE:
+            content, readiness = build_soc2_readiness_package(assessment, request.user)
+            filename = f"Omni-{assessment.id}-SOC-2-Readiness-Assessment-Package.zip"
         else:
             content, readiness = build_package(assessment, request.user)
             filename = f"Omni-{assessment.id}-Complete-Assessment-Package.zip"

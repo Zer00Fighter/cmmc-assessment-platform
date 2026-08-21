@@ -1876,7 +1876,9 @@ class GeneratedDocument(models.Model):
         FRAMEWORK_REPORT = "FRAMEWORK_REPORT", "Framework assessment report"
         CONSOLIDATED_REPORT = "CONSOLIDATED", "Consolidated multi-framework report"
         TRACEABILITY = "TRACEABILITY", "Cross-framework traceability matrix"
-        SOC2_REPORT = "SOC2_REPORT", "SOC 2 readiness work program"
+        SOC2_REPORT = "SOC2_REPORT", "SOC 2 readiness report"
+        SOC2_DRL = "SOC2_DRL", "SOC 2 document request list"
+        SOC2_PACKAGE = "SOC2_PACKAGE", "SOC 2 readiness package"
 
     assessment = models.ForeignKey(
         Assessment, on_delete=models.CASCADE, related_name="generated_documents"

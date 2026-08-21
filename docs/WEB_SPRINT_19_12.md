@@ -1,12 +1,12 @@
 # Sprint 19.12 - SOC 2 Reporting and Acceptance Testing
 
-Sprint 19.12 adds a Type I/Type II-aware Word readiness work program and an automated
+Sprint 19.12 adds a Type I/Type II-aware Word readiness report and an automated
 acceptance gate for the complete SOC 2 workflow.
 
 ## Deliverable boundary
 
-The generated document is titled **SOC 2 Readiness Assessment Work Program**. It
-documents Omni readiness-assessment work and explicitly states that it is not an AICPA
+The generated document is titled **SOC 2 Readiness Report**. It
+reports the results of Omni's readiness-assessment work program and explicitly states that it is not an AICPA
 SOC 2 report, attestation opinion, or substitute for an examination performed
 and issued by an independent licensed CPA firm.
 

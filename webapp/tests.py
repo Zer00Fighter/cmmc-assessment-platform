@@ -1,5 +1,6 @@
 import tempfile
 import hashlib
+import json
 import zipfile
 import sqlite3
 from datetime import date, timedelta
@@ -97,7 +98,10 @@ from .soc2_procedures import ensure_soc2_execution_catalog
 from .soc2_evidence import (
     approve_test_reuse, create_soc2_evidence_requests, soc2_evidence_expectations,
 )
-from .reporting import ReportNotReady, build_soc2_report, soc2_report_readiness
+from .reporting import (
+    ReportNotReady, build_soc2_drl, build_soc2_readiness_package,
+    build_soc2_report, soc2_report_readiness,
+)
 
 
 class Soc2TscBaselineTests(TestCase):
@@ -600,10 +604,75 @@ class Soc2ExecutionProcedureTests(TestCase):
         record = GeneratedDocument.objects.get(
             assessment=assessment, kind=GeneratedDocument.Kind.SOC2_REPORT
         )
-        self.assertIn("SOC-2-TYPE-II-Readiness-Work-Program", record.filename)
+        self.assertIn("SOC-2-TYPE-II-Readiness-Report", record.filename)
         self.assertTrue(record.content_sha256)
         self.assertTrue(AuditEvent.objects.filter(
             action="document.generated", object_id=str(record.id)
+        ).exists())
+
+    def test_soc2_readiness_package_contains_drl_evidence_and_verified_manifest(self):
+        assessment = self.create_assessment()
+        self._complete_soc2_execution(assessment)
+        control = assessment.control_results.filter(in_scope=True).first()
+        evidence_request = EvidenceRequest.objects.create(
+            assessment=assessment, evidence_code="SOC2-DRL-001",
+            title="Access review records", description="Provide quarterly access reviews.",
+            owner=self.member, created_by=self.assessor,
+        )
+        evidence_request.controls.add(control)
+        artifact = EvidenceArtifact.objects.create(
+            organization=self.organization, assessment=assessment,
+            title="Access review portal", external_reference="https://example.test/access-review",
+            review_status=EvidenceArtifact.ReviewStatus.ACCEPTED,
+            period_start=date(2026, 1, 1), period_end=date(2026, 6, 30),
+            uploaded_by=self.assessor,
+        )
+        artifact.controls.add(control); artifact.requests.add(evidence_request)
+        drl = load_workbook(BytesIO(build_soc2_drl(assessment)))
+        self.assertEqual(drl["Document Request List"]["A2"].value, "SOC2-DRL-001")
+        content, readiness = build_soc2_readiness_package(assessment, self.assessor)
+        self.assertTrue(readiness["ready"])
+        with zipfile.ZipFile(BytesIO(content)) as package:
+            names = set(package.namelist())
+            expected = {
+                "Deliverables/Omni-SOC-2-Readiness-Report.docx",
+                "Attachments/Omni-SOC-2-Document-Request-List.xlsx",
+                "Attachments/Omni-SOC-2-Traceability-Matrix.csv",
+                "Attachments/Omni-Remediation-Action-Plan.xlsx",
+                "Attachments/SOC-2-Scope-Summary.json",
+                "Evidence/Evidence-Index.csv", "Package-Manifest.json",
+            }
+            self.assertTrue(expected.issubset(names))
+            self.assertTrue(any(name.endswith("EA-0001_External_Reference.txt") for name in names))
+            manifest = json.loads(package.read("Package-Manifest.json"))
+            self.assertEqual(manifest["package_type"], "SOC 2 readiness assessment package")
+            for item in manifest["files"]:
+                payload = package.read(item["path"])
+                self.assertEqual(len(payload), item["size_bytes"])
+                self.assertEqual(hashlib.sha256(payload).hexdigest(), item["sha256"])
+
+    def test_soc2_package_download_is_audited(self):
+        assessment = self.create_assessment()
+        self._complete_soc2_execution(assessment)
+        response = self.client.get(reverse("report-download", args=(
+            self.organization.slug, assessment.id, "SOC2_PACKAGE"
+        )))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/zip")
+        record = GeneratedDocument.objects.get(kind=GeneratedDocument.Kind.SOC2_PACKAGE)
+        self.assertTrue(record.filename.endswith("SOC-2-Readiness-Assessment-Package.zip"))
+        self.assertTrue(record.content_sha256)
+        drl_response = self.client.get(reverse("report-download", args=(
+            self.organization.slug, assessment.id, "SOC2_DRL"
+        )))
+        self.assertEqual(drl_response.status_code, 200)
+        self.assertEqual(
+            drl_response["Content-Type"],
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        self.assertTrue(GeneratedDocument.objects.filter(
+            assessment=assessment, kind=GeneratedDocument.Kind.SOC2_DRL,
+            filename__endswith="SOC-2-Document-Request-List.xlsx",
         ).exists())
 
 

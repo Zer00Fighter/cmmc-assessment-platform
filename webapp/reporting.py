@@ -11,7 +11,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.utils import timezone
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
 from docx import Document
 
 from src.ssp_export import SSPExportMetadata, export_ssp
@@ -230,7 +230,7 @@ def build_soc2_report(assessment) -> bytes:
         "remediation_plans",
     )
     document = Document()
-    document.add_heading("SOC 2 Readiness Assessment Work Program", 0)
+    document.add_heading("SOC 2 Readiness Report", 0)
     document.add_paragraph(f"Organization: {assessment.system.organization.name}")
     document.add_paragraph(f"System: {assessment.system.name}")
     document.add_paragraph(f"Assessment: {assessment.name}")
@@ -309,6 +309,125 @@ def build_soc2_report(assessment) -> bytes:
         document.add_heading("Reporting limitations and warnings", level=1)
         for warning in readiness["warnings"]: document.add_paragraph(warning, style="List Bullet")
     stream = io.BytesIO(); document.save(stream); return stream.getvalue()
+
+
+def build_soc2_drl(assessment) -> bytes:
+    """Build the standalone document request list attachment."""
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Document Request List"
+    headers = (
+        "Request ID", "Title", "Description", "Status", "Owner", "Due Date",
+        "TSC Criteria", "Received Artifacts", "Notify Owner",
+    )
+    sheet.append(headers)
+    requests = assessment.evidence_requests.select_related(
+        "owner__user"
+    ).prefetch_related("controls__requirement__framework", "artifacts")
+    for request in requests:
+        criteria = "; ".join(
+            item.requirement.requirement_id for item in request.controls.all()
+            if item.requirement.framework.code == TSC_FRAMEWORK_CODE
+        )
+        owner = ""
+        if request.owner:
+            owner = request.owner.user.get_full_name() or request.owner.user.username
+        sheet.append((
+            request.evidence_code or f"DRL-{request.id:04d}", request.title,
+            request.description, request.get_status_display(), owner,
+            request.due_date.isoformat() if request.due_date else "", criteria,
+            "; ".join(f"EA-{item.id:04d} {item.title}" for item in request.artifacts.all()),
+            "Yes" if request.notify_owner else "No",
+        ))
+    sheet.freeze_panes = "A2"
+    sheet.auto_filter.ref = sheet.dimensions
+    widths = (16, 34, 55, 18, 24, 14, 30, 45, 14)
+    for index, width in enumerate(widths, 1):
+        sheet.column_dimensions[chr(64 + index)].width = width
+    stream = io.BytesIO(); workbook.save(stream); return stream.getvalue()
+
+
+def build_soc2_readiness_package(assessment, generated_by) -> tuple[bytes, dict]:
+    """Build a complete SOC 2 readiness package with per-file integrity hashes."""
+    readiness = soc2_report_readiness(assessment)
+    if not readiness["ready"]:
+        raise ReportNotReady(readiness["blockers"])
+    output = io.BytesIO()
+    manifest_files = []
+    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as package:
+        def add(path: str, content):
+            payload = content.encode("utf-8") if isinstance(content, str) else content
+            package.writestr(path, payload)
+            manifest_files.append({
+                "path": path, "size_bytes": len(payload),
+                "sha256": hashlib.sha256(payload).hexdigest(),
+            })
+
+        add("Deliverables/Omni-SOC-2-Readiness-Report.docx",
+            build_soc2_report(assessment))
+        add("Attachments/Omni-SOC-2-Document-Request-List.xlsx",
+            build_soc2_drl(assessment))
+        add("Attachments/Omni-SOC-2-Traceability-Matrix.csv",
+            build_traceability_csv(assessment))
+        add("Attachments/Omni-Remediation-Action-Plan.xlsx",
+            build_remediation_workbook(assessment).getvalue())
+        profile = assessment.soc2_profile
+        add("Attachments/SOC-2-Scope-Summary.json", json.dumps({
+            "examination_type": profile.examination_type,
+            "as_of_date": str(profile.as_of_date or ""),
+            "period_start": str(profile.period_start or ""),
+            "period_end": str(profile.period_end or ""),
+            "categories": profile.included_category_labels,
+            "service_commitments": profile.service_commitments,
+            "system_description": assessment.system.description,
+            "assessment_scope": assessment.system.scope,
+            "scope_notes": profile.scope_notes,
+        }, indent=2))
+        index_rows = []
+        artifacts = assessment.evidence_artifacts.select_related("uploaded_by").prefetch_related(
+            "controls__requirement__framework", "requests", "remediation_plans"
+        )
+        for artifact in artifacts:
+            artifact_id = f"EA-{artifact.id:04d}"
+            base = _safe_name(artifact.title, artifact_id)
+            if artifact.file:
+                filename = _safe_name(Path(artifact.file.name).name, f"{artifact_id}.bin")
+                with artifact.file.open("rb") as stream:
+                    add(f"Evidence/{artifact_id}_{base}/{filename}", stream.read())
+            if artifact.external_reference:
+                add(f"Evidence/{artifact_id}_{base}/{artifact_id}_External_Reference.txt",
+                    _artifact_reference_text(artifact))
+            index_rows.append({
+                "artifact_id": artifact_id, "title": artifact.title,
+                "review_status": artifact.get_review_status_display(),
+                "freshness": artifact.freshness,
+                "period_start": artifact.period_start or "",
+                "period_end": artifact.period_end or "",
+                "criteria": "; ".join(
+                    f"{item.requirement.framework.code} {item.requirement.requirement_id}"
+                    for item in artifact.controls.all()
+                ),
+                "requests": "; ".join(item.title for item in artifact.requests.all()),
+                "file": Path(artifact.file.name).name if artifact.file else "",
+                "external_reference": artifact.external_reference,
+            })
+        index = io.StringIO(newline="")
+        fields = ("artifact_id", "title", "review_status", "freshness", "period_start",
+                  "period_end", "criteria", "requests", "file", "external_reference")
+        writer = csv.DictWriter(index, fieldnames=fields); writer.writeheader(); writer.writerows(index_rows)
+        add("Evidence/Evidence-Index.csv", index.getvalue())
+        manifest = {
+            "package_type": "SOC 2 readiness assessment package",
+            "assessment": assessment.name,
+            "organization": assessment.system.organization.name,
+            "system": assessment.system.name,
+            "generated_at": timezone.now().isoformat(),
+            "generated_by": generated_by.get_full_name() or generated_by.username,
+            "readiness": readiness,
+            "files": manifest_files,
+        }
+        package.writestr("Package-Manifest.json", json.dumps(manifest, indent=2))
+    return output.getvalue(), readiness
 
 
 def _display_member(membership) -> str:
