@@ -24,6 +24,7 @@ omni.sqlite3
 # Tenant evidence is private runtime data and must never be committed.
 private_uploads/
 local_backups/
+local_restore_staging/
 logs/
 
 # Machine-local configuration may contain private template paths.

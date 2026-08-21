@@ -1,4 +1,3 @@
-import hashlib
 import json
 import sqlite3
 import tempfile
@@ -9,6 +8,8 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
+from webapp.backup import sha256_file
+
 
 class Command(BaseCommand):
     help = "Create a local Omni database and private-evidence backup archive."
@@ -18,7 +19,7 @@ class Command(BaseCommand):
             raise CommandError("Local backup currently supports SQLite. Use pg_dump for PostgreSQL.")
         destination = Path(settings.OMNI_BACKUP_DIR).resolve()
         destination.mkdir(parents=True, exist_ok=True)
-        stamp = timezone.now().strftime("%Y%m%dT%H%M%SZ")
+        stamp = timezone.now().strftime("%Y%m%dT%H%M%S%fZ")
         archive = destination / f"omni-backup-{stamp}.zip"
         source_db = Path(settings.DATABASES["default"]["NAME"]).resolve()
         with tempfile.TemporaryDirectory() as temporary:
@@ -31,19 +32,30 @@ class Command(BaseCommand):
                 target.close()
                 source.close()
             manifest = {
+                "schema_version": 2,
                 "created_at": timezone.now().isoformat(),
                 "database_engine": "sqlite3",
                 "database": "database/omni.sqlite3",
                 "evidence_root": "private_uploads/",
+                "files": [],
             }
             with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as output:
                 output.write(snapshot, "database/omni.sqlite3")
+                manifest["files"].append({
+                    "path": "database/omni.sqlite3", "size_bytes": snapshot.stat().st_size,
+                    "sha256": sha256_file(snapshot),
+                })
                 media_root = Path(settings.MEDIA_ROOT)
                 if media_root.exists():
-                    for item in media_root.rglob("*"):
+                    for item in sorted(media_root.rglob("*")):
                         if item.is_file():
-                            output.write(item, Path("private_uploads") / item.relative_to(media_root))
+                            member = (Path("private_uploads") / item.relative_to(media_root)).as_posix()
+                            output.write(item, member)
+                            manifest["files"].append({
+                                "path": member, "size_bytes": item.stat().st_size,
+                                "sha256": sha256_file(item),
+                            })
                 output.writestr("manifest.json", json.dumps(manifest, indent=2))
-        digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+        digest = sha256_file(archive)
         archive.with_suffix(".zip.sha256").write_text(f"{digest}  {archive.name}\n", encoding="ascii")
         self.stdout.write(self.style.SUCCESS(f"Created {archive.name} with SHA-256 sidecar."))

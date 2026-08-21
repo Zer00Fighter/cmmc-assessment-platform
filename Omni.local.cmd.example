@@ -9,3 +9,7 @@ set "OMNI_EMAIL_USER=notifications@example.com"
 set "OMNI_EMAIL_PASSWORD=PASTE_APP_PASSWORD_LOCALLY"
 set "OMNI_DEFAULT_FROM_EMAIL=Omni by R!SC ^<notifications@example.com^>"
 set "OMNI_BASE_URL=http://127.0.0.1:8000"
+@rem Optional lifecycle locations and local-pilot backup retention.
+set "OMNI_BACKUP_DIR=D:\RISC\Omni\local_backups"
+set "OMNI_RESTORE_STAGING_DIR=D:\RISC\Omni\local_restore_staging"
+set "OMNI_BACKUP_RETENTION_DAYS=30"

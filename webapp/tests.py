@@ -1,4 +1,5 @@
 import tempfile
+import os
 import hashlib
 import json
 import zipfile
@@ -1319,6 +1320,34 @@ class SprintTwoOnboardingTests(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertTrue(Assessment.objects.filter(id=assessment.id).exists())
 
+    def test_confirmed_assessment_deletion_removes_private_evidence_file(self):
+        organization = Organization.objects.create(name="File Cleanup", slug="file-cleanup")
+        Membership.objects.create(
+            user=self.admin_user, organization=organization, role=Membership.Role.ADMIN
+        )
+        system = System.objects.create(organization=organization, name="Synthetic System")
+        framework = Framework.objects.create(code="FILE-CLEANUP", name="Cleanup", version="1")
+        assessment = Assessment.objects.create(
+            system=system, framework=framework, name="Delete Files",
+            created_by=self.admin_user,
+        )
+        with tempfile.TemporaryDirectory() as temporary, override_settings(MEDIA_ROOT=temporary):
+            artifact = EvidenceArtifact.objects.create(
+                organization=organization, assessment=assessment,
+                title="Temporary Evidence",
+                file=SimpleUploadedFile("remove-me.txt", b"private synthetic evidence"),
+                uploaded_by=self.admin_user,
+            )
+            stored = Path(artifact.file.path)
+            self.assertTrue(stored.exists())
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(
+                    reverse("assessment-delete", args=(organization.slug, assessment.id)),
+                    {"confirmation": assessment.name},
+                )
+            self.assertEqual(response.status_code, 302)
+            self.assertFalse(stored.exists())
+
     @override_settings(OMNI_EMAIL_ENABLED=True)
     def test_notification_test_is_an_explicit_submit_button(self):
         organization = Organization.objects.create(name="Notifications", slug="notifications-ui")
@@ -2574,14 +2603,89 @@ class SprintTenLocalSecurityTests(TestCase):
             media.mkdir()
             (media / "evidence.txt").write_text("synthetic evidence", encoding="utf-8")
             backup = root / "backups"
+            staging = root / "staging"
             with patch.dict(settings.DATABASES["default"], {"NAME": str(database)}), patch.object(
                 settings, "MEDIA_ROOT", media
-            ), patch.object(settings, "OMNI_BACKUP_DIR", backup):
+            ), patch.object(settings, "OMNI_BACKUP_DIR", backup), patch.object(
+                settings, "OMNI_RESTORE_STAGING_DIR", staging
+            ):
                 call_command("backup_omni")
                 archive = next(backup.glob("*.zip"))
                 call_command("verify_omni_backup", str(archive))
+                call_command("stage_omni_restore", str(archive))
                 with zipfile.ZipFile(archive) as source:
                     self.assertIn("private_uploads/evidence.txt", source.namelist())
+                    manifest = json.loads(source.read("manifest.json"))
+                    self.assertEqual(manifest["schema_version"], 2)
+                    self.assertEqual(len(manifest["files"]), 2)
+                restored = sqlite3.connect(staging / archive.stem / "database" / "omni.sqlite3")
+                try:
+                    self.assertEqual(restored.execute("SELECT value FROM sample").fetchone()[0], "synthetic")
+                finally:
+                    restored.close()
+                report = json.loads((staging / archive.stem / "recovery-report.json").read_text())
+                self.assertEqual(report["database_integrity"], "ok")
+
+    def test_backup_retention_is_dry_run_until_confirmed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            archive = root / "omni-backup-old.zip"
+            sidecar = archive.with_suffix(".zip.sha256")
+            archive.write_bytes(b"synthetic")
+            sidecar.write_text("0" * 64, encoding="ascii")
+            old = (timezone.now() - timedelta(days=45)).timestamp()
+            os.utime(archive, (old, old))
+            with patch.object(settings, "OMNI_BACKUP_DIR", root):
+                call_command("prune_omni_backups", "--retention-days", "30")
+                self.assertTrue(archive.exists())
+                call_command("prune_omni_backups", "--retention-days", "30", "--confirm")
+                self.assertFalse(archive.exists())
+                self.assertFalse(sidecar.exists())
+
+    def test_admin_can_export_scoped_organization_data_and_evidence(self):
+        other = Organization.objects.create(name="Other Client", slug="other-client-export")
+        system = System.objects.create(organization=self.organization, name="Synthetic System")
+        Framework.objects.create(code="EXPORT", name="Export Framework", version="1")
+        framework = Framework.objects.get(code="EXPORT")
+        assessment = Assessment.objects.create(
+            system=system, framework=framework, name="Synthetic Export Assessment",
+            created_by=self.admin,
+        )
+        with tempfile.TemporaryDirectory() as temporary, override_settings(MEDIA_ROOT=temporary):
+            artifact = EvidenceArtifact.objects.create(
+                organization=self.organization, assessment=assessment,
+                title="Synthetic Evidence",
+                file=SimpleUploadedFile("synthetic.txt", b"synthetic evidence"),
+                uploaded_by=self.admin,
+            )
+            self.client.login(username="security-admin", password="test-password")
+            response = self.client.get(reverse("organization-data-export", args=("security",)))
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response["Content-Type"], "application/zip")
+            with zipfile.ZipFile(BytesIO(response.content)) as package:
+                snapshot = json.loads(package.read("Organization-Snapshot.json"))
+                self.assertEqual(snapshot["organization"]["slug"], "security")
+                self.assertEqual(snapshot["authorized_users"][0]["email"], "security@example.test")
+                self.assertNotIn("password", json.dumps(snapshot).lower())
+                self.assertNotIn(other.name, json.dumps(snapshot))
+                self.assertEqual(
+                    package.read(f"Files/evidenceartifact/{artifact.id}/synthetic.txt"),
+                    b"synthetic evidence",
+                )
+                manifest = json.loads(package.read("Export-Manifest.json"))
+                self.assertEqual(len(manifest["files"]), 2)
+            self.assertTrue(AuditEvent.objects.filter(
+                organization=self.organization, action="organization.data_exported"
+            ).exists())
+
+    def test_non_admin_cannot_export_organization_data(self):
+        user = get_user_model().objects.create_user("export-viewer", password="test-password")
+        Membership.objects.create(
+            user=user, organization=self.organization, role=Membership.Role.VIEWER
+        )
+        self.client.login(username="export-viewer", password="test-password")
+        response = self.client.get(reverse("organization-data-export", args=("security",)))
+        self.assertEqual(response.status_code, 404)
 
     def test_expired_invitations_and_admin_health(self):
         OrganizationInvitation.objects.create(

@@ -72,6 +72,7 @@ from .forms import (
     RiskTolerancePolicyForm,
     RiskTreatmentActionForm,
 )
+from .lifecycle import build_organization_export
 from .models import (
     Assessment,
     AssessmentBaseline,
@@ -333,7 +334,27 @@ def system_health(request: HttpRequest, org_slug: str) -> HttpResponse:
             status=OrganizationInvitation.Status.PENDING
         ).count(),
         "last_audit": organization.audit_events.first(),
+        "backup_retention_days": settings.OMNI_BACKUP_RETENTION_DAYS,
     })
+
+
+@login_required
+def organization_data_export(request: HttpRequest, org_slug: str) -> HttpResponse:
+    organization = _organization_for(request.user, org_slug)
+    if not _is_org_admin(request.user, organization):
+        raise Http404
+    content = build_organization_export(organization)
+    AuditEvent.objects.create(
+        organization=organization, actor=request.user,
+        action="organization.data_exported", object_type="Organization",
+        object_id=str(organization.id),
+        detail={"archive_bytes": len(content)},
+    )
+    response = HttpResponse(content, content_type="application/zip")
+    response["Content-Disposition"] = (
+        f'attachment; filename="omni-{organization.slug}-data-export.zip"'
+    )
+    return response
 
 
 @login_required

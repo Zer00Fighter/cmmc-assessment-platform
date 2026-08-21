@@ -16,6 +16,7 @@ urlpatterns = [
     path("organizations/<slug:org_slug>/assessment-templates/new/", views.assessment_template_create, name="assessment-template-create"),
     path("organizations/<slug:org_slug>/notification-policy/test/", views.notification_test_email, name="notification-test-email"),
     path("organizations/<slug:org_slug>/system-health/", views.system_health, name="system-health"),
+    path("organizations/<slug:org_slug>/data-export/", views.organization_data_export, name="organization-data-export"),
     path("frameworks/", views.framework_catalog, name="framework-catalog"),
     path("frameworks/imports/", views.framework_import_list, name="framework-import-list"),
     path("frameworks/imports/new/", views.framework_import_upload, name="framework-import-upload"),

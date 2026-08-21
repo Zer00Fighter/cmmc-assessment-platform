@@ -88,6 +88,10 @@ DEFAULT_FROM_EMAIL = os.environ.get("OMNI_DEFAULT_FROM_EMAIL", "Omni by R!SC")
 OMNI_EMAIL_ENABLED = os.environ.get("OMNI_EMAIL_ENABLED", "0") == "1"
 OMNI_BASE_URL = os.environ.get("OMNI_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 OMNI_BACKUP_DIR = Path(os.environ.get("OMNI_BACKUP_DIR", str(BASE_DIR / "local_backups")))
+OMNI_RESTORE_STAGING_DIR = Path(os.environ.get(
+    "OMNI_RESTORE_STAGING_DIR", str(BASE_DIR / "local_restore_staging")
+))
+OMNI_BACKUP_RETENTION_DAYS = int(os.environ.get("OMNI_BACKUP_RETENTION_DAYS", "30"))
 OMNI_LOGIN_FAILURE_LIMIT = int(os.environ.get("OMNI_LOGIN_FAILURE_LIMIT", "5"))
 OMNI_LOGIN_LOCKOUT_MINUTES = int(os.environ.get("OMNI_LOGIN_LOCKOUT_MINUTES", "15"))
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
