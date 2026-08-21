@@ -17,7 +17,11 @@ from docx import Document
 from src.ssp_export import SSPExportMetadata, export_ssp
 from src.workbook import WorkbookBuilder
 
-from .models import AuthoritativeDocument, ControlAssessment, EvidenceArtifact, ObjectiveAssessment, RemediationPlan
+from .models import (
+    AuthoritativeDocument, ControlAssessment, EvidenceArtifact, ObjectiveAssessment,
+    RemediationPlan, Soc2AssessmentProfile,
+)
+from .soc2_activity_import import TSC_FRAMEWORK_CODE
 from .remediation_export import build_remediation_workbook
 
 
@@ -137,6 +141,163 @@ def build_multi_framework_report(assessment, framework=None) -> bytes:
             document.add_heading(f"{item.code} authoritative sources", level=2)
             for source in sources:
                 document.add_paragraph(f"{source.formal_name} — {source.official_url or 'Source URL pending'}")
+    stream = io.BytesIO(); document.save(stream); return stream.getvalue()
+
+
+def soc2_report_readiness(assessment) -> dict:
+    """Validate SOC 2-specific scope and criterion execution before reporting."""
+    blockers, warnings = [], []
+    try:
+        profile = assessment.soc2_profile
+    except Soc2AssessmentProfile.DoesNotExist:
+        profile = None
+    if not profile:
+        blockers.append("SOC 2 examination type, scope, and measurement period are not configured.")
+        return {"ready": False, "blockers": blockers, "warnings": warnings,
+                "total_criteria": 0, "assessed_criteria": 0, "completion_percent": 0}
+    if not profile.service_commitments.strip():
+        blockers.append("SOC 2 service commitments are not documented.")
+    if not profile.system_boundaries.strip():
+        blockers.append("SOC 2 system boundaries are not documented.")
+    results = assessment.control_results.filter(
+        in_scope=True, requirement__framework__code=TSC_FRAMEWORK_CODE
+    ).select_related("requirement").prefetch_related(
+        "evidence_artifacts", "objective_results__reused_tests"
+    )
+    if not results.exists():
+        blockers.append("No in-scope SOC 2 criteria are loaded.")
+    for result in results:
+        criterion = result.requirement.requirement_id
+        if result.status == ControlAssessment.Status.NOT_ASSESSED:
+            blockers.append(f"{criterion} has not been assessed.")
+        objectives = result.objective_results.all()
+        if not objectives:
+            blockers.append(f"{criterion} has no assessment objective result.")
+        for objective in objectives:
+            if objective.status == ObjectiveAssessment.Status.NOT_ASSESSED:
+                blockers.append(f"{criterion} objective has not been assessed.")
+            if objective.design_conclusion == ObjectiveAssessment.Conclusion.NOT_ASSESSED:
+                blockers.append(f"{criterion} requires a design conclusion.")
+            if objective.implementation_conclusion == ObjectiveAssessment.Conclusion.NOT_ASSESSED:
+                blockers.append(f"{criterion} requires an implementation conclusion.")
+            if (profile.examination_type == "TYPE_II" and
+                    objective.operating_effectiveness_conclusion ==
+                    ObjectiveAssessment.OperatingConclusion.NOT_TESTED):
+                blockers.append(f"{criterion} requires an operating-effectiveness conclusion.")
+            if (profile.examination_type == "TYPE_I" and
+                    objective.operating_effectiveness_conclusion !=
+                    ObjectiveAssessment.OperatingConclusion.NOT_APPLICABLE):
+                blockers.append(f"{criterion} Type I operating effectiveness must be not applicable.")
+            if objective.status != ObjectiveAssessment.Status.NOT_ASSESSED and not objective.assessor_notes.strip():
+                blockers.append(f"{criterion} requires an objective conclusion or finding narrative.")
+        accepted = result.evidence_artifacts.filter(
+            review_status=EvidenceArtifact.ReviewStatus.ACCEPTED
+        )
+        reused_tests = sum(item.reused_tests.count() for item in objectives)
+        if not accepted.exists() and not reused_tests:
+            warnings.append(f"{criterion} has no accepted evidence or approved testing reference.")
+        if profile.examination_type == "TYPE_II":
+            for artifact in accepted:
+                if not artifact.period_start or not artifact.period_end:
+                    warnings.append(f"{criterion}: {artifact.title} has no evidence period.")
+                elif artifact.period_start > profile.period_start or artifact.period_end < profile.period_end:
+                    warnings.append(f"{criterion}: {artifact.title} does not cover the full examination period.")
+    for decision in assessment.reuse_decisions.filter(
+        status="APPROVED", reuse_evidence=True,
+        target_result__in=results,
+    ).select_related("target_result__requirement"):
+        if not decision.target_result.evidence_applicability.exists():
+            blockers.append(
+                f"{decision.target_result.requirement.requirement_id} reused evidence needs an applicability review."
+            )
+    total = results.count()
+    assessed = results.exclude(status=ControlAssessment.Status.NOT_ASSESSED).count()
+    return {"ready": not blockers, "blockers": blockers, "warnings": warnings,
+            "total_criteria": total, "assessed_criteria": assessed,
+            "completion_percent": round(assessed / total * 100, 2) if total else 0}
+
+
+def build_soc2_report(assessment) -> bytes:
+    readiness = soc2_report_readiness(assessment)
+    if not readiness["ready"]:
+        raise ReportNotReady(readiness["blockers"])
+    profile = assessment.soc2_profile
+    results = assessment.control_results.filter(
+        in_scope=True, requirement__framework__code=TSC_FRAMEWORK_CODE
+    ).select_related("requirement").prefetch_related(
+        "evidence_artifacts", "evidence_applicability",
+        "objective_results__evidence", "objective_results__reused_tests__source_test",
+        "remediation_plans",
+    )
+    document = Document()
+    document.add_heading("SOC 2 Readiness and Assessment Report", 0)
+    document.add_paragraph(f"Organization: {assessment.system.organization.name}")
+    document.add_paragraph(f"System: {assessment.system.name}")
+    document.add_paragraph(f"Assessment: {assessment.name}")
+    document.add_heading("Important limitation", level=1)
+    document.add_paragraph(
+        "This Omni-generated deliverable documents assessment readiness and control testing. "
+        "It is not an AICPA SOC 2 report, attestation opinion, or substitute for an examination "
+        "performed and issued by an independent licensed CPA firm."
+    )
+    document.add_heading("Executive summary", level=1)
+    counts = {status: results.filter(status=status).count() for status in (
+        ControlAssessment.Status.MET, ControlAssessment.Status.NOT_MET,
+        ControlAssessment.Status.NOT_APPLICABLE, ControlAssessment.Status.NOT_ASSESSED,
+    )}
+    document.add_paragraph(
+        f"{profile.get_examination_type_display()} · {readiness['assessed_criteria']} of "
+        f"{readiness['total_criteria']} in-scope criteria assessed · "
+        f"MET {counts[ControlAssessment.Status.MET]} · "
+        f"NOT MET {counts[ControlAssessment.Status.NOT_MET]} · "
+        f"N/A {counts[ControlAssessment.Status.NOT_APPLICABLE]}."
+    )
+    document.add_heading("System and examination scope", level=1)
+    document.add_paragraph(assessment.system.scope or "System scope not recorded.")
+    document.add_paragraph("Trust Services categories: " + ", ".join(profile.included_category_labels))
+    if profile.examination_type == "TYPE_I":
+        document.add_paragraph(f"Measurement date: {profile.as_of_date:%B %d, %Y}")
+    else:
+        document.add_paragraph(
+            f"Examination period: {profile.period_start:%B %d, %Y} through "
+            f"{profile.period_end:%B %d, %Y}"
+        )
+    document.add_paragraph(f"Service commitments: {profile.service_commitments or 'Not recorded.'}")
+    document.add_paragraph(f"System boundaries: {profile.system_boundaries or 'Not recorded.'}")
+    document.add_heading("Criterion results and testing traceability", level=1)
+    table = document.add_table(rows=1, cols=8); table.style = "Table Grid"
+    labels = ("Criterion", "Category", "Result", "Design", "Implementation",
+              "Operating effectiveness", "Evidence / reused tests", "Conclusion or finding")
+    for cell, label in zip(table.rows[0].cells, labels): cell.text = label
+    for result in results:
+        objective = result.objective_results.first()
+        evidence = [f"EA-{item.id:04d} {item.title}" for item in result.evidence_artifacts.all()]
+        reused = [] if not objective else [
+            f"Test {item.source_test_id} ({item.source_test.get_outcome_display()})"
+            for item in objective.reused_tests.all()
+        ]
+        values = (
+            result.requirement.requirement_id, result.requirement.domain,
+            result.get_status_display(),
+            objective.get_design_conclusion_display() if objective else "Not assessed",
+            objective.get_implementation_conclusion_display() if objective else "Not assessed",
+            objective.get_operating_effectiveness_conclusion_display() if objective else "Not tested",
+            "; ".join(evidence + reused) or "None recorded",
+            (objective.assessor_notes if objective else result.assessor_notes_findings),
+        )
+        for cell, value in zip(table.add_row().cells, values): cell.text = str(value or "")
+    exceptions = [item for item in results if item.status == ControlAssessment.Status.NOT_MET]
+    document.add_heading("Exceptions, findings, and corrective actions", level=1)
+    if not exceptions:
+        document.add_paragraph("No NOT MET criteria were recorded.")
+    for result in exceptions:
+        document.add_heading(result.requirement.requirement_id, level=2)
+        document.add_paragraph(result.assessor_notes_findings or result.objective_results.first().assessor_notes)
+        for plan in result.remediation_plans.all():
+            document.add_paragraph(f"{plan.remediation_id}: {plan.title} ({plan.get_status_display()})")
+    if readiness["warnings"]:
+        document.add_heading("Reporting limitations and warnings", level=1)
+        for warning in readiness["warnings"]: document.add_paragraph(warning, style="List Bullet")
     stream = io.BytesIO(); document.save(stream); return stream.getvalue()
 
 

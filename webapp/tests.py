@@ -17,6 +17,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from openpyxl import Workbook, load_workbook
+from docx import Document
 
 from .models import (
     Assessment,
@@ -96,6 +97,7 @@ from .soc2_procedures import ensure_soc2_execution_catalog
 from .soc2_evidence import (
     approve_test_reuse, create_soc2_evidence_requests, soc2_evidence_expectations,
 )
+from .reporting import ReportNotReady, build_soc2_report, soc2_report_readiness
 
 
 class Soc2TscBaselineTests(TestCase):
@@ -331,6 +333,8 @@ class Soc2ExecutionProcedureTests(TestCase):
         data = {
             "name": f"SOC 2 {examination_type}", "frameworks": [self.framework.id],
             "primary_framework": self.framework.id, "examination_type": examination_type,
+            "service_commitments": "Protect customer information and maintain reliable service.",
+            "system_boundaries": "Production services, supporting people, processes, and data.",
         }
         if examination_type == "TYPE_I":
             data["as_of_date"] = "2026-06-30"
@@ -522,6 +526,82 @@ class Soc2ExecutionProcedureTests(TestCase):
         self.assertEqual(refresh_harmonization(assessment)["candidates"], 0)
         self.assertFalse(AssessmentReuseDecision.objects.filter(
             source_result__in=(source, other_result), target_result__in=(source, other_result)
+        ).exists())
+
+    def _complete_soc2_execution(self, assessment):
+        assessment.control_results.filter(in_scope=True).update(
+            status=ControlAssessment.Status.MET,
+            assessor_notes_findings="Criterion requirements were satisfied.",
+        )
+        values = {
+            "status": ObjectiveAssessment.Status.MET,
+            "design_conclusion": ObjectiveAssessment.Conclusion.EFFECTIVE,
+            "implementation_conclusion": ObjectiveAssessment.Conclusion.EFFECTIVE,
+            "assessor_notes": "Control design and implementation were evaluated without exception.",
+            "assessed_by": self.assessor, "assessed_at": timezone.now(),
+        }
+        if assessment.soc2_profile.examination_type == "TYPE_I":
+            values["operating_effectiveness_conclusion"] = "NOT_APPLICABLE"
+        else:
+            values["operating_effectiveness_conclusion"] = "EFFECTIVE"
+        ObjectiveAssessment.objects.filter(
+            control_result__assessment=assessment, control_result__in_scope=True
+        ).update(**values)
+
+    def test_soc2_type_two_readiness_requires_operating_conclusions(self):
+        assessment = self.create_assessment()
+        assessment.control_results.filter(in_scope=True).update(status="MET")
+        ObjectiveAssessment.objects.filter(
+            control_result__assessment=assessment, control_result__in_scope=True
+        ).update(
+            status="MET", design_conclusion="EFFECTIVE",
+            implementation_conclusion="EFFECTIVE", assessor_notes="Implemented.",
+        )
+        readiness = soc2_report_readiness(assessment)
+        self.assertFalse(readiness["ready"])
+        self.assertTrue(any("operating-effectiveness" in item for item in readiness["blockers"]))
+        with self.assertRaises(ReportNotReady):
+            build_soc2_report(assessment)
+
+    def test_type_one_and_type_two_reports_are_scope_aware_and_not_cpa_opinions(self):
+        for examination_type, measurement_text in (
+            ("TYPE_I", "Measurement date"), ("TYPE_II", "Examination period")
+        ):
+            assessment = self.create_assessment(examination_type)
+            self._complete_soc2_execution(assessment)
+            readiness = soc2_report_readiness(assessment)
+            self.assertTrue(readiness["ready"], readiness["blockers"])
+            self.assertEqual(readiness["total_criteria"], 33)
+            content = build_soc2_report(assessment)
+            document = Document(BytesIO(content))
+            text = "\n".join(item.text for item in document.paragraphs)
+            self.assertIn(measurement_text, text)
+            self.assertIn("not an AICPA SOC 2 report", text)
+            self.assertIn("Security (required)", text)
+            self.assertIn("Protect customer information", text)
+            self.assertIn("Production services", text)
+            self.assertGreater(len(document.tables[0].rows), 33)
+            assessment.delete()
+
+    def test_soc2_report_download_records_audited_generated_document(self):
+        assessment = self.create_assessment()
+        self._complete_soc2_execution(assessment)
+        url = reverse("report-download", args=(
+            self.organization.slug, assessment.id, "SOC2_REPORT"
+        ))
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response["Content-Type"],
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+        record = GeneratedDocument.objects.get(
+            assessment=assessment, kind=GeneratedDocument.Kind.SOC2_REPORT
+        )
+        self.assertIn("SOC-2-TYPE-II", record.filename)
+        self.assertTrue(record.content_sha256)
+        self.assertTrue(AuditEvent.objects.filter(
+            action="document.generated", object_id=str(record.id)
         ).exists())
 
 

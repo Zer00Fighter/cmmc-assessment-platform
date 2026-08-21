@@ -3575,11 +3575,13 @@ def remediation_export(request: HttpRequest, org_slug: str, assessment_id: int) 
 @login_required
 def report_center(request: HttpRequest, org_slug: str, assessment_id: int) -> HttpResponse:
     organization, assessment = _assessment_for(request.user, org_slug, assessment_id)
-    from .reporting import assessment_readiness
+    from .reporting import assessment_readiness, soc2_report_readiness
     readiness = assessment_readiness(assessment, require_template=True)
+    has_soc2 = _selected_frameworks(assessment).filter(code=TSC_FRAMEWORK_CODE).exists()
     return render(request, "webapp/report_center.html", {
         "organization": organization, "assessment": assessment,
         "readiness": readiness,
+        "soc2_readiness": soc2_report_readiness(assessment) if has_soc2 else None,
         "history": assessment.generated_documents.select_related("generated_by")[:50],
     })
 
@@ -3604,6 +3606,7 @@ def _generated_response(assessment, organization, user, kind, filename, content,
         GeneratedDocument.Kind.FRAMEWORK_REPORT: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         GeneratedDocument.Kind.CONSOLIDATED_REPORT: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         GeneratedDocument.Kind.TRACEABILITY: "text/csv",
+        GeneratedDocument.Kind.SOC2_REPORT: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     }[kind])
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
@@ -3618,6 +3621,7 @@ def report_download(
         ReportNotReady, assessment_readiness, build_assessment_workbook,
         build_package, build_word_ssp, build_multi_framework_report,
         build_traceability_csv, multi_framework_readiness,
+        build_soc2_report, soc2_report_readiness,
     )
     from .remediation_export import build_remediation_workbook
     normalized = kind.upper()
@@ -3656,6 +3660,10 @@ def report_download(
         elif normalized == GeneratedDocument.Kind.TRACEABILITY:
             content = build_traceability_csv(assessment)
             filename = f"Omni-{assessment.id}-Traceability-Matrix.csv"
+        elif normalized == GeneratedDocument.Kind.SOC2_REPORT:
+            readiness = soc2_report_readiness(assessment)
+            content = build_soc2_report(assessment)
+            filename = f"Omni-{assessment.id}-SOC-2-{assessment.soc2_profile.examination_type.replace('_', '-')}-Assessment-Report.docx"
         else:
             content, readiness = build_package(assessment, request.user)
             filename = f"Omni-{assessment.id}-Complete-Assessment-Package.zip"
