@@ -5,6 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.utils import timezone
 from datetime import timedelta
 from django.utils.text import slugify
+import ipaddress
 
 from src.evidence.evidence_knowledge import EVIDENCE_KNOWLEDGE
 
@@ -22,6 +23,7 @@ from .models import (
     RiskTolerancePolicy, RiskTreatmentAction, Soc2AssessmentProfile, System, TestExecution,
 )
 from .soc2_assessment import synchronize_soc2_scope
+from .upload_security import validate_uploaded_file
 
 
 class OrganizationForm(forms.ModelForm):
@@ -62,11 +64,13 @@ class FrameworkImportForm(forms.Form):
 
     def clean_source_file(self):
         upload = self.cleaned_data["source_file"]
-        suffix = upload.name.rsplit(".", 1)[-1].lower() if "." in upload.name else ""
-        if suffix not in {"csv", "xlsx", "xlsm", "pdf"}:
-            raise forms.ValidationError("Choose a CSV, XLSX, XLSM, or PDF file.")
-        if upload.size > 30 * 1024 * 1024:
-            raise forms.ValidationError("Framework source files must be 30 MB or smaller.")
+        try:
+            validate_uploaded_file(
+                upload, allowed_extensions={"csv", "xlsx", "xlsm", "pdf"},
+                max_bytes=30 * 1024 * 1024,
+            )
+        except forms.ValidationError as exc:
+            raise forms.ValidationError(exc.messages) from exc
         return upload
 
 
@@ -113,8 +117,13 @@ class OmniAuthenticationForm(AuthenticationForm):
 
     def clean(self):
         identifier = (self.data.get("username") or "").strip().casefold()
-        forwarded = self.request.META.get("HTTP_X_FORWARDED_FOR", "")
+        from django.conf import settings
+        forwarded = self.request.META.get("HTTP_X_FORWARDED_FOR", "") if settings.OMNI_TRUST_PROXY_HEADERS else ""
         ip_address = (forwarded.split(",", 1)[0].strip() if forwarded else self.request.META.get("REMOTE_ADDR")) or None
+        try:
+            ip_address = str(ipaddress.ip_address(ip_address)) if ip_address else None
+        except ValueError:
+            ip_address = None
         attempt, _ = LoginAttempt.objects.get_or_create(
             identifier=identifier[:254], ip_address=ip_address
         )
@@ -123,7 +132,6 @@ class OmniAuthenticationForm(AuthenticationForm):
         try:
             cleaned = super().clean()
         except forms.ValidationError:
-            from django.conf import settings
             attempt.failures += 1
             if attempt.failures >= settings.OMNI_LOGIN_FAILURE_LIMIT:
                 attempt.blocked_until = timezone.now() + timedelta(
@@ -357,8 +365,18 @@ class EvidenceArtifactForm(forms.ModelForm):
 
     def clean_file(self):
         uploaded = self.cleaned_data.get("file")
-        if uploaded and uploaded.size > 25 * 1024 * 1024:
-            raise forms.ValidationError("Evidence files cannot exceed 25 MB.")
+        if uploaded:
+            try:
+                validate_uploaded_file(
+                    uploaded,
+                    allowed_extensions={
+                        "pdf", "doc", "docx", "xls", "xlsx", "csv", "txt", "png",
+                        "jpg", "jpeg", "zip", "json", "xml", "log",
+                    },
+                    max_bytes=25 * 1024 * 1024,
+                )
+            except forms.ValidationError as exc:
+                raise forms.ValidationError(exc.messages) from exc
         return uploaded
 
     def clean(self):

@@ -5,7 +5,7 @@ import json
 import zipfile
 import sqlite3
 from datetime import date, timedelta
-from io import BytesIO
+from io import BytesIO, StringIO
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -13,6 +13,8 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core import mail
+from django.core.exceptions import ValidationError
+from django.contrib.auth.password_validation import validate_password
 from django.conf import settings
 from django.core.management import call_command
 from django.test import TestCase, override_settings
@@ -92,6 +94,7 @@ from .omni_evidence_catalog import import_catalog, normalize_cmmc
 from .authoritative_sources import import_authoritative_sources
 from .risk_heatmap import build_weighted_risk_heatmap
 from .risk_catalog import import_risk_catalog
+from .upload_security import validate_uploaded_file
 from .soc2_tsc import EXPECTED_BY_DOMAIN, install_baseline, load_catalog, validate_catalog
 from .soc2_activity_import import ACTIVITY_TARGETS, MIRROR_SHEETS, REQUIRED_COLUMNS, import_activities, normalize_workbook
 from .soc2_points_of_focus import import_points_of_focus
@@ -2577,8 +2580,42 @@ class SprintTenLocalSecurityTests(TestCase):
     def test_security_headers_are_present(self):
         response = self.client.get(reverse("login"))
         self.assertIn("default-src 'self'", response["Content-Security-Policy"])
-        self.assertEqual(response["Permissions-Policy"], "camera=(), microphone=(), geolocation=()")
+        self.assertIn("object-src 'none'", response["Content-Security-Policy"])
+        self.assertIn("camera=()", response["Permissions-Policy"])
         self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(response["X-Robots-Tag"], "noindex, nofollow, noarchive")
+        self.assertIn("no-store", response["Cache-Control"])
+        self.assertEqual(len(response["X-Request-ID"]), 32)
+
+    @override_settings(OMNI_TRUST_PROXY_HEADERS=False)
+    def test_login_throttle_ignores_untrusted_forwarded_address(self):
+        self.client.post(
+            reverse("login"),
+            {"username": "security-admin", "password": "wrong"},
+            REMOTE_ADDR="192.0.2.10", HTTP_X_FORWARDED_FOR="203.0.113.99",
+        )
+        self.assertTrue(LoginAttempt.objects.filter(
+            identifier="security-admin", ip_address="192.0.2.10"
+        ).exists())
+        self.assertFalse(LoginAttempt.objects.filter(ip_address="203.0.113.99").exists())
+
+    def test_password_policy_requires_at_least_twelve_characters(self):
+        with self.assertRaises(ValidationError):
+            validate_password("Short!123")
+
+    def test_upload_validation_rejects_disguised_pdf_and_null_text(self):
+        disguised = SimpleUploadedFile("evidence.pdf", b"not really a PDF")
+        with self.assertRaises(ValidationError):
+            validate_uploaded_file(disguised, allowed_extensions={"pdf"}, max_bytes=1024)
+        binary_text = SimpleUploadedFile("evidence.txt", b"text\x00binary")
+        with self.assertRaises(ValidationError):
+            validate_uploaded_file(binary_text, allowed_extensions={"txt"}, max_bytes=1024)
+
+    def test_security_audit_never_outputs_secret_value(self):
+        output = StringIO()
+        call_command("security_audit", "--json", stdout=output)
+        self.assertIn("Production secret", output.getvalue())
+        self.assertNotIn(settings.SECRET_KEY, output.getvalue())
 
     @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
     def test_password_reset_uses_generic_response_and_sends_secure_link(self):

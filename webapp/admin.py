@@ -112,6 +112,40 @@ admin.site.register(
         OrganizationInvitation,
         UserProfile,
         LoginAttempt,
-        AuditEvent,
     )
 )
+
+
+@admin.register(AuditEvent)
+class AuditEventAdmin(admin.ModelAdmin):
+    list_display = (
+        "created_at",
+        "organization",
+        "actor",
+        "action",
+        "object_type",
+        "object_id",
+    )
+    list_filter = ("organization", "action", "object_type")
+    search_fields = ("action", "object_type", "object_id", "actor__username")
+    readonly_fields = (
+        "organization",
+        "actor",
+        "action",
+        "object_type",
+        "object_id",
+        "detail",
+        "created_at",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return bool(
+            request.method in ("GET", "HEAD")
+            and super().has_change_permission(request, obj)
+        )
+
+    def has_delete_permission(self, request, obj=None):
+        return False
